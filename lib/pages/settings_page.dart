@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/theme_notifier.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../widgets/app_dropdown.dart';
 import 'manage_categories_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -42,9 +43,8 @@ class SettingsPage extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.palette_outlined),
           title: const Text('Theme'),
-          trailing: DropdownButton<ThemeMode>(
+          trailing: AppDropdownButton<ThemeMode>(
             value: themeNotifier.themeMode,
-            underline: const SizedBox(),
             onChanged: (ThemeMode? newMode) {
               if (newMode != null) {
                 themeNotifier.setThemeMode(newMode);

@@ -98,21 +98,33 @@ class DatabaseService {
     required String name,
     required String type,
     int? orderIndex,
+    String? oldName,
   }) async {
     final Map<String, dynamic> data = {'name': name, 'type': type};
     if (orderIndex != null) {
       data['order_index'] = orderIndex;
     }
     await _supabase.from('categories').update(data).eq('id', id);
+
+    if (oldName != null && oldName != name) {
+      await _supabase
+          .from('transactions')
+          .update({'category': name})
+          .eq('category', oldName)
+          .eq('type', type);
+    }
   }
 
   Future<void> reorderCategories(List<CategoryModel> categories) async {
     final List<Map<String, dynamic>> updates = [];
     for (int i = 0; i < categories.length; i++) {
-      updates.add({'id': categories[i].id, 'order_index': i});
+      final json = categories[i].toJson();
+      json['order_index'] = i;
+      json.remove('created_at'); // Do not touch creation timestamp
+      updates.add(json);
     }
 
-    // Supabase upsert can handle multiple updates if IDs match
+    // Supabase upsert requires full non-null objects on insert-checks
     await _supabase.from('categories').upsert(updates);
   }
 

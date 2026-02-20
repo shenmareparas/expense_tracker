@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/transaction.dart';
 import '../viewmodels/transaction_viewmodel.dart';
+import '../widgets/app_dropdown.dart';
 
 class AddTransactionPage extends StatefulWidget {
   final TransactionModel? transaction;
@@ -254,13 +255,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       const SizedBox(height: 24),
 
                       // Category - THIRD
-                      DropdownButtonFormField<String>(
+                      AppDropdown<String>(
                         key: ValueKey('category_dropdown_$_type'),
-                        initialValue: _category,
-                        decoration: _inputDecoration(
-                          'Select Category',
-                          Icons.category_outlined,
-                        ),
+                        value: _category,
+                        label: 'Category',
+                        hint: 'Select Category',
+                        prefixIcon: Icons.category_outlined,
                         items: categories.map((String category) {
                           return DropdownMenuItem(
                             value: category,

@@ -175,6 +175,8 @@ class TransactionViewModel extends ChangeNotifier {
         transactionDate: transactionDate,
       );
       await loadTransactions();
+      _isLoading = false;
+      notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -225,6 +227,8 @@ class TransactionViewModel extends ChangeNotifier {
         transactionDate: transactionDate,
       );
       await loadTransactions();
+      _isLoading = false;
+      notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -310,7 +314,22 @@ class TransactionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _databaseService.updateCategory(id: id, name: name, type: type);
+      String? oldName;
+      try {
+        oldName = _categories.firstWhere((c) => c.id == id).name;
+      } catch (_) {}
+
+      await _databaseService.updateCategory(
+        id: id,
+        name: name,
+        type: type,
+        oldName: oldName,
+      );
+
+      if (oldName != null && oldName != name) {
+        await loadTransactions();
+      }
+
       await loadCategories();
       return true;
     } catch (e) {

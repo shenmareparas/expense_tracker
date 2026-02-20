@@ -7,6 +7,7 @@ import 'pages/settings_page.dart';
 import 'services/theme_notifier.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/transaction_viewmodel.dart';
+import 'widgets/app_dropdown.dart';
 
 final themeNotifier = ThemeNotifier();
 
@@ -573,7 +574,9 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         title: Text(
-                          t.category,
+                          (t.description != null && t.description!.isNotEmpty)
+                              ? t.description!
+                              : t.category,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
@@ -582,7 +585,7 @@ class _HomePageState extends State<HomePage> {
                             if (t.description != null &&
                                 t.description!.isNotEmpty)
                               Text(
-                                t.description!,
+                                t.category,
                                 style: const TextStyle(fontSize: 13),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -746,18 +749,12 @@ class _HomePageState extends State<HomePage> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
+                    AppDropdown<String?>(
                       key: ValueKey(viewModel.filterCategory),
-                      initialValue: viewModel.filterCategory,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                      ),
+                      value: viewModel.filterCategory,
+                      label: 'Category',
+                      hint: 'All Categories',
+                      prefixIcon: Icons.category_outlined,
                       items: [
                         const DropdownMenuItem(
                           value: null,
