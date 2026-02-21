@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class ThemeNotifier extends ChangeNotifier {
+/// Manages theme mode persistence and notification.
+/// Registered as a ChangeNotifierProvider in the app.
+class ThemeService extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
 
   ThemeMode get themeMode => _themeMode;
 
-  ThemeNotifier() {
+  ThemeService() {
     _loadThemeMode();
   }
 

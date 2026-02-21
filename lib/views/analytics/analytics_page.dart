@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../viewmodels/transaction_viewmodel.dart';
+import '../../viewmodels/transaction_viewmodel.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -48,11 +48,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         final sortedCategories = viewModel.sortedExpensesByCategory;
 
         return RefreshIndicator(
-          onRefresh: () => viewModel.loadInitialData(),
+          onRefresh: () => viewModel.loadTransactions(),
           child: ListView(
             padding: const EdgeInsets.all(24.0),
             children: [
-              // Summary Cards
               _buildSummaryRow(context, totalIncome, totalExpense, netBalance),
               const SizedBox(height: 32),
 
@@ -89,7 +88,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                           borderData: FlBorderData(show: false),
                           sectionsSpace: 2,
                           centerSpaceRadius: 70,
-                          sections: showingSections(
+                          sections: _showingSections(
                             context,
                             sortedCategories,
                             totalExpense,
@@ -121,7 +120,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Category List
                 ...List.generate(sortedCategories.length, (i) {
                   final entry = sortedCategories[i];
                   final color = _chartColors[i % _chartColors.length];
@@ -363,7 +361,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     );
   }
 
-  List<PieChartSectionData> showingSections(
+  List<PieChartSectionData> _showingSections(
     BuildContext context,
     List<MapEntry<String, double>> categories,
     double totalExpense,

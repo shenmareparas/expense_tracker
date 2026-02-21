@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/transaction.dart';
-import '../viewmodels/transaction_viewmodel.dart';
-import '../widgets/app_dropdown.dart';
-import '../utils/date_formatter.dart';
+import '../../viewmodels/transaction_viewmodel.dart';
+import '../../viewmodels/category_viewmodel.dart';
+import '../../models/transaction.dart';
+import '../../widgets/app_dropdown.dart';
+import '../../utils/date_formatter.dart';
 
 class AddTransactionPage extends StatefulWidget {
   final TransactionModel? transaction;
@@ -39,12 +40,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final viewModel = Provider.of<TransactionViewModel>(
+      final categoryViewModel = Provider.of<CategoryViewModel>(
         context,
         listen: false,
       );
-      if (viewModel.categories.isEmpty) {
-        viewModel.loadCategories();
+      if (categoryViewModel.categories.isEmpty) {
+        categoryViewModel.loadCategories();
       }
     });
   }
@@ -131,7 +132,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             );
 
       if (success && mounted) {
-        Navigator.pop(context, true); // Return true to signal success
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -164,29 +165,27 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: Theme.of(context).brightness == Brightness.dark
-                ? [
-                    Colors.black, // Amoled Black
-                    Colors.black, // Amoled Black
-                  ]
-                : [
-                    const Color(0xFFEEF2FF), // Indigo 50
-                    Colors.white,
-                  ],
+                ? [Colors.black, Colors.black]
+                : [const Color(0xFFEEF2FF), Colors.white],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Consumer<TransactionViewModel>(
-          builder: (context, viewModel, child) {
+        child: Consumer<CategoryViewModel>(
+          builder: (context, categoryViewModel, child) {
             final categories = _type == 'income'
-                ? viewModel.incomeCategories
-                : viewModel.expenseCategories;
+                ? categoryViewModel.incomeCategories
+                : categoryViewModel.expenseCategories;
 
             if (_category == null || !categories.contains(_category)) {
               _category = categories.isNotEmpty ? categories.first : null;
             }
 
-            return viewModel.isLoading
+            final transactionViewModel = Provider.of<TransactionViewModel>(
+              context,
+            );
+
+            return transactionViewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(24, 120, 24, 24),
@@ -211,8 +210,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             setState(() {
                               _type = newSelection.first;
                               final newCategories = _type == 'income'
-                                  ? viewModel.incomeCategories
-                                  : viewModel.expenseCategories;
+                                  ? categoryViewModel.incomeCategories
+                                  : categoryViewModel.expenseCategories;
                               _category = newCategories.isNotEmpty
                                   ? newCategories.first
                                   : null;
@@ -259,7 +258,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Amount - FIRST (emphasized)
                               _buildSectionTitle('Amount'),
                               TextField(
                                 controller: _amountController,
@@ -286,7 +284,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               ),
                               const SizedBox(height: 24),
 
-                              // Description - SECOND
                               _buildSectionTitle('Description'),
                               TextField(
                                 controller: _descriptionController,
@@ -299,13 +296,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               ),
                               const SizedBox(height: 24),
 
-                              // Category - THIRD
                               _buildSectionTitle('Category'),
                               AppDropdown<String>(
                                 key: ValueKey('category_dropdown_$_type'),
                                 value: _category,
-                                label:
-                                    '', // Removed floating label since we have a section title
+                                label: '',
                                 hint: 'Select Category',
                                 prefixIcon: Icons.category_outlined,
                                 items: categories.map((String category) {
@@ -324,7 +319,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               ),
                               const SizedBox(height: 24),
 
-                              // Date & Time - FOURTH
                               _buildSectionTitle('Date & Time'),
                               Row(
                                 children: [

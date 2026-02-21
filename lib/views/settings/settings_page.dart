@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/theme_notifier.dart';
-import '../viewmodels/auth_viewmodel.dart';
-import '../widgets/app_dropdown.dart';
+import '../../services/theme_service.dart';
+import '../../viewmodels/auth_viewmodel.dart';
+import '../../widgets/app_dropdown.dart';
 import 'manage_categories_page.dart';
 
+/// Settings page — accesses ThemeService via Provider instead of constructor.
 class SettingsPage extends StatelessWidget {
-  final ThemeNotifier themeNotifier;
-
-  const SettingsPage({required this.themeNotifier, super.key});
+  const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -54,14 +53,13 @@ class SettingsPage extends StatelessWidget {
                 'Theme',
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
-              trailing: ListenableBuilder(
-                listenable: themeNotifier,
-                builder: (context, _) {
+              trailing: Consumer<ThemeService>(
+                builder: (context, themeService, _) {
                   return AppDropdownButton<ThemeMode>(
-                    value: themeNotifier.themeMode,
+                    value: themeService.themeMode,
                     onChanged: (ThemeMode? newMode) {
                       if (newMode != null) {
-                        themeNotifier.setThemeMode(newMode);
+                        themeService.setThemeMode(newMode);
                       }
                     },
                     items: const [

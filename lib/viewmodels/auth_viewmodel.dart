@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/auth_service.dart';
 
+/// ViewModel for authentication state management.
 class AuthViewModel extends ChangeNotifier {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final AuthService _authService = AuthService();
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -28,13 +29,10 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
     _setError(null);
     try {
-      await _supabase.auth.signInWithPassword(email: email, password: password);
+      await _authService.signIn(email: email, password: password);
       return true;
-    } on AuthException catch (e) {
-      _setError(e.message);
-      return false;
     } catch (e) {
-      _setError('Unexpected error occurred');
+      _setError(e is Exception ? e.toString() : 'Unexpected error occurred');
       return false;
     } finally {
       _setLoading(false);
@@ -49,17 +47,10 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
     _setError(null);
     try {
-      await _supabase.auth.signUp(
-        email: email,
-        password: password,
-        data: {'name': name},
-      );
+      await _authService.signUp(name: name, email: email, password: password);
       return true;
-    } on AuthException catch (e) {
-      _setError(e.message);
-      return false;
     } catch (e) {
-      _setError('Unexpected error occurred');
+      _setError(e is Exception ? e.toString() : 'Unexpected error occurred');
       return false;
     } finally {
       _setLoading(false);
@@ -67,6 +58,6 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await _supabase.auth.signOut();
+    await _authService.signOut();
   }
 }

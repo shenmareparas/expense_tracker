@@ -44,4 +44,26 @@ class TransactionModel {
       'created_at': createdAt.toIso8601String(),
     };
   }
+
+  TransactionModel copyWith({
+    String? id,
+    String? userId,
+    double? amount,
+    String? type,
+    String? category,
+    String? description,
+    DateTime? transactionDate,
+    DateTime? createdAt,
+  }) {
+    return TransactionModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      amount: amount ?? this.amount,
+      type: type ?? this.type,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      transactionDate: transactionDate ?? this.transactionDate,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

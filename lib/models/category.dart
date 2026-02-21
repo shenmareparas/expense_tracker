@@ -36,4 +36,22 @@ class CategoryModel {
       'created_at': createdAt.toIso8601String(),
     };
   }
+
+  CategoryModel copyWith({
+    String? id,
+    String? userId,
+    String? name,
+    String? type,
+    int? orderIndex,
+    DateTime? createdAt,
+  }) {
+    return CategoryModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      orderIndex: orderIndex ?? this.orderIndex,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

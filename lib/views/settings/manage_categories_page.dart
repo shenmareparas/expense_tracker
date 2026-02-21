@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../viewmodels/transaction_viewmodel.dart';
-import '../models/category.dart';
+import '../../viewmodels/category_viewmodel.dart';
+import '../../models/category.dart';
 
 class ManageCategoriesPage extends StatefulWidget {
   const ManageCategoriesPage({super.key});
@@ -17,10 +17,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TransactionViewModel>(
-        context,
-        listen: false,
-      ).loadCategories();
+      Provider.of<CategoryViewModel>(context, listen: false).loadCategories();
     });
   }
 
@@ -62,7 +59,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
               final name = _nameController.text.trim();
               if (name.isEmpty) return;
 
-              final viewModel = Provider.of<TransactionViewModel>(
+              final viewModel = Provider.of<CategoryViewModel>(
                 context,
                 listen: false,
               );
@@ -108,7 +105,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
             ],
           ),
         ),
-        body: Consumer<TransactionViewModel>(
+        body: Consumer<CategoryViewModel>(
           builder: (context, viewModel, child) {
             if (viewModel.isLoading && viewModel.categories.isEmpty) {
               return const Center(child: CircularProgressIndicator());
@@ -155,7 +152,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
 
   Widget _buildCategoryList(
     List<CategoryModel> categories,
-    TransactionViewModel viewModel,
+    CategoryViewModel viewModel,
     String type,
   ) {
     if (categories.isEmpty) {
@@ -275,7 +272,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
 
   void _showDeleteConfirmation(
     BuildContext context,
-    TransactionViewModel viewModel,
+    CategoryViewModel viewModel,
     CategoryModel category,
   ) {
     showDialog(
