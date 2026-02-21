@@ -606,9 +606,10 @@ class _HomePageState extends State<HomePage> {
                   return Dismissible(
                     key: Key(t.id),
                     background: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 16.0),
@@ -643,6 +644,7 @@ class _HomePageState extends State<HomePage> {
                       await viewModel.deleteTransaction(t.id);
                     },
                     child: Card(
+                      clipBehavior: Clip.hardEdge,
                       elevation: 0,
                       margin: const EdgeInsets.symmetric(vertical: 6),
                       color: Theme.of(context).colorScheme.surface,
@@ -654,81 +656,81 @@ class _HomePageState extends State<HomePage> {
                           ).colorScheme.outline.withValues(alpha: 0.1),
                         ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    AddTransactionPage(transaction: t),
-                              ),
-                            );
-                            if (result == true) {
-                              if (context.mounted) {
-                                Provider.of<TransactionViewModel>(
-                                  context,
-                                  listen: false,
-                                ).loadTransactions();
-                              }
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  AddTransactionPage(transaction: t),
+                            ),
+                          );
+                          if (result == true) {
+                            if (context.mounted) {
+                              Provider.of<TransactionViewModel>(
+                                context,
+                                listen: false,
+                              ).loadTransactions();
                             }
-                          },
-                          leading: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isIncome
-                                  ? Colors.green.withValues(alpha: 0.1)
-                                  : Colors.red.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              isIncome
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
-                              color: isIncome ? Colors.green : Colors.red,
-                            ),
+                          }
+                        },
+                        leading: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isIncome
+                                ? Colors.green.withValues(alpha: 0.1)
+                                : Colors.red.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
                           ),
-                          title: Text(
-                            (t.description != null && t.description!.isNotEmpty)
-                                ? t.description!
-                                : t.category,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          child: Icon(
+                            isIncome
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                            color: isIncome ? Colors.green : Colors.red,
                           ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (t.description != null &&
-                                  t.description!.isNotEmpty)
-                                Text(
-                                  t.category,
-                                  style: const TextStyle(fontSize: 13),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        ),
+                        title: Text(
+                          (t.description != null && t.description!.isNotEmpty)
+                              ? t.description!
+                              : t.category,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (t.description != null &&
+                                t.description!.isNotEmpty)
                               Text(
-                                DateFormatter.formatDateTime(
-                                  t.transactionDate.toLocal(),
-                                ),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
+                                t.category,
+                                style: const TextStyle(fontSize: 13),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                          isThreeLine:
-                              t.description != null &&
-                              t.description!.isNotEmpty,
-                          trailing: Text(
-                            '${isIncome ? '+' : '-'}₹${t.amount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: isIncome
-                                  ? Colors.green.shade600
-                                  : Colors.red.shade500,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                            Text(
+                              DateFormatter.formatDateTime(
+                                t.transactionDate.toLocal(),
+                              ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
                             ),
+                          ],
+                        ),
+                        isThreeLine:
+                            t.description != null && t.description!.isNotEmpty,
+                        trailing: Text(
+                          '${isIncome ? '+' : '-'}₹${t.amount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: isIncome
+                                ? Colors.green.shade600
+                                : Colors.red.shade500,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
                         ),
                       ),
