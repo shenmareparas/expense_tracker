@@ -338,7 +338,7 @@ class _HomePageState extends State<HomePage> {
   String get _appBarTitle {
     switch (_selectedIndex) {
       case 0:
-        return 'Expense Tracker';
+        return 'Transactions';
       case 1:
         return 'Analytics';
       case 2:
@@ -351,7 +351,28 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_appBarTitle)),
+      appBar: AppBar(
+        title: Text(_appBarTitle),
+        actions: [
+          if (_selectedIndex == 0)
+            Consumer<TransactionViewModel>(
+              builder: (context, viewModel, child) {
+                return IconButton(
+                  icon: Icon(
+                    Icons.filter_list,
+                    color:
+                        viewModel.filterType != null ||
+                            viewModel.filterStartDate != null ||
+                            viewModel.filterEndDate != null
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  onPressed: () => _showFilterBottomSheet(context, viewModel),
+                );
+              },
+            ),
+        ],
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: [
@@ -363,8 +384,8 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Icon(Icons.receipt_long),
+            label: 'Transactions',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.pie_chart),
@@ -420,91 +441,6 @@ class _HomePageState extends State<HomePage> {
           child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
-              // Premium Gradient Summary Card
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    colors: [
-                      Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.secondary,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.4),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Total Balance',
-                      style: TextStyle(fontSize: 16, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '₹${viewModel.totalBalance.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildIncomeExpenseColumn(
-                          context,
-                          'Income',
-                          viewModel.totalIncome,
-                          Icons.arrow_downward,
-                          Colors.greenAccent,
-                        ),
-                        _buildIncomeExpenseColumn(
-                          context,
-                          'Expense',
-                          viewModel.totalExpense,
-                          Icons.arrow_upward,
-                          Colors.redAccent,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Transactions',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      Icons.filter_list,
-                      color:
-                          viewModel.filterType != null ||
-                              viewModel.filterStartDate != null ||
-                              viewModel.filterEndDate != null
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    onPressed: () => _showFilterBottomSheet(context, viewModel),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
               if (transactions.isEmpty)
                 const Center(
                   child: Padding(
@@ -527,6 +463,30 @@ class _HomePageState extends State<HomePage> {
                       child: const Icon(Icons.delete, color: Colors.white),
                     ),
                     direction: DismissDirection.endToStart,
+                    confirmDismiss: (direction) async {
+                      return await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Transaction'),
+                          content: const Text(
+                            'Are you sure you want to delete this transaction?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                     onDismissed: (_) async {
                       await viewModel.deleteTransaction(t.id);
                     },
@@ -618,45 +578,6 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildIncomeExpenseColumn(
-    BuildContext context,
-    String title,
-    double amount,
-    IconData icon,
-    Color iconColor,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            Text(
-              '₹${amount.toStringAsFixed(2)}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 
@@ -752,7 +673,6 @@ class _HomePageState extends State<HomePage> {
                     AppDropdown<String?>(
                       key: ValueKey(viewModel.filterCategory),
                       value: viewModel.filterCategory,
-                      label: 'Category',
                       hint: 'All Categories',
                       prefixIcon: Icons.category_outlined,
                       items: [

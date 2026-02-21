@@ -43,24 +43,29 @@ class SettingsPage extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.palette_outlined),
           title: const Text('Theme'),
-          trailing: AppDropdownButton<ThemeMode>(
-            value: themeNotifier.themeMode,
-            onChanged: (ThemeMode? newMode) {
-              if (newMode != null) {
-                themeNotifier.setThemeMode(newMode);
-              }
+          trailing: ListenableBuilder(
+            listenable: themeNotifier,
+            builder: (context, _) {
+              return AppDropdownButton<ThemeMode>(
+                value: themeNotifier.themeMode,
+                onChanged: (ThemeMode? newMode) {
+                  if (newMode != null) {
+                    themeNotifier.setThemeMode(newMode);
+                  }
+                },
+                items: const [
+                  DropdownMenuItem(
+                    value: ThemeMode.system,
+                    child: Text('System Default'),
+                  ),
+                  DropdownMenuItem(
+                    value: ThemeMode.light,
+                    child: Text('Light'),
+                  ),
+                  DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+                ],
+              );
             },
-            items: const [
-              DropdownMenuItem(
-                value: ThemeMode.system,
-                child: Text('System Default'),
-              ),
-              DropdownMenuItem(value: ThemeMode.light, child: Text('Light')),
-              DropdownMenuItem(
-                value: ThemeMode.dark,
-                child: Text('Dark (AMOLED)'),
-              ),
-            ],
           ),
         ),
         const Divider(),
