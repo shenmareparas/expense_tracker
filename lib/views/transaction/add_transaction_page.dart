@@ -300,7 +300,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               AppDropdown<String>(
                                 key: ValueKey('category_dropdown_$_type'),
                                 value: _category,
-                                label: '',
                                 hint: 'Select Category',
                                 prefixIcon: Icons.category_outlined,
                                 items: categories.map((String category) {

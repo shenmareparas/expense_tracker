@@ -40,8 +40,8 @@ class TransactionModel {
       'type': type,
       'category': category,
       'description': description,
-      'transaction_date': transactionDate.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
+      'transaction_date': transactionDate.toUtc().toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
     };
   }
 

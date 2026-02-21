@@ -77,7 +77,7 @@ class DatabaseService {
       'type': type,
       'category': category,
       'description': description,
-      'transaction_date': transactionDate.toIso8601String(),
+      'transaction_date': transactionDate.toUtc().toIso8601String(),
     });
 
     _invalidateTransactionCache();
@@ -103,7 +103,7 @@ class DatabaseService {
           'type': type,
           'category': category,
           'description': description,
-          'transaction_date': transactionDate.toIso8601String(),
+          'transaction_date': transactionDate.toUtc().toIso8601String(),
         })
         .eq('id', id);
 

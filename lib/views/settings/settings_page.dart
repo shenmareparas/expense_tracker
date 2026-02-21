@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/database_service.dart';
 import '../../services/theme_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/transaction_viewmodel.dart';
+import '../../viewmodels/category_viewmodel.dart';
 import '../../widgets/app_dropdown.dart';
 import 'manage_categories_page.dart';
 
@@ -35,6 +38,39 @@ class SettingsPage extends StatelessWidget {
                     builder: (context) => const ManageCategoriesPage(),
                   ),
                 );
+              },
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: Icon(
+                Icons.cached_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text(
+                'Clear Cache',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Force refresh all data from server'),
+              onTap: () async {
+                DatabaseService.instance.clearCache();
+                await Future.wait([
+                  Provider.of<TransactionViewModel>(
+                    context,
+                    listen: false,
+                  ).loadTransactions(forceRefresh: true),
+                  Provider.of<CategoryViewModel>(
+                    context,
+                    listen: false,
+                  ).loadCategories(forceRefresh: true),
+                ]);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cache cleared & data refreshed'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
               },
             ),
           ],
