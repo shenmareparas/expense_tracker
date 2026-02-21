@@ -48,7 +48,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         final sortedCategories = viewModel.sortedExpensesByCategory;
 
         return RefreshIndicator(
-          onRefresh: () => viewModel.loadTransactions(),
+          onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
           child: ListView(
             padding: const EdgeInsets.all(24.0),
             children: [

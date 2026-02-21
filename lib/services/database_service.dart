@@ -2,19 +2,61 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 
+/// Singleton database service with in-memory caching.
+///
+/// Caches fetched data for [_cacheTtl] to avoid redundant Supabase
+/// round-trips on tab switches and widget rebuilds.
 class DatabaseService {
+  DatabaseService._();
+  static final DatabaseService instance = DatabaseService._();
+
   final _supabase = Supabase.instance.client;
 
-  // Transactions
-  Future<List<TransactionModel>> getTransactions() async {
+  // ── Cache Configuration ──────────────────────────────────────────────
+
+  static const _cacheTtl = Duration(seconds: 30);
+
+  List<TransactionModel>? _cachedTransactions;
+  DateTime? _transactionsFetchedAt;
+
+  List<CategoryModel>? _cachedCategories;
+  DateTime? _categoriesFetchedAt;
+
+  bool _isCacheValid(DateTime? fetchedAt) {
+    if (fetchedAt == null) return false;
+    return DateTime.now().difference(fetchedAt) < _cacheTtl;
+  }
+
+  /// Clears all cached data. Useful on sign-out.
+  void clearCache() {
+    _cachedTransactions = null;
+    _transactionsFetchedAt = null;
+    _cachedCategories = null;
+    _categoriesFetchedAt = null;
+  }
+
+  // ── Transactions ─────────────────────────────────────────────────────
+
+  Future<List<TransactionModel>> getTransactions({
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh &&
+        _cachedTransactions != null &&
+        _isCacheValid(_transactionsFetchedAt)) {
+      return List.unmodifiable(_cachedTransactions!);
+    }
+
     final response = await _supabase
         .from('transactions')
         .select()
         .order('transaction_date', ascending: false);
 
-    return (response as List<dynamic>)
+    _cachedTransactions = (response as List<dynamic>)
         .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
         .toList();
+    _transactionsFetchedAt = DateTime.now();
+
+    return List.unmodifiable(_cachedTransactions!);
   }
 
   Future<void> addTransaction({
@@ -37,10 +79,13 @@ class DatabaseService {
       'description': description,
       'transaction_date': transactionDate.toIso8601String(),
     });
+
+    _invalidateTransactionCache();
   }
 
   Future<void> deleteTransaction(String id) async {
     await _supabase.from('transactions').delete().eq('id', id);
+    _invalidateTransactionCache();
   }
 
   Future<void> updateTransaction({
@@ -61,18 +106,35 @@ class DatabaseService {
           'transaction_date': transactionDate.toIso8601String(),
         })
         .eq('id', id);
+
+    _invalidateTransactionCache();
   }
 
-  // Categories
-  Future<List<CategoryModel>> getCategories() async {
+  void _invalidateTransactionCache() {
+    _cachedTransactions = null;
+    _transactionsFetchedAt = null;
+  }
+
+  // ── Categories ───────────────────────────────────────────────────────
+
+  Future<List<CategoryModel>> getCategories({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _cachedCategories != null &&
+        _isCacheValid(_categoriesFetchedAt)) {
+      return List.unmodifiable(_cachedCategories!);
+    }
+
     final response = await _supabase
         .from('categories')
         .select()
         .order('order_index', ascending: true);
 
-    return (response as List<dynamic>)
+    _cachedCategories = (response as List<dynamic>)
         .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
         .toList();
+    _categoriesFetchedAt = DateTime.now();
+
+    return List.unmodifiable(_cachedCategories!);
   }
 
   Future<void> addCategory({
@@ -91,6 +153,8 @@ class DatabaseService {
       'type': type,
       'order_index': orderIndex,
     });
+
+    _invalidateCategoryCache();
   }
 
   Future<void> updateCategory({
@@ -112,7 +176,11 @@ class DatabaseService {
           .update({'category': name})
           .eq('category', oldName)
           .eq('type', type);
+
+      _invalidateTransactionCache();
     }
+
+    _invalidateCategoryCache();
   }
 
   Future<void> reorderCategories(List<CategoryModel> categories) async {
@@ -124,11 +192,17 @@ class DatabaseService {
       updates.add(json);
     }
 
-    // Supabase upsert requires full non-null objects on insert-checks
     await _supabase.from('categories').upsert(updates);
+    _invalidateCategoryCache();
   }
 
   Future<void> deleteCategory(String id) async {
     await _supabase.from('categories').delete().eq('id', id);
+    _invalidateCategoryCache();
+  }
+
+  void _invalidateCategoryCache() {
+    _cachedCategories = null;
+    _categoriesFetchedAt = null;
   }
 }

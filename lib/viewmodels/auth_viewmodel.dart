@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/database_service.dart';
 
 /// ViewModel for authentication state management.
 class AuthViewModel extends ChangeNotifier {
@@ -58,6 +59,7 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    DatabaseService.instance.clearCache();
     await _authService.signOut();
   }
 }

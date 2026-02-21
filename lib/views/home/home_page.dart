@@ -111,27 +111,34 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AddTransactionPage(),
-                  ),
-                );
-                if (result == true) {
-                  if (context.mounted) {
-                    Provider.of<TransactionViewModel>(
-                      context,
-                      listen: false,
-                    ).loadTransactions();
+      floatingActionButton: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (child, animation) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: _selectedIndex == 0
+            ? FloatingActionButton(
+                key: const ValueKey('add_transaction_fab'),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddTransactionPage(),
+                    ),
+                  );
+                  if (result == true) {
+                    if (context.mounted) {
+                      Provider.of<TransactionViewModel>(
+                        context,
+                        listen: false,
+                      ).loadTransactions();
+                    }
                   }
-                }
-              },
-              child: const Icon(Icons.add),
-            )
-          : null,
+                },
+                child: const Icon(Icons.add),
+              )
+            : const SizedBox.shrink(key: ValueKey('empty_fab')),
+      ),
     );
   }
 }

@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages theme mode persistence and notification.
-/// Registered as a ChangeNotifierProvider in the app.
+///
+/// Caches the [SharedPreferences] instance so subsequent writes
+/// don't await [SharedPreferences.getInstance] again.
 class ThemeService extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
+  SharedPreferences? _prefs;
 
   ThemeMode get themeMode => _themeMode;
 
@@ -13,8 +16,8 @@ class ThemeService extends ChangeNotifier {
   }
 
   Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeString = prefs.getString('theme_mode') ?? 'system';
+    _prefs = await SharedPreferences.getInstance();
+    final themeString = _prefs!.getString('theme_mode') ?? 'system';
 
     _themeMode = ThemeMode.values.firstWhere(
       (e) => e.name == themeString,
@@ -27,7 +30,7 @@ class ThemeService extends ChangeNotifier {
     _themeMode = mode;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('theme_mode', mode.name);
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString('theme_mode', mode.name);
   }
 }

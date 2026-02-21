@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/category.dart';
 import '../services/database_service.dart';
 
-/// ViewModel for category management — extracted from TransactionViewModel.
+/// ViewModel for category management.
+///
+/// Category name lists are cached and only recalculated when the
+/// underlying category list changes.
 class CategoryViewModel extends ChangeNotifier {
-  final DatabaseService _databaseService = DatabaseService();
+  final DatabaseService _databaseService = DatabaseService.instance;
 
   List<CategoryModel> _categories = [];
   List<CategoryModel> get categories => _categories;
@@ -15,23 +18,25 @@ class CategoryViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  /// Sorted expense category names, with "Other" always last.
-  List<String> get expenseCategories {
-    final filtered = _categories.where((c) => c.type == 'expense').toList();
-    filtered.sort((a, b) {
-      if (a.name.toLowerCase() == 'other') return 1;
-      if (b.name.toLowerCase() == 'other') return -1;
-      return a.orderIndex.compareTo(b.orderIndex);
-    });
+  // ── Cached Category Name Lists ────────────────────────────────────────
 
-    final names = filtered.map((c) => c.name).toList();
-    if (!names.contains('Other')) names.add('Other');
-    return names;
-  }
+  List<String> _expenseCategories = [];
+  List<String> _incomeCategories = [];
+
+  /// Sorted expense category names, with "Other" always last.
+  List<String> get expenseCategories => _expenseCategories;
 
   /// Sorted income category names, with "Other" always last.
-  List<String> get incomeCategories {
-    final filtered = _categories.where((c) => c.type == 'income').toList();
+  List<String> get incomeCategories => _incomeCategories;
+
+  /// Recalculates the cached name lists from [_categories].
+  void _recomputeCategoryLists() {
+    _expenseCategories = _buildSortedNames('expense');
+    _incomeCategories = _buildSortedNames('income');
+  }
+
+  List<String> _buildSortedNames(String type) {
+    final filtered = _categories.where((c) => c.type == type).toList();
     filtered.sort((a, b) {
       if (a.name.toLowerCase() == 'other') return 1;
       if (b.name.toLowerCase() == 'other') return -1;
@@ -43,10 +48,15 @@ class CategoryViewModel extends ChangeNotifier {
     return names;
   }
 
-  Future<void> loadCategories() async {
+  // ── Data Operations ───────────────────────────────────────────────────
+
+  Future<void> loadCategories({bool forceRefresh = false}) async {
     _errorMessage = null;
     try {
-      _categories = await _databaseService.getCategories();
+      _categories = List.from(
+        await _databaseService.getCategories(forceRefresh: forceRefresh),
+      );
+      _recomputeCategoryLists();
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -66,7 +76,7 @@ class CategoryViewModel extends ChangeNotifier {
         type: type,
         orderIndex: orderIndex,
       );
-      await loadCategories();
+      await loadCategories(forceRefresh: true);
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -100,7 +110,7 @@ class CategoryViewModel extends ChangeNotifier {
         oldName: oldName,
       );
 
-      await loadCategories();
+      await loadCategories(forceRefresh: true);
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -153,14 +163,15 @@ class CategoryViewModel extends ChangeNotifier {
       }
     }
 
+    _recomputeCategoryLists();
     notifyListeners();
 
     try {
       await _databaseService.reorderCategories(items);
-      await loadCategories();
+      await loadCategories(forceRefresh: true);
     } catch (e) {
       _errorMessage = 'Failed to reorder categories';
-      await loadCategories(); // revert optimistic update
+      await loadCategories(forceRefresh: true); // revert optimistic update
     }
   }
 
@@ -172,7 +183,7 @@ class CategoryViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       await _databaseService.deleteCategory(id);
-      await loadCategories();
+      await loadCategories(forceRefresh: true);
     } catch (e) {
       _errorMessage = 'Failed to delete category';
     } finally {
@@ -213,7 +224,7 @@ class CategoryViewModel extends ChangeNotifier {
           );
         }
       }
-      await loadCategories();
+      await loadCategories(forceRefresh: true);
     } catch (e) {
       _errorMessage = 'Failed to seed default categories';
     } finally {

@@ -23,7 +23,7 @@ class TransactionListView extends StatelessWidget {
         final transactions = viewModel.filteredTransactions;
 
         return RefreshIndicator(
-          onRefresh: () => viewModel.loadTransactions(),
+          onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
           child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
