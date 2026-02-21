@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/transaction.dart';
 import '../viewmodels/transaction_viewmodel.dart';
 import '../widgets/app_dropdown.dart';
+import '../utils/date_formatter.dart';
 
 class AddTransactionPage extends StatefulWidget {
   final TransactionModel? transaction;
@@ -162,10 +163,15 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-              Theme.of(context).colorScheme.surface,
-            ],
+            colors: Theme.of(context).brightness == Brightness.dark
+                ? [
+                    Colors.black, // Amoled Black
+                    Colors.black, // Amoled Black
+                  ]
+                : [
+                    const Color(0xFFEEF2FF), // Indigo 50
+                    Colors.white,
+                  ],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -213,153 +219,227 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             });
                           },
                           style: SegmentedButton.styleFrom(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.surface.withValues(alpha: 0.5),
                             selectedBackgroundColor: _type == 'expense'
                                 ? Colors.red.withValues(alpha: 0.2)
                                 : Colors.green.withValues(alpha: 0.2),
                             selectedForegroundColor: _type == 'expense'
                                 ? Colors.red
                                 : Colors.green,
+                            side: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.1),
+                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 32),
-
-                      // Description - FIRST
-                      _buildSectionTitle('Description'),
-                      TextField(
-                        controller: _descriptionController,
-                        decoration: _inputDecoration(
-                          'What was this for?',
-                          Icons.description_outlined,
-                        ),
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
                       const SizedBox(height: 24),
 
-                      // Amount - SECOND
-                      _buildSectionTitle('Amount'),
-                      TextField(
-                        controller: _amountController,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      // Inputs Card
+                      Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          side: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.1),
+                          ),
                         ),
-                        decoration: _inputDecoration(
-                          '0.00',
-                          Icons.account_balance_wallet_outlined,
-                        ).copyWith(prefixText: '₹ '),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
+                        color: Theme.of(context).colorScheme.surface.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark
+                              ? 0.3
+                              : 0.8,
                         ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Category - THIRD
-                      AppDropdown<String>(
-                        key: ValueKey('category_dropdown_$_type'),
-                        value: _category,
-                        label: 'Category',
-                        hint: 'Select Category',
-                        prefixIcon: Icons.category_outlined,
-                        items: categories.map((String category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child: Text(category),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            setState(() {
-                              _category = newValue;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Date & Time - FOURTH
-                      _buildSectionTitle('Date & Time'),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _selectDate(context),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Theme.of(context).colorScheme.outline
-                                        .withValues(alpha: 0.2),
-                                  ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Amount - FIRST (emphasized)
+                              _buildSectionTitle('Amount'),
+                              TextField(
+                                controller: _amountController,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today, size: 20),
-                                    const SizedBox(width: 12),
-                                    Text(
-                                      '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                                decoration:
+                                    _inputDecoration(
+                                      '0.00',
+                                      Icons.account_balance_wallet_outlined,
+                                    ).copyWith(
+                                      prefixText: '₹ ',
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 24,
+                                            vertical: 24,
+                                          ),
                                     ),
-                                  ],
-                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => _selectTime(context),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Theme.of(context).colorScheme.outline
-                                        .withValues(alpha: 0.2),
+                              const SizedBox(height: 24),
+
+                              // Description - SECOND
+                              _buildSectionTitle('Description'),
+                              TextField(
+                                controller: _descriptionController,
+                                decoration: _inputDecoration(
+                                  'What was this for?',
+                                  Icons.description_outlined,
+                                ),
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Category - THIRD
+                              _buildSectionTitle('Category'),
+                              AppDropdown<String>(
+                                key: ValueKey('category_dropdown_$_type'),
+                                value: _category,
+                                label:
+                                    '', // Removed floating label since we have a section title
+                                hint: 'Select Category',
+                                prefixIcon: Icons.category_outlined,
+                                items: categories.map((String category) {
+                                  return DropdownMenuItem(
+                                    value: category,
+                                    child: Text(category),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    setState(() {
+                                      _category = newValue;
+                                    });
+                                  }
+                                },
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Date & Time - FOURTH
+                              _buildSectionTitle('Date & Time'),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: InkWell(
+                                      onTap: () => _selectDate(context),
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.transparent,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.calendar_today,
+                                              size: 20,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              DateFormatter.formatDate(
+                                                _selectedDate,
+                                              ),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.access_time, size: 20),
-                                    const SizedBox(width: 12),
-                                    Text(_selectedTime.format(context)),
-                                  ],
-                                ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: InkWell(
+                                      onTap: () => _selectTime(context),
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.transparent,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.access_time,
+                                              size: 20,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              _selectedTime.format(context),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
 
                       const SizedBox(height: 48),
 
                       // Save Button
                       Container(
+                        width: double.infinity,
+                        height: 56,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: LinearGradient(
-                            colors: [
-                              Theme.of(context).colorScheme.primary,
-                              Theme.of(context).colorScheme.tertiary,
-                            ],
-                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          color: Theme.of(context).colorScheme.primary,
                           boxShadow: [
                             BoxShadow(
                               color: Theme.of(
                                 context,
                               ).colorScheme.primary.withValues(alpha: 0.3),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
                         child: ElevatedButton(
                           onPressed: _saveTransaction,
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
                             backgroundColor: Colors.transparent,
+                            foregroundColor: Colors.white,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
@@ -404,18 +484,22 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   InputDecoration _inputDecoration(String label, IconData icon) {
     return InputDecoration(
       hintText: label,
-      prefixIcon: Icon(icon, size: 22),
+      prefixIcon: Icon(
+        icon,
+        size: 22,
+        color: Theme.of(context).colorScheme.primary,
+      ),
       filled: true,
-      fillColor: Theme.of(context).colorScheme.surface,
+      fillColor: Theme.of(
+        context,
+      ).colorScheme.onSurface.withValues(alpha: 0.05),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
-        ),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),

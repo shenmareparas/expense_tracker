@@ -14,16 +14,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   int touchedIndex = -1;
 
   final List<Color> _chartColors = [
-    Colors.blue.shade400,
-    Colors.red.shade400,
-    Colors.green.shade400,
-    Colors.orange.shade400,
-    Colors.purple.shade400,
-    Colors.teal.shade400,
-    Colors.pink.shade400,
-    Colors.indigo.shade400,
-    Colors.amber.shade400,
-    Colors.cyan.shade400,
+    const Color(0xFF60A5FA), // Blue 400
+    const Color(0xFFF87171), // Red 400
+    const Color(0xFF34D399), // Emerald 400
+    const Color(0xFFFBBF24), // Amber 400
+    const Color(0xFFA78BFA), // Violet 400
+    const Color(0xFF2DD4BF), // Teal 400
+    const Color(0xFFF472B6), // Pink 400
+    const Color(0xFF818CF8), // Indigo 400
+    const Color(0xFFFB923C), // Orange 400
+    const Color(0xFF22D3EE), // Cyan 400
   ];
 
   @override
@@ -130,21 +130,25 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.only(bottom: 12.0),
+                    margin: const EdgeInsets.only(bottom: 16.0),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isTouched ? color : Colors.transparent,
-                        width: 2,
+                        color: isTouched
+                            ? color
+                            : Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.1),
+                        width: isTouched ? 2 : 1,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: Theme.of(
                             context,
                           ).shadowColor.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
@@ -212,6 +216,70 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   ) {
     return Column(
       children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.1),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Net Balance',
+                    style: TextStyle(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.7),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.account_balance_wallet,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '₹${balance.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -235,48 +303,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.secondary,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              const Text(
-                'Net Balance',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '₹${balance.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -289,15 +315,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+        ),
         boxShadow: [
           BoxShadow(
             color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),

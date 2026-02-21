@@ -7,7 +7,9 @@ import 'pages/settings_page.dart';
 import 'services/theme_notifier.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/transaction_viewmodel.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'widgets/app_dropdown.dart';
+import 'utils/date_formatter.dart';
 
 final themeNotifier = ThemeNotifier();
 
@@ -40,22 +42,44 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             themeMode: themeNotifier.themeMode,
             theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF4F46E5),
+              ), // Indigo
               useMaterial3: true,
+              textTheme: GoogleFonts.interTextTheme(
+                ThemeData.light().textTheme,
+              ),
+              appBarTheme: const AppBarTheme(
+                centerTitle: true,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+              ),
             ),
             darkTheme: ThemeData(
               brightness: Brightness.dark,
-              scaffoldBackgroundColor: Colors.black,
+              scaffoldBackgroundColor: Colors.black, // Amoled Black
               colorScheme: ColorScheme.fromSeed(
-                seedColor: Colors.deepPurple,
+                seedColor: const Color(0xFF818CF8), // Indigo 400
                 brightness: Brightness.dark,
-                surface: Colors.black,
+                surface: const Color(0xFF0A0A0A), // Very Dark Grey
               ),
+              textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
               appBarTheme: const AppBarTheme(
-                backgroundColor: Colors.black,
+                centerTitle: true,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
                 foregroundColor: Colors.white,
               ),
-              cardTheme: const CardThemeData(color: Color(0xFF1A1A1A)),
+              cardTheme: CardThemeData(
+                color: const Color(0xFF0A0A0A),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                ),
+              ),
               useMaterial3: true,
             ),
             home: const AuthGate(),
@@ -107,6 +131,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isSignUp = false;
+  bool _obscurePassword = true;
 
   Future<void> _submit() async {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
@@ -162,14 +187,20 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-              Theme.of(context).colorScheme.surface,
-            ],
+            colors: isDark
+                ? [
+                    Colors.black, // Amoled Black
+                    Colors.black, // Amoled Black
+                  ]
+                : [
+                    const Color(0xFFEEF2FF), // Indigo 50
+                    Colors.white,
+                  ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -177,133 +208,212 @@ class _LoginPageState extends State<LoginPage> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Icon(
-                  Icons.account_balance_wallet,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.primary,
+            child: Container(
+              padding: const EdgeInsets.all(32.0),
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: isDark ? 0.5 : 0.8),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: isDark ? 0.05 : 0.4),
+                  width: 1.5,
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Expense Tracker',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _isSignUp ? 'Create your account' : 'Welcome Back',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 48),
-                if (_isSignUp) ...[
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: 'Full Name',
-                      prefixIcon: const Icon(Icons.person_outline),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                    keyboardType: TextInputType.name,
+                    child: Icon(
+                      Icons.account_balance_wallet_rounded,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Expense Tracker',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _isSignUp
+                        ? 'Create an account to continue'
+                        : 'Welcome back, please sign in',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  if (_isSignUp) ...[
+                    _buildTextField(
+                      controller: _nameController,
+                      label: 'Full Name',
+                      icon: Icons.person_outline,
+                      keyboardType: TextInputType.name,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildTextField(
+                    controller: _emailController,
+                    label: 'Email',
+                    icon: Icons.email_outlined,
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
-                ],
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  _buildTextField(
+                    controller: _passwordController,
+                    label: 'Password',
+                    icon: Icons.lock_outline,
+                    obscureText: _obscurePassword,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 22,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
                     ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
                   ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 32),
-                Consumer<AuthViewModel>(
-                  builder: (context, authState, child) {
-                    if (authState.isLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        ElevatedButton(
-                          onPressed: _submit,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                            foregroundColor: Theme.of(
-                              context,
-                            ).colorScheme.onPrimary,
-                          ),
-                          child: Text(
-                            _isSignUp ? 'Sign Up' : 'Sign In',
-                            style: const TextStyle(fontSize: 18),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: _toggleMode,
-                          child: RichText(
-                            text: TextSpan(
-                              text: _isSignUp
-                                  ? "Already have an account? "
-                                  : "Don't have an account? ",
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
+                  const SizedBox(height: 32),
+                  Consumer<AuthViewModel>(
+                    builder: (context, authState, child) {
+                      if (authState.isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ElevatedButton(
+                            onPressed: _submit,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              children: [
-                                TextSpan(
-                                  text: _isSignUp ? 'Sign In' : 'Sign Up',
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                              elevation: 0,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary,
+                            ),
+                            child: Text(
+                              _isSignUp ? 'Sign Up' : 'Sign In',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                          const SizedBox(height: 24),
+                          TextButton(
+                            onPressed: _toggleMode,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                            ),
+                            child: RichText(
+                              text: TextSpan(
+                                text: _isSignUp
+                                    ? "Already have an account? "
+                                    : "Don't have an account? ",
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                  fontSize: 14,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: _isSignUp ? 'Sign In' : 'Sign Up',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+    Widget? suffixIcon,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 22),
+        suffixIcon: suffixIcon,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: Theme.of(
+          context,
+        ).colorScheme.onSurface.withValues(alpha: 0.05),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 18,
+        ),
+      ),
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      style: const TextStyle(fontSize: 15),
     );
   }
 }
@@ -358,14 +468,21 @@ class _HomePageState extends State<HomePage> {
             Consumer<TransactionViewModel>(
               builder: (context, viewModel, child) {
                 return IconButton(
-                  icon: Icon(
-                    Icons.filter_list,
-                    color:
+                  icon: Badge(
+                    isLabelVisible:
                         viewModel.filterType != null ||
-                            viewModel.filterStartDate != null ||
-                            viewModel.filterEndDate != null
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
+                        viewModel.filterStartDate != null ||
+                        viewModel.filterEndDate != null,
+                    smallSize: 8,
+                    child: Icon(
+                      Icons.filter_list,
+                      color:
+                          viewModel.filterType != null ||
+                              viewModel.filterStartDate != null ||
+                              viewModel.filterEndDate != null
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
                   ),
                   onPressed: () => _showFilterBottomSheet(context, viewModel),
                 );
@@ -381,23 +498,26 @@ class _HomePageState extends State<HomePage> {
           SettingsPage(themeNotifier: themeNotifier),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _onItemTapped,
+        destinations: const <NavigationDestination>[
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
             label: 'Transactions',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pie_chart),
+          NavigationDestination(
+            icon: Icon(Icons.pie_chart_outline),
+            selectedIcon: Icon(Icons.pie_chart),
             label: 'Analytics',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
             label: 'Settings',
           ),
         ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
       ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
@@ -442,10 +562,42 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(16.0),
             children: [
               if (transactions.isEmpty)
-                const Center(
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Text('No transactions yet.'),
+                    padding: const EdgeInsets.all(48.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 80,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.2),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No transactions yet',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap the + button to add your first expense or income.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 )
               else
@@ -492,81 +644,91 @@ class _HomePageState extends State<HomePage> {
                     },
                     child: Card(
                       elevation: 0,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest
-                          .withValues(alpha: 0.3),
-                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      color: Theme.of(context).colorScheme.surface,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        onTap: () async {
-                          final result = await Navigator.push(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Theme.of(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  AddTransactionPage(transaction: t),
-                            ),
-                          );
-                          if (result == true) {
-                            if (context.mounted) {
-                              Provider.of<TransactionViewModel>(
-                                context,
-                                listen: false,
-                              ).loadTransactions();
+                          ).colorScheme.outline.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AddTransactionPage(transaction: t),
+                              ),
+                            );
+                            if (result == true) {
+                              if (context.mounted) {
+                                Provider.of<TransactionViewModel>(
+                                  context,
+                                  listen: false,
+                                ).loadTransactions();
+                              }
                             }
-                          }
-                        },
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isIncome
-                                ? Colors.green.withValues(alpha: 0.1)
-                                : Colors.red.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isIncome
-                                ? Icons.arrow_downward
-                                : Icons.arrow_upward,
-                            color: isIncome ? Colors.green : Colors.red,
-                          ),
-                        ),
-                        title: Text(
-                          (t.description != null && t.description!.isNotEmpty)
-                              ? t.description!
-                              : t.category,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (t.description != null &&
-                                t.description!.isNotEmpty)
-                              Text(
-                                t.category,
-                                style: const TextStyle(fontSize: 13),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            Text(
-                              '${t.transactionDate.year}-${t.transactionDate.month.toString().padLeft(2, '0')}-${t.transactionDate.day.toString().padLeft(2, '0')}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                              ),
+                          },
+                          leading: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isIncome
+                                  ? Colors.green.withValues(alpha: 0.1)
+                                  : Colors.red.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
                             ),
-                          ],
-                        ),
-                        isThreeLine:
-                            t.description != null && t.description!.isNotEmpty,
-                        trailing: Text(
-                          '${isIncome ? '+' : '-'}₹${t.amount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: isIncome ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            child: Icon(
+                              isIncome
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
+                              color: isIncome ? Colors.green : Colors.red,
+                            ),
+                          ),
+                          title: Text(
+                            (t.description != null && t.description!.isNotEmpty)
+                                ? t.description!
+                                : t.category,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (t.description != null &&
+                                  t.description!.isNotEmpty)
+                                Text(
+                                  t.category,
+                                  style: const TextStyle(fontSize: 13),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              Text(
+                                DateFormatter.formatDateTime(
+                                  t.transactionDate.toLocal(),
+                                ),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          isThreeLine:
+                              t.description != null &&
+                              t.description!.isNotEmpty,
+                          trailing: Text(
+                            '${isIncome ? '+' : '-'}₹${t.amount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isIncome
+                                  ? Colors.green.shade600
+                                  : Colors.red.shade500,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -714,7 +876,7 @@ class _HomePageState extends State<HomePage> {
                               initialDate:
                                   viewModel.filterStartDate ?? DateTime.now(),
                               firstDate: DateTime(2000),
-                              lastDate: DateTime(2101),
+                              lastDate: DateTime.now(),
                             );
                             if (date != null) {
                               viewModel.setFilters(
@@ -742,8 +904,9 @@ class _HomePageState extends State<HomePage> {
                               context: context,
                               initialDate:
                                   viewModel.filterEndDate ?? DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime(2101),
+                              firstDate:
+                                  viewModel.filterStartDate ?? DateTime(2000),
+                              lastDate: DateTime.now(),
                             );
                             if (date != null) {
                               viewModel.setFilters(

@@ -13,86 +13,140 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(24.0),
       children: [
-        const Text(
-          'General',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        ListTile(
-          leading: const Icon(Icons.category_outlined),
-          title: const Text('Manage Categories'),
-          subtitle: const Text('Add or remove transaction categories'),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ManageCategoriesPage(),
+        _buildSectionHeader(context, 'General'),
+        _buildSettingsCard(
+          context: context,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.category_outlined,
+                color: Theme.of(context).colorScheme.primary,
               ),
-            );
-          },
-        ),
-        const Divider(),
-        const SizedBox(height: 16),
-        const Text(
-          'Appearance',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        ListTile(
-          leading: const Icon(Icons.palette_outlined),
-          title: const Text('Theme'),
-          trailing: ListenableBuilder(
-            listenable: themeNotifier,
-            builder: (context, _) {
-              return AppDropdownButton<ThemeMode>(
-                value: themeNotifier.themeMode,
-                onChanged: (ThemeMode? newMode) {
-                  if (newMode != null) {
-                    themeNotifier.setThemeMode(newMode);
-                  }
-                },
-                items: const [
-                  DropdownMenuItem(
-                    value: ThemeMode.system,
-                    child: Text('System Default'),
+              title: const Text(
+                'Manage Categories',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Add or remove transaction categories'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ManageCategoriesPage(),
                   ),
-                  DropdownMenuItem(
-                    value: ThemeMode.light,
-                    child: Text('Light'),
-                  ),
-                  DropdownMenuItem(value: ThemeMode.dark, child: Text('Dark')),
-                ],
-              );
-            },
-          ),
-        ),
-        const Divider(),
-        const SizedBox(height: 32),
-        // Logout Section
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ElevatedButton.icon(
-            onPressed: () {
-              Provider.of<AuthViewModel>(context, listen: false).signOut();
-            },
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text(
-              'Sign Out',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                );
+              },
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.withValues(alpha: 0.1),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          ],
+        ),
+        const SizedBox(height: 32),
+        _buildSectionHeader(context, 'Appearance'),
+        _buildSettingsCard(
+          context: context,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.palette_outlined,
+                color: Theme.of(context).colorScheme.primary,
               ),
+              title: const Text(
+                'Theme',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              trailing: ListenableBuilder(
+                listenable: themeNotifier,
+                builder: (context, _) {
+                  return AppDropdownButton<ThemeMode>(
+                    value: themeNotifier.themeMode,
+                    onChanged: (ThemeMode? newMode) {
+                      if (newMode != null) {
+                        themeNotifier.setThemeMode(newMode);
+                      }
+                    },
+                    items: const [
+                      DropdownMenuItem(
+                        value: ThemeMode.system,
+                        child: Text('System Default'),
+                      ),
+                      DropdownMenuItem(
+                        value: ThemeMode.light,
+                        child: Text('Light'),
+                      ),
+                      DropdownMenuItem(
+                        value: ThemeMode.dark,
+                        child: Text('Dark'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 48),
+        // Logout Section
+        ElevatedButton.icon(
+          onPressed: () {
+            Provider.of<AuthViewModel>(context, listen: false).signOut();
+          },
+          icon: const Icon(Icons.logout, color: Colors.red),
+          label: const Text(
+            'Sign Out',
+            style: TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red.withValues(alpha: 0.1),
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 12),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsCard({
+    required BuildContext context,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(children: children),
     );
   }
 }
