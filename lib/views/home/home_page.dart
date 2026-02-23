@@ -18,6 +18,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -29,6 +31,12 @@ class _HomePageState extends State<HomePage> {
       ).loadTransactions();
       Provider.of<CategoryViewModel>(context, listen: false).loadCategories();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _onItemTapped(int index) {
@@ -54,9 +62,47 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_appBarTitle),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search by amount or description...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  Provider.of<TransactionViewModel>(
+                    context,
+                    listen: false,
+                  ).setSearchQuery(value);
+                },
+              )
+            : Text(_appBarTitle),
         actions: [
-          if (_selectedIndex == 0 || _selectedIndex == 1)
+          if (_isSearching)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                setState(() {
+                  _searchController.clear();
+                  _isSearching = false;
+                  Provider.of<TransactionViewModel>(
+                    context,
+                    listen: false,
+                  ).setSearchQuery('');
+                });
+              },
+            )
+          else if (_selectedIndex == 0)
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                setState(() {
+                  _isSearching = true;
+                });
+              },
+            ),
+          if (!_isSearching && (_selectedIndex == 0 || _selectedIndex == 1))
             Consumer<TransactionViewModel>(
               builder: (context, viewModel, child) {
                 return IconButton(

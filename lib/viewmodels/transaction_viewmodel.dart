@@ -13,7 +13,10 @@ class TransactionViewModel extends ChangeNotifier {
   List<TransactionModel> _transactions = [];
   List<TransactionModel> get transactions => _transactions;
 
-  // ── Filter State ──────────────────────────────────────────────────────
+  // ── Filter & Search State ─────────────────────────────────────────────
+
+  String _searchQuery = '';
+  String get searchQuery => _searchQuery;
 
   String? _filterType;
   String? get filterType => _filterType;
@@ -41,11 +44,18 @@ class TransactionViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSearchQuery(String query) {
+    _searchQuery = query;
+    _recomputeAggregates();
+    notifyListeners();
+  }
+
   void clearFilters() {
     _filterType = null;
     _filterCategory = null;
     _filterStartDate = null;
     _filterEndDate = null;
+    _searchQuery = '';
     _recomputeAggregates();
     notifyListeners();
   }
@@ -108,6 +118,18 @@ class TransactionViewModel extends ChangeNotifier {
           )) {
         return false;
       }
+
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        final matchesDescription =
+            t.description?.toLowerCase().contains(query) ?? false;
+        final matchesAmount = t.amount.toString().contains(query);
+
+        if (!matchesDescription && !matchesAmount) {
+          return false;
+        }
+      }
+
       return true;
     }).toList();
   }
