@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text(_appBarTitle),
         actions: [
-          if (_selectedIndex == 0)
+          if (_selectedIndex == 0 || _selectedIndex == 1)
             Consumer<TransactionViewModel>(
               builder: (context, viewModel, child) {
                 return IconButton(

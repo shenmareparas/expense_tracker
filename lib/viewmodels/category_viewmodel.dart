@@ -51,7 +51,9 @@ class CategoryViewModel extends ChangeNotifier {
   // ── Data Operations ───────────────────────────────────────────────────
 
   Future<void> loadCategories({bool forceRefresh = false}) async {
+    _isLoading = true;
     _errorMessage = null;
+    notifyListeners();
     try {
       _categories = List.from(
         await _databaseService.getCategories(forceRefresh: forceRefresh),
@@ -60,6 +62,7 @@ class CategoryViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }

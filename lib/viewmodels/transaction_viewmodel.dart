@@ -37,7 +37,7 @@ class TransactionViewModel extends ChangeNotifier {
     _filterCategory = category;
     _filterStartDate = startDate;
     _filterEndDate = endDate;
-    _recomputeFilteredTransactions();
+    _recomputeAggregates();
     notifyListeners();
   }
 
@@ -46,7 +46,7 @@ class TransactionViewModel extends ChangeNotifier {
     _filterCategory = null;
     _filterStartDate = null;
     _filterEndDate = null;
-    _recomputeFilteredTransactions();
+    _recomputeAggregates();
     notifyListeners();
   }
 
@@ -70,13 +70,15 @@ class TransactionViewModel extends ChangeNotifier {
   List<TransactionModel> _filteredTransactions = [];
   List<TransactionModel> get filteredTransactions => _filteredTransactions;
 
-  /// Recalculates all aggregates from the current transaction list.
+  /// Recalculates all aggregates from the filtered transaction list.
   void _recomputeAggregates() {
+    _recomputeFilteredTransactions();
+
     _totalIncome = 0;
     _totalExpense = 0;
     final map = <String, double>{};
 
-    for (final t in _transactions) {
+    for (final t in _filteredTransactions) {
       if (t.type == 'income') {
         _totalIncome += t.amount;
       } else {
@@ -88,8 +90,6 @@ class TransactionViewModel extends ChangeNotifier {
     _expensesByCategory = map;
     _sortedExpensesByCategory = map.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-
-    _recomputeFilteredTransactions();
   }
 
   void _recomputeFilteredTransactions() {
@@ -123,7 +123,9 @@ class TransactionViewModel extends ChangeNotifier {
   // ── Data Operations ───────────────────────────────────────────────────
 
   Future<void> loadTransactions({bool forceRefresh = false}) async {
+    _isLoading = true;
     _errorMessage = null;
+    notifyListeners();
     try {
       _transactions = List.from(
         await _databaseService.getTransactions(forceRefresh: forceRefresh),
@@ -132,6 +134,7 @@ class TransactionViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
