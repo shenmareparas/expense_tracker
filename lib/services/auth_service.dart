@@ -1,9 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app/supabase_config.dart';
 
-/// Service layer for authentication operations.
+/// Singleton service layer for authentication operations.
 /// Decouples auth logic from the Supabase SDK.
 class AuthService {
+  AuthService._();
+  static final AuthService instance = AuthService._();
+
   final SupabaseClient _client = SupabaseConfig.client;
 
   /// Stream of auth state changes (sign in, sign out, token refresh, etc.).

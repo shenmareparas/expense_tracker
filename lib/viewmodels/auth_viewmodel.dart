@@ -4,7 +4,7 @@ import '../services/database_service.dart';
 
 /// ViewModel for authentication state management.
 class AuthViewModel extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final AuthService _authService = AuthService.instance;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;

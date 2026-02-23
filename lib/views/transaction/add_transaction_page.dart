@@ -417,12 +417,32 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         height: 56,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
-                          color: Theme.of(context).colorScheme.primary,
+                          gradient: LinearGradient(
+                            colors: _type == 'expense'
+                                ? [
+                                    const Color(0xFFFF5252),
+                                    const Color(0xFFD32F2F),
+                                  ]
+                                : [
+                                    const Color(0xFF4CAF50),
+                                    const Color(0xFF2E7D32),
+                                  ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.primary.withValues(alpha: 0.3),
+                              color:
+                                  (_type == 'expense'
+                                          ? const Color(0xFFFF5252)
+                                          : const Color(0xFF4CAF50))
+                                      .withValues(
+                                        alpha:
+                                            Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? 0.3
+                                            : 0.5,
+                                      ),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                             ),
@@ -435,19 +455,32 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             foregroundColor: Colors.white,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                           ),
-                          child: Text(
-                            widget.transaction == null
-                                ? 'Save Transaction'
-                                : 'Update Transaction',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 1.1,
-                            ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                widget.transaction == null
+                                    ? Icons.check_circle_outline
+                                    : Icons.update,
+                                size: 24,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                widget.transaction == null
+                                    ? 'Save Transaction'
+                                    : 'Update Transaction',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),

@@ -18,6 +18,7 @@ class DatabaseService {
 
   List<TransactionModel>? _cachedTransactions;
   DateTime? _transactionsFetchedAt;
+  String? _cachedFilterKey;
 
   List<CategoryModel>? _cachedCategories;
   DateTime? _categoriesFetchedAt;
@@ -31,32 +32,94 @@ class DatabaseService {
   void clearCache() {
     _cachedTransactions = null;
     _transactionsFetchedAt = null;
+    _cachedFilterKey = null;
     _cachedCategories = null;
     _categoriesFetchedAt = null;
   }
 
+  // ── Column selections ───────────────────────────────────────────────
+
+  static const _transactionColumns =
+      'id, user_id, amount, type, category, description, transaction_date, created_at';
+
+  static const _categoryColumns =
+      'id, user_id, name, type, order_index, created_at';
+
   // ── Transactions ─────────────────────────────────────────────────────
+
+  /// Builds a cache key from filter parameters so we invalidate on
+  /// filter changes.
+  String _buildFilterKey({
+    String? type,
+    String? category,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return '${type ?? ''}_${category ?? ''}_${startDate?.toIso8601String() ?? ''}_${endDate?.toIso8601String() ?? ''}';
+  }
 
   Future<List<TransactionModel>> getTransactions({
     bool forceRefresh = false,
+    int limit = 20,
+    int offset = 0,
+    String? type,
+    String? category,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
+    final filterKey = _buildFilterKey(
+      type: type,
+      category: category,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    // Only use cache for the first page with matching filters
     if (!forceRefresh &&
+        offset == 0 &&
         _cachedTransactions != null &&
-        _isCacheValid(_transactionsFetchedAt)) {
+        _isCacheValid(_transactionsFetchedAt) &&
+        _cachedFilterKey == filterKey) {
       return List.unmodifiable(_cachedTransactions!);
     }
 
-    final response = await _supabase
-        .from('transactions')
-        .select()
-        .order('transaction_date', ascending: false);
+    var query = _supabase.from('transactions').select(_transactionColumns);
 
-    _cachedTransactions = (response as List<dynamic>)
+    // Server-side filtering
+    if (type != null) {
+      query = query.eq('type', type);
+    }
+    if (category != null) {
+      query = query.eq('category', category);
+    }
+    if (startDate != null) {
+      query = query.gte(
+        'transaction_date',
+        startDate.toUtc().toIso8601String(),
+      );
+    }
+    if (endDate != null) {
+      // Include the entire end date day
+      final endOfDay = endDate.add(const Duration(days: 1));
+      query = query.lt('transaction_date', endOfDay.toUtc().toIso8601String());
+    }
+
+    final response = await query
+        .order('transaction_date', ascending: false)
+        .range(offset, offset + limit - 1);
+
+    final transactions = (response as List<dynamic>)
         .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
         .toList();
-    _transactionsFetchedAt = DateTime.now();
 
-    return List.unmodifiable(_cachedTransactions!);
+    // Only cache the first page
+    if (offset == 0) {
+      _cachedTransactions = transactions;
+      _transactionsFetchedAt = DateTime.now();
+      _cachedFilterKey = filterKey;
+    }
+
+    return List.unmodifiable(transactions);
   }
 
   Future<void> addTransaction({
@@ -113,6 +176,7 @@ class DatabaseService {
   void _invalidateTransactionCache() {
     _cachedTransactions = null;
     _transactionsFetchedAt = null;
+    _cachedFilterKey = null;
   }
 
   // ── Categories ───────────────────────────────────────────────────────
@@ -126,7 +190,7 @@ class DatabaseService {
 
     final response = await _supabase
         .from('categories')
-        .select()
+        .select(_categoryColumns)
         .order('order_index', ascending: true);
 
     _cachedCategories = (response as List<dynamic>)
@@ -154,6 +218,19 @@ class DatabaseService {
       'order_index': orderIndex,
     });
 
+    _invalidateCategoryCache();
+  }
+
+  /// Batch-inserts multiple categories in a single round-trip.
+  Future<void> addCategories(List<Map<String, dynamic>> categories) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+
+    final rows = categories.map((cat) => {'user_id': user.id, ...cat}).toList();
+
+    await _supabase.from('categories').insert(rows);
     _invalidateCategoryCache();
   }
 

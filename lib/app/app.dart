@@ -13,6 +13,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    GoogleFonts.config.allowRuntimeFetching = false;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
@@ -25,6 +26,12 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Expense Tracker',
             debugShowCheckedModeBanner: false,
+            builder: (context, child) => GestureDetector(
+              onTap: () {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+              child: child,
+            ),
             themeMode: themeService.themeMode,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(

@@ -4,14 +4,24 @@ import '../services/database_service.dart';
 
 /// ViewModel for transaction state management.
 ///
-/// Computed aggregates are cached and only recalculated when the
-/// underlying transaction list changes, avoiding repeated iteration
-/// on every widget rebuild.
+/// Supports server-side filtering and pagination. Computed aggregates
+/// are cached and only recalculated when the underlying transaction
+/// list changes.
 class TransactionViewModel extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService.instance;
 
   List<TransactionModel> _transactions = [];
   List<TransactionModel> get transactions => _transactions;
+
+  /// Returns transactions filtered by local search query.
+  /// Server-side filters (type, category, date) are already applied.
+  List<TransactionModel> get filteredTransactions =>
+      _searchFilteredTransactions;
+
+  static const int _pageSize = 20;
+  int _currentOffset = 0;
+  bool _hasMore = true;
+  bool get hasMore => _hasMore;
 
   // ── Filter & Search State ─────────────────────────────────────────────
 
@@ -40,13 +50,12 @@ class TransactionViewModel extends ChangeNotifier {
     _filterCategory = category;
     _filterStartDate = startDate;
     _filterEndDate = endDate;
-    _recomputeAggregates();
-    notifyListeners();
+    // Re-load from server with new filters, reset pagination
+    loadTransactions(forceRefresh: true);
   }
 
   void setSearchQuery(String query) {
     _searchQuery = query;
-    _recomputeAggregates();
     notifyListeners();
   }
 
@@ -56,8 +65,7 @@ class TransactionViewModel extends ChangeNotifier {
     _filterStartDate = null;
     _filterEndDate = null;
     _searchQuery = '';
-    _recomputeAggregates();
-    notifyListeners();
+    loadTransactions(forceRefresh: true);
   }
 
   // ── Cached Computed Properties ────────────────────────────────────────
@@ -77,18 +85,16 @@ class TransactionViewModel extends ChangeNotifier {
   List<MapEntry<String, double>> get sortedExpensesByCategory =>
       _sortedExpensesByCategory;
 
-  List<TransactionModel> _filteredTransactions = [];
-  List<TransactionModel> get filteredTransactions => _filteredTransactions;
-
-  /// Recalculates all aggregates from the filtered transaction list.
+  /// Recalculates all aggregates from the current transaction list.
   void _recomputeAggregates() {
-    _recomputeFilteredTransactions();
-
     _totalIncome = 0;
     _totalExpense = 0;
     final map = <String, double>{};
 
-    for (final t in _filteredTransactions) {
+    // Apply local search filter on top of server-filtered results
+    final data = _searchFilteredTransactions;
+
+    for (final t in data) {
       if (t.type == 'income') {
         _totalIncome += t.amount;
       } else {
@@ -102,35 +108,17 @@ class TransactionViewModel extends ChangeNotifier {
       ..sort((a, b) => b.value.compareTo(a.value));
   }
 
-  void _recomputeFilteredTransactions() {
-    _filteredTransactions = _transactions.where((t) {
-      if (_filterType != null && t.type != _filterType) return false;
-      if (_filterCategory != null && t.category != _filterCategory) {
-        return false;
-      }
-      if (_filterStartDate != null &&
-          t.transactionDate.isBefore(_filterStartDate!)) {
-        return false;
-      }
-      if (_filterEndDate != null &&
-          t.transactionDate.isAfter(
-            _filterEndDate!.add(const Duration(days: 1)),
-          )) {
-        return false;
-      }
+  /// Returns transactions filtered by the local search query.
+  /// Server-side filters (type, category, date) are already applied.
+  List<TransactionModel> get _searchFilteredTransactions {
+    if (_searchQuery.isEmpty) return _transactions;
 
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        final matchesDescription =
-            t.description?.toLowerCase().contains(query) ?? false;
-        final matchesAmount = t.amount.toString().contains(query);
-
-        if (!matchesDescription && !matchesAmount) {
-          return false;
-        }
-      }
-
-      return true;
+    final query = _searchQuery.toLowerCase();
+    return _transactions.where((t) {
+      final matchesDescription =
+          t.description?.toLowerCase().contains(query) ?? false;
+      final matchesAmount = t.amount.toString().contains(query);
+      return matchesDescription || matchesAmount;
     }).toList();
   }
 
@@ -138,6 +126,9 @@ class TransactionViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
@@ -147,16 +138,56 @@ class TransactionViewModel extends ChangeNotifier {
   Future<void> loadTransactions({bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
+    _currentOffset = 0;
+    _hasMore = true;
     notifyListeners();
     try {
-      _transactions = List.from(
-        await _databaseService.getTransactions(forceRefresh: forceRefresh),
+      final result = await _databaseService.getTransactions(
+        forceRefresh: forceRefresh,
+        limit: _pageSize,
+        offset: 0,
+        type: _filterType,
+        category: _filterCategory,
+        startDate: _filterStartDate,
+        endDate: _filterEndDate,
       );
+      _transactions = List.from(result);
+      _hasMore = result.length >= _pageSize;
+      _currentOffset = result.length;
       _recomputeAggregates();
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Loads the next page of transactions and appends to the list.
+  Future<void> loadMoreTransactions() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final result = await _databaseService.getTransactions(
+        forceRefresh: true,
+        limit: _pageSize,
+        offset: _currentOffset,
+        type: _filterType,
+        category: _filterCategory,
+        startDate: _filterStartDate,
+        endDate: _filterEndDate,
+      );
+      _transactions.addAll(result);
+      _hasMore = result.length >= _pageSize;
+      _currentOffset += result.length;
+      _recomputeAggregates();
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }

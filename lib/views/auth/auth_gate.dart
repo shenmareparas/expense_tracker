@@ -10,9 +10,8 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
     return StreamBuilder<AuthState>(
-      stream: authService.onAuthStateChange,
+      stream: AuthService.instance.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(

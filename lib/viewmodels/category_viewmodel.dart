@@ -201,31 +201,28 @@ class CategoryViewModel extends ChangeNotifier {
 
     try {
       final defaults = [
-        {'name': 'Food', 'type': 'expense'},
-        {'name': 'Transport', 'type': 'expense'},
-        {'name': 'Bills', 'type': 'expense'},
-        {'name': 'Entertainment', 'type': 'expense'},
-        {'name': 'Other', 'type': 'expense'},
-        {'name': 'Salary', 'type': 'income'},
-        {'name': 'Freelance', 'type': 'income'},
-        {'name': 'Investments', 'type': 'income'},
-        {'name': 'Other', 'type': 'income'},
+        {'name': 'Food', 'type': 'expense', 'order_index': 0},
+        {'name': 'Transport', 'type': 'expense', 'order_index': 1},
+        {'name': 'Bills', 'type': 'expense', 'order_index': 2},
+        {'name': 'Entertainment', 'type': 'expense', 'order_index': 3},
+        {'name': 'Other', 'type': 'expense', 'order_index': 4},
+        {'name': 'Salary', 'type': 'income', 'order_index': 5},
+        {'name': 'Freelance', 'type': 'income', 'order_index': 6},
+        {'name': 'Investments', 'type': 'income', 'order_index': 7},
+        {'name': 'Other', 'type': 'income', 'order_index': 8},
       ];
 
-      for (int i = 0; i < defaults.length; i++) {
-        final cat = defaults[i];
-        final exists = _categories.any(
+      // Filter out categories that already exist
+      final toInsert = defaults.where((cat) {
+        return !_categories.any(
           (c) =>
-              c.name.toLowerCase() == cat['name']!.toLowerCase() &&
+              c.name.toLowerCase() == (cat['name'] as String).toLowerCase() &&
               c.type == cat['type'],
         );
-        if (!exists) {
-          await _databaseService.addCategory(
-            name: cat['name']!,
-            type: cat['type']!,
-            orderIndex: i,
-          );
-        }
+      }).toList();
+
+      if (toInsert.isNotEmpty) {
+        await _databaseService.addCategories(toInsert);
       }
       await loadCategories(forceRefresh: true);
     } catch (e) {

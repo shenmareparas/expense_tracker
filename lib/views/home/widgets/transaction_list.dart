@@ -1,12 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../models/transaction.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
 import '../../../views/transaction/add_transaction_page.dart';
 import '../../../utils/date_formatter.dart';
 
-/// Displays the list of transactions (dashboard view).
-class TransactionListView extends StatelessWidget {
+/// Displays the list of transactions with scroll-to-load-more pagination.
+class TransactionListView extends StatefulWidget {
   const TransactionListView({super.key});
+
+  @override
+  State<TransactionListView> createState() => _TransactionListViewState();
+}
+
+class _TransactionListViewState extends State<TransactionListView> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      final viewModel = Provider.of<TransactionViewModel>(
+        context,
+        listen: false,
+      );
+      if (!viewModel.isLoadingMore && viewModel.hasMore) {
+        viewModel.loadMoreTransactions();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,17 +58,34 @@ class TransactionListView extends StatelessWidget {
 
         return RefreshIndicator(
           onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
-          child: ListView(
+          child: ListView.builder(
+            controller: _scrollController,
             padding: const EdgeInsets.all(16.0),
-            children: [
-              if (transactions.isEmpty)
-                _buildEmptyState(context)
-              else
-                ...transactions
-                    .take(10)
-                    .map((t) => _buildTransactionItem(context, t, viewModel)),
-              const SizedBox(height: 80), // Padding for FAB
-            ],
+            // +1 for a trailing widget (loading indicator or spacing)
+            itemCount: transactions.length + 1,
+            itemBuilder: (context, index) {
+              if (index == transactions.length) {
+                // Bottom widget
+                if (viewModel.isLoadingMore) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                // Extra space for FAB
+                return const SizedBox(height: 80);
+              }
+
+              if (index == 0 && transactions.isEmpty) {
+                return _buildEmptyState(context);
+              }
+
+              return _buildTransactionItem(
+                context,
+                transactions[index],
+                viewModel,
+              );
+            },
           ),
         );
       },
@@ -84,7 +135,7 @@ class TransactionListView extends StatelessWidget {
 
   Widget _buildTransactionItem(
     BuildContext context,
-    dynamic t,
+    TransactionModel t,
     TransactionViewModel viewModel,
   ) {
     final isIncome = t.type == 'income';

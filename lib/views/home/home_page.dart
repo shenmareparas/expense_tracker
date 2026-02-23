@@ -128,14 +128,11 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: const [
-          TransactionListView(),
-          AnalyticsPage(),
-          SettingsPage(),
-        ],
-      ),
+      body: [
+        const TransactionListView(),
+        const AnalyticsPage(),
+        const SettingsPage(),
+      ][_selectedIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
