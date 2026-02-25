@@ -13,6 +13,9 @@ class TransactionViewModel extends ChangeNotifier {
   List<TransactionModel> _transactions = [];
   List<TransactionModel> get transactions => _transactions;
 
+  List<TransactionModel> _allTransactions = [];
+  List<TransactionModel> get allTransactions => _allTransactions;
+
   /// Returns transactions filtered by local search query.
   /// Server-side filters (type, category, date) are already applied.
   List<TransactionModel> get filteredTransactions =>
@@ -92,6 +95,7 @@ class TransactionViewModel extends ChangeNotifier {
     final map = <String, double>{};
 
     // Apply local search filter on top of server-filtered results
+    // We use allTransactions for analytics aggregates, so they show the correct totals
     final data = _searchFilteredTransactions;
 
     for (final t in data) {
@@ -111,10 +115,10 @@ class TransactionViewModel extends ChangeNotifier {
   /// Returns transactions filtered by the local search query.
   /// Server-side filters (type, category, date) are already applied.
   List<TransactionModel> get _searchFilteredTransactions {
-    if (_searchQuery.isEmpty) return _transactions;
+    if (_searchQuery.isEmpty) return _allTransactions;
 
     final query = _searchQuery.toLowerCase();
-    return _transactions.where((t) {
+    return _allTransactions.where((t) {
       final matchesDescription =
           t.description?.toLowerCase().contains(query) ?? false;
       final matchesAmount = t.amount.toString().contains(query);
@@ -142,18 +146,22 @@ class TransactionViewModel extends ChangeNotifier {
     _hasMore = true;
     notifyListeners();
     try {
+      // Fetch all transactions without limit to compute aggregates properly
+      // DatabaseService will cache this internally
       final result = await _databaseService.getTransactions(
         forceRefresh: forceRefresh,
-        limit: _pageSize,
+        limit: null,
         offset: 0,
         type: _filterType,
         category: _filterCategory,
         startDate: _filterStartDate,
         endDate: _filterEndDate,
       );
-      _transactions = List.from(result);
-      _hasMore = result.length >= _pageSize;
-      _currentOffset = result.length;
+      _allTransactions = List.from(result);
+      _transactions = _allTransactions.take(_pageSize).toList();
+
+      _hasMore = _allTransactions.length > _pageSize;
+      _currentOffset = _transactions.length;
       _recomputeAggregates();
     } catch (e) {
       _errorMessage = e.toString();
@@ -171,19 +179,18 @@ class TransactionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _databaseService.getTransactions(
-        forceRefresh: true,
-        limit: _pageSize,
-        offset: _currentOffset,
-        type: _filterType,
-        category: _filterCategory,
-        startDate: _filterStartDate,
-        endDate: _filterEndDate,
-      );
-      _transactions.addAll(result);
-      _hasMore = result.length >= _pageSize;
-      _currentOffset += result.length;
-      _recomputeAggregates();
+      // Small delay for UI smoothness
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Slice from the pre-loaded allTransactions list
+      final nextBatch = _allTransactions
+          .skip(_currentOffset)
+          .take(_pageSize)
+          .toList();
+      _transactions.addAll(nextBatch);
+
+      _hasMore = _transactions.length < _allTransactions.length;
+      _currentOffset = _transactions.length;
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -217,6 +224,7 @@ class TransactionViewModel extends ChangeNotifier {
     );
 
     _transactions.insert(0, optimistic);
+    _allTransactions.insert(0, optimistic);
     _recomputeAggregates();
     _isLoading = false;
     notifyListeners();
@@ -235,6 +243,7 @@ class TransactionViewModel extends ChangeNotifier {
     } catch (e) {
       // Revert optimistic insert
       _transactions.removeWhere((t) => t.id == tempId);
+      _allTransactions.removeWhere((t) => t.id == tempId);
       _recomputeAggregates();
       _errorMessage = e.toString();
       _isLoading = false;
@@ -246,10 +255,19 @@ class TransactionViewModel extends ChangeNotifier {
   Future<void> deleteTransaction(String id) async {
     // Optimistic delete
     final index = _transactions.indexWhere((t) => t.id == id);
-    if (index == -1) return;
+    final allIndex = _allTransactions.indexWhere((t) => t.id == id);
+    if (index == -1 && allIndex == -1) return;
 
-    final backup = _transactions[index];
-    _transactions.removeAt(index);
+    TransactionModel? backup;
+    if (index != -1) {
+      backup = _transactions[index];
+      _transactions.removeAt(index);
+    }
+    if (allIndex != -1) {
+      backup ??= _allTransactions[allIndex];
+      _allTransactions.removeAt(allIndex);
+    }
+
     _recomputeAggregates();
     notifyListeners();
 
@@ -257,7 +275,10 @@ class TransactionViewModel extends ChangeNotifier {
       await _databaseService.deleteTransaction(id);
     } catch (e) {
       // Revert if failed
-      _transactions.insert(index, backup);
+      if (backup != null) {
+        if (index != -1) _transactions.insert(index, backup);
+        if (allIndex != -1) _allTransactions.insert(allIndex, backup);
+      }
       _recomputeAggregates();
       _errorMessage = 'Failed to delete transaction';
       notifyListeners();
@@ -277,16 +298,22 @@ class TransactionViewModel extends ChangeNotifier {
 
     // Optimistic local update
     final index = _transactions.indexWhere((t) => t.id == id);
+    final allIndex = _allTransactions.indexWhere((t) => t.id == id);
     TransactionModel? backup;
-    if (index != -1) {
-      backup = _transactions[index];
-      _transactions[index] = backup.copyWith(
+
+    if (allIndex != -1) {
+      backup = _allTransactions[allIndex];
+      final updated = backup.copyWith(
         amount: amount,
         type: type,
         category: category,
         description: description,
         transactionDate: transactionDate,
       );
+      _allTransactions[allIndex] = updated;
+      if (index != -1) {
+        _transactions[index] = updated;
+      }
       _recomputeAggregates();
     }
     _isLoading = false;
@@ -306,8 +333,9 @@ class TransactionViewModel extends ChangeNotifier {
       return true;
     } catch (e) {
       // Revert optimistic update
-      if (backup != null && index != -1) {
-        _transactions[index] = backup;
+      if (backup != null) {
+        if (allIndex != -1) _allTransactions[allIndex] = backup;
+        if (index != -1) _transactions[index] = backup;
         _recomputeAggregates();
       }
       _errorMessage = e.toString();

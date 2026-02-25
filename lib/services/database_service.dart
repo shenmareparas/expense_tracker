@@ -60,7 +60,7 @@ class DatabaseService {
 
   Future<List<TransactionModel>> getTransactions({
     bool forceRefresh = false,
-    int limit = 20,
+    int? limit,
     int offset = 0,
     String? type,
     String? category,
@@ -74,13 +74,15 @@ class DatabaseService {
       endDate: endDate,
     );
 
-    // Only use cache for the first page with matching filters
+    // If cache is valid, return the sliced list
     if (!forceRefresh &&
-        offset == 0 &&
         _cachedTransactions != null &&
         _isCacheValid(_transactionsFetchedAt) &&
         _cachedFilterKey == filterKey) {
-      return List.unmodifiable(_cachedTransactions!);
+      if (limit == null) {
+        return List.unmodifiable(_cachedTransactions!);
+      }
+      return _cachedTransactions!.skip(offset).take(limit).toList();
     }
 
     var query = _supabase.from('transactions').select(_transactionColumns);
@@ -104,22 +106,22 @@ class DatabaseService {
       query = query.lt('transaction_date', endOfDay.toUtc().toIso8601String());
     }
 
-    final response = await query
-        .order('transaction_date', ascending: false)
-        .range(offset, offset + limit - 1);
+    // Remove range limitation to fetch all matching transactions
+    final response = await query.order('transaction_date', ascending: false);
 
     final transactions = (response as List<dynamic>)
         .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Only cache the first page
-    if (offset == 0) {
-      _cachedTransactions = transactions;
-      _transactionsFetchedAt = DateTime.now();
-      _cachedFilterKey = filterKey;
-    }
+    // Cache all fetched data
+    _cachedTransactions = transactions;
+    _transactionsFetchedAt = DateTime.now();
+    _cachedFilterKey = filterKey;
 
-    return List.unmodifiable(transactions);
+    if (limit == null) {
+      return List.unmodifiable(transactions);
+    }
+    return transactions.skip(offset).take(limit).toList();
   }
 
   Future<void> addTransaction({
