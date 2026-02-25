@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 
@@ -33,7 +36,7 @@ class AuthViewModel extends ChangeNotifier {
       await _authService.signIn(email: email, password: password);
       return true;
     } catch (e) {
-      _setError(e is Exception ? e.toString() : 'Unexpected error occurred');
+      _setError(_friendlyMessage(e));
       return false;
     } finally {
       _setLoading(false);
@@ -51,7 +54,7 @@ class AuthViewModel extends ChangeNotifier {
       await _authService.signUp(name: name, email: email, password: password);
       return true;
     } catch (e) {
-      _setError(e is Exception ? e.toString() : 'Unexpected error occurred');
+      _setError(_friendlyMessage(e));
       return false;
     } finally {
       _setLoading(false);
@@ -61,5 +64,20 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> signOut() async {
     DatabaseService.instance.clearCache();
     await _authService.signOut();
+  }
+
+  /// Maps raw exceptions to user-friendly messages.
+  String _friendlyMessage(Object error) {
+    if (error is SocketException || error is AuthRetryableFetchException) {
+      return 'Connection failed. Please check your internet and try again.';
+    }
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid') || msg.contains('credentials')) {
+        return 'Invalid email or password.';
+      }
+      return error.message;
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

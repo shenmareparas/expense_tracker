@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app/supabase_config.dart';
 
@@ -6,6 +8,8 @@ import '../app/supabase_config.dart';
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
+
+  static const int _maxAttempts = 3;
 
   final SupabaseClient _client = SupabaseConfig.client;
 
@@ -20,7 +24,9 @@ class AuthService {
     required String email,
     required String password,
   }) {
-    return _client.auth.signInWithPassword(email: email, password: password);
+    return _retry(
+      () => _client.auth.signInWithPassword(email: email, password: password),
+    );
   }
 
   /// Sign up with email, password, and user metadata.
@@ -29,13 +35,39 @@ class AuthService {
     required String email,
     required String password,
   }) {
-    return _client.auth.signUp(
-      email: email,
-      password: password,
-      data: {'name': name},
+    return _retry(
+      () => _client.auth.signUp(
+        email: email,
+        password: password,
+        data: {'name': name},
+      ),
     );
   }
 
   /// Sign out the current user.
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() => _retry(() => _client.auth.signOut());
+
+  /// Retries [action] up to [_maxAttempts] times with exponential back-off
+  /// when a network-level error is detected.
+  Future<T> _retry<T>(Future<T> Function() action) async {
+    for (var attempt = 1; attempt <= _maxAttempts; attempt++) {
+      try {
+        return await action();
+      } catch (e) {
+        final isLastAttempt = attempt == _maxAttempts;
+        if (isLastAttempt || !_isNetworkError(e)) rethrow;
+        // Exponential back-off: 1s, 2s
+        await Future<void>.delayed(Duration(seconds: attempt));
+      }
+    }
+    // Unreachable, but satisfies the return type.
+    throw StateError('Retry loop exited unexpectedly');
+  }
+
+  /// Returns true for errors caused by network connectivity issues.
+  bool _isNetworkError(Object error) {
+    if (error is SocketException) return true;
+    if (error is AuthRetryableFetchException) return true;
+    return false;
+  }
 }
