@@ -100,8 +100,8 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
           title: const Text('Manage Categories'),
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'Expenses', icon: Icon(Icons.upload_outlined)),
-              Tab(text: 'Income', icon: Icon(Icons.download_outlined)),
+              Tab(text: 'Expenses', icon: Icon(Icons.upload)),
+              Tab(text: 'Income', icon: Icon(Icons.download)),
             ],
           ),
         ),
@@ -230,18 +230,14 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
               children: [
                 if (!isOther) ...[
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    icon: const Icon(Icons.edit, size: 20),
                     onPressed: () => _showCategoryDialog(
                       category: category,
                       initialType: type,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.red,
-                      size: 20,
-                    ),
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                     onPressed: () =>
                         _showDeleteConfirmation(context, viewModel, category),
                   ),
