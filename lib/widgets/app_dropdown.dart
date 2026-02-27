@@ -111,47 +111,37 @@ class AppDropdownButton<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.colorScheme.outline.withValues(alpha: 0.1),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          items: items.map((item) {
-            return DropdownMenuItem<T>(
-              value: item.value,
-              child: DefaultTextStyle.merge(
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                child: item.child,
+    final borderRadius = BorderRadius.circular(12);
+
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        value: value,
+        items: items.map((item) {
+          return DropdownMenuItem<T>(
+            value: item.value,
+            child: DefaultTextStyle.merge(
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-            );
-          }).toList(),
-          onChanged: onChanged,
-          icon: Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: theme.colorScheme.primary.withValues(alpha: 0.8),
-            size: 20,
-          ),
-          dropdownColor: theme.brightness == Brightness.dark
-              ? const Color(0xFF1A1A1A)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          elevation: 4,
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+              child: item.child,
+            ),
+          );
+        }).toList(),
+        onChanged: onChanged,
+        icon: Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: theme.colorScheme.onSurfaceVariant,
+          size: 18,
+        ),
+        dropdownColor: theme.colorScheme.surface,
+        borderRadius: borderRadius,
+        elevation: 2,
+        style: TextStyle(
+          color: theme.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
         ),
       ),
     );

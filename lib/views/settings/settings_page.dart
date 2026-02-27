@@ -165,10 +165,11 @@ class SettingsPage extends StatelessWidget {
     required BuildContext context,
     required List<Widget> children,
   }) {
+    final borderRadius = BorderRadius.circular(20);
+
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: borderRadius,
         border: Border.all(
           color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
         ),
@@ -180,7 +181,13 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(children: children),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: Material(
+          color: Theme.of(context).colorScheme.surface,
+          child: Column(children: children),
+        ),
+      ),
     );
   }
 }
