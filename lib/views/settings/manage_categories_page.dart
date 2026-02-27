@@ -100,8 +100,8 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
           title: const Text('Manage Categories'),
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'Expenses', icon: Icon(Icons.upload)),
-              Tab(text: 'Income', icon: Icon(Icons.download)),
+              Tab(text: 'Expenses', icon: Icon(Icons.arrow_upward)),
+              Tab(text: 'Income', icon: Icon(Icons.arrow_downward)),
             ],
           ),
         ),
@@ -154,8 +154,8 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
           children: [
             Icon(
               type == 'expense'
-                  ? Icons.shopping_bag_outlined
-                  : Icons.account_balance_wallet_outlined,
+                  ? Icons.shopping_bag
+                  : Icons.account_balance_wallet,
               size: 64,
               color: Colors.grey,
             ),

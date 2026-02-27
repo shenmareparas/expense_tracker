@@ -22,7 +22,7 @@ class SettingsPage extends StatelessWidget {
           children: [
             ListTile(
               leading: Icon(
-                Icons.category_outlined,
+                Icons.category,
                 color: Theme.of(context).colorScheme.primary,
               ),
               title: const Text(
@@ -42,7 +42,7 @@ class SettingsPage extends StatelessWidget {
             const Divider(height: 1, indent: 16, endIndent: 16),
             ListTile(
               leading: Icon(
-                Icons.cached_outlined,
+                Icons.cached,
                 color: Theme.of(context).colorScheme.primary,
               ),
               title: const Text(
@@ -80,7 +80,7 @@ class SettingsPage extends StatelessWidget {
           children: [
             ListTile(
               leading: Icon(
-                Icons.palette_outlined,
+                Icons.palette,
                 color: Theme.of(context).colorScheme.primary,
               ),
               title: const Text(

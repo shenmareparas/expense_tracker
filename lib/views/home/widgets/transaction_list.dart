@@ -110,7 +110,7 @@ class _TransactionListViewState extends State<TransactionListView> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.receipt_long_outlined,
+              Icons.receipt_long,
               size: 80,
               color: Theme.of(
                 context,

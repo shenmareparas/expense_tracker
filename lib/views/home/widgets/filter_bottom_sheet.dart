@@ -97,7 +97,7 @@ void showFilterBottomSheet(
                     key: ValueKey(selectedCategory),
                     value: selectedCategory,
                     hint: 'All Categories',
-                    prefixIcon: Icons.category_outlined,
+                    prefixIcon: Icons.category,
                     items: [
                       const DropdownMenuItem(
                         value: null,

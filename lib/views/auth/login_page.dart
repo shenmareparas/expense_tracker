@@ -159,7 +159,7 @@ class _LoginPageState extends State<LoginPage> {
                   _buildTextField(
                     controller: _emailController,
                     label: 'Email',
-                    icon: Icons.email_outlined,
+                    icon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
@@ -171,8 +171,8 @@ class _LoginPageState extends State<LoginPage> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         size: 22,
                         color: Theme.of(
                           context,

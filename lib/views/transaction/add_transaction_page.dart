@@ -104,6 +104,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       return;
     }
 
+    if (_descriptionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a description')),
+      );
+      return;
+    }
+
     if (_category == null) {
       ScaffoldMessenger.of(
         context,
@@ -127,9 +134,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               amount: amount,
               type: _type,
               category: _category!,
-              description: _descriptionController.text.trim().isEmpty
-                  ? null
-                  : _descriptionController.text.trim(),
+              description: _descriptionController.text.trim(),
               transactionDate: transactionDateTime,
             )
           : await viewModel.updateTransaction(
@@ -277,7 +282,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 decoration:
                                     _inputDecoration(
                                       '0.00',
-                                      Icons.account_balance_wallet_outlined,
+                                      Icons.account_balance_wallet,
                                     ).copyWith(
                                       prefixText: '₹ ',
                                       contentPadding:
@@ -298,7 +303,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 controller: _descriptionController,
                                 decoration: _inputDecoration(
                                   'What was this for?',
-                                  Icons.description_outlined,
+                                  Icons.description,
                                 ),
                                 textCapitalization:
                                     TextCapitalization.sentences,
@@ -310,7 +315,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 key: ValueKey('category_dropdown_$_type'),
                                 value: _category,
                                 hint: 'Select Category',
-                                prefixIcon: Icons.category_outlined,
+                                prefixIcon: Icons.category,
                                 items: categories.map((String category) {
                                   return DropdownMenuItem(
                                     value: category,
