@@ -134,6 +134,9 @@ class TransactionViewModel extends ChangeNotifier {
   bool _isLoadingMore = false;
   bool get isLoadingMore => _isLoadingMore;
 
+  bool _isSaving = false;
+  bool get isSaving => _isSaving;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -206,7 +209,7 @@ class TransactionViewModel extends ChangeNotifier {
     String? description,
     required DateTime transactionDate,
   }) async {
-    _isLoading = true;
+    _isSaving = true;
     _errorMessage = null;
     notifyListeners();
 
@@ -226,7 +229,6 @@ class TransactionViewModel extends ChangeNotifier {
     _transactions.insert(0, optimistic);
     _allTransactions.insert(0, optimistic);
     _recomputeAggregates();
-    _isLoading = false;
     notifyListeners();
 
     try {
@@ -246,9 +248,10 @@ class TransactionViewModel extends ChangeNotifier {
       _allTransactions.removeWhere((t) => t.id == tempId);
       _recomputeAggregates();
       _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
       return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
     }
   }
 
@@ -293,8 +296,9 @@ class TransactionViewModel extends ChangeNotifier {
     String? description,
     required DateTime transactionDate,
   }) async {
-    _isLoading = true;
+    _isSaving = true;
     _errorMessage = null;
+    notifyListeners();
 
     // Optimistic local update
     final index = _transactions.indexWhere((t) => t.id == id);
@@ -316,8 +320,6 @@ class TransactionViewModel extends ChangeNotifier {
       }
       _recomputeAggregates();
     }
-    _isLoading = false;
-    notifyListeners();
 
     try {
       await _databaseService.updateTransaction(
@@ -339,9 +341,10 @@ class TransactionViewModel extends ChangeNotifier {
         _recomputeAggregates();
       }
       _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
       return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
     }
   }
 }

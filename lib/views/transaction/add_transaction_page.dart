@@ -184,8 +184,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             final transactionViewModel = Provider.of<TransactionViewModel>(
               context,
             );
+            final isSaving = transactionViewModel.isSaving;
 
-            return transactionViewModel.isLoading
+            return transactionViewModel.isLoading && !isSaving
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(24, 120, 24, 24),
@@ -449,7 +450,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           ],
                         ),
                         child: ElevatedButton(
-                          onPressed: _saveTransaction,
+                          onPressed: isSaving ? null : _saveTransaction,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             foregroundColor: Colors.white,
@@ -461,18 +462,37 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                widget.transaction == null
-                                    ? Icons.check_circle_outline
-                                    : Icons.update,
-                                size: 24,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 12),
+                              if (isSaving) ...[
+                                const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                        AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ] else ...[
+                                Icon(
+                                  widget.transaction == null
+                                      ? Icons.check_circle_outline
+                                      : Icons.update,
+                                  size: 24,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 12),
+                              ],
                               Text(
-                                widget.transaction == null
-                                    ? 'Save Transaction'
-                                    : 'Update Transaction',
+                                isSaving
+                                    ? (widget.transaction == null
+                                        ? 'Saving...'
+                                        : 'Updating...')
+                                    : (widget.transaction == null
+                                        ? 'Save Transaction'
+                                        : 'Update Transaction'),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,

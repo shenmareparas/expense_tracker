@@ -20,6 +20,7 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  static const _tabTransitionDuration = Duration(milliseconds: 280);
 
   @override
   void initState() {
@@ -60,6 +61,12 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      const TransactionListView(),
+      const AnalyticsPage(),
+      const SettingsPage(),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: _isSearching
@@ -128,11 +135,29 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      body: [
-        const TransactionListView(),
-        const AnalyticsPage(),
-        const SettingsPage(),
-      ][_selectedIndex],
+      body: AnimatedSwitcher(
+        duration: _tabTransitionDuration,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        layoutBuilder: (currentChild, previousChildren) {
+          return currentChild ?? const SizedBox.shrink();
+        },
+        transitionBuilder: (child, animation) {
+          final slideAnimation = Tween<Offset>(
+            begin: const Offset(0, 0.06),
+            end: Offset.zero,
+          ).animate(animation);
+
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slideAnimation, child: child),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey(_selectedIndex),
+          child: pages[_selectedIndex],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onItemTapped,
