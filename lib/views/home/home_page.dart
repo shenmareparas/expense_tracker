@@ -20,7 +20,6 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-  static const _tabTransitionDuration = Duration(milliseconds: 280);
 
   @override
   void initState() {
@@ -136,7 +135,7 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: AnimatedSwitcher(
-        duration: _tabTransitionDuration,
+        duration: const Duration(milliseconds: 280),
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         layoutBuilder: (currentChild, previousChildren) {

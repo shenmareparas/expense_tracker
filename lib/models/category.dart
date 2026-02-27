@@ -1,4 +1,11 @@
 class CategoryModel {
+  /// Sorts categories by [orderIndex], keeping "Other" always last.
+  static int sortWithOtherLast(CategoryModel a, CategoryModel b) {
+    if (a.name.toLowerCase() == 'other') return 1;
+    if (b.name.toLowerCase() == 'other') return -1;
+    return a.orderIndex.compareTo(b.orderIndex);
+  }
+
   final String id;
   final String userId;
   final String name;

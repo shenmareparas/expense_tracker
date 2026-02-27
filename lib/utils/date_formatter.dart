@@ -1,6 +1,9 @@
 import 'package:intl/intl.dart';
 
 class DateFormatter {
+  static final _dateFormat = DateFormat('MMM d, yyyy');
+  static final _timeFormat = DateFormat.jm();
+
   static String formatDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -12,15 +15,11 @@ class DateFormatter {
     } else if (dateToCheck == yesterday) {
       return 'Yesterday';
     } else {
-      return DateFormat('MMM d, yyyy').format(date);
+      return _dateFormat.format(date);
     }
   }
 
-  static String formatTime(DateTime date) {
-    return DateFormat.jm().format(date);
-  }
-
   static String formatDateTime(DateTime date) {
-    return '${formatDate(date)}, ${formatTime(date)}';
+    return '${formatDate(date)}, ${_timeFormat.format(date)}';
   }
 }

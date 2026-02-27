@@ -74,14 +74,14 @@ class DatabaseService {
       endDate: endDate,
     );
 
-    // If cache is valid, return the sliced list
-    if (!forceRefresh &&
+    final canUseCache =
+        !forceRefresh &&
         _cachedTransactions != null &&
         _isCacheValid(_transactionsFetchedAt) &&
-        _cachedFilterKey == filterKey) {
-      if (limit == null) {
-        return List.unmodifiable(_cachedTransactions!);
-      }
+        _cachedFilterKey == filterKey;
+
+    if (canUseCache) {
+      if (limit == null) return List.unmodifiable(_cachedTransactions!);
       return _cachedTransactions!.skip(offset).take(limit).toList();
     }
 
@@ -106,22 +106,25 @@ class DatabaseService {
       query = query.lt('transaction_date', endOfDay.toUtc().toIso8601String());
     }
 
-    // Remove range limitation to fetch all matching transactions
-    final response = await query.order('transaction_date', ascending: false);
+    var orderedQuery = query.order('transaction_date', ascending: false);
+    if (limit != null) {
+      orderedQuery = orderedQuery.range(offset, offset + limit - 1);
+    }
+
+    final response = await orderedQuery;
 
     final transactions = (response as List<dynamic>)
         .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Cache all fetched data
-    _cachedTransactions = transactions;
-    _transactionsFetchedAt = DateTime.now();
-    _cachedFilterKey = filterKey;
-
     if (limit == null) {
+      // Cache full filtered dataset only.
+      _cachedTransactions = transactions;
+      _transactionsFetchedAt = DateTime.now();
+      _cachedFilterKey = filterKey;
       return List.unmodifiable(transactions);
     }
-    return transactions.skip(offset).take(limit).toList();
+    return transactions;
   }
 
   Future<void> addTransaction({

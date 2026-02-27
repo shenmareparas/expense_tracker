@@ -36,12 +36,8 @@ class CategoryViewModel extends ChangeNotifier {
   }
 
   List<String> _buildSortedNames(String type) {
-    final filtered = _categories.where((c) => c.type == type).toList();
-    filtered.sort((a, b) {
-      if (a.name.toLowerCase() == 'other') return 1;
-      if (b.name.toLowerCase() == 'other') return -1;
-      return a.orderIndex.compareTo(b.orderIndex);
-    });
+    final filtered = _categories.where((c) => c.type == type).toList()
+      ..sort(CategoryModel.sortWithOtherLast);
 
     final names = filtered.map((c) => c.name).toList();
     if (!names.contains('Other')) names.add('Other');
@@ -129,11 +125,7 @@ class CategoryViewModel extends ChangeNotifier {
     int newIndex,
   ) async {
     final filtered = _categories.where((c) => c.type == type).toList()
-      ..sort((a, b) {
-        if (a.name.toLowerCase() == 'other') return 1;
-        if (b.name.toLowerCase() == 'other') return -1;
-        return a.orderIndex.compareTo(b.orderIndex);
-      });
+      ..sort(CategoryModel.sortWithOtherLast);
 
     if (newIndex > oldIndex) newIndex -= 1;
 

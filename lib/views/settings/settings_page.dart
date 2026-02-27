@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/database_service.dart';
-import '../../services/theme_service.dart';
+import '../../viewmodels/theme_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
@@ -52,12 +51,11 @@ class SettingsPage extends StatelessWidget {
               ),
               subtitle: const Text('Force refresh all data from server'),
               onTap: () async {
-                DatabaseService.instance.clearCache();
                 await Future.wait([
                   Provider.of<TransactionViewModel>(
                     context,
                     listen: false,
-                  ).loadTransactions(forceRefresh: true),
+                  ).clearCacheAndRefresh(),
                   Provider.of<CategoryViewModel>(
                     context,
                     listen: false,
@@ -89,7 +87,7 @@ class SettingsPage extends StatelessWidget {
                 'Theme',
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
-              trailing: Consumer<ThemeService>(
+              trailing: Consumer<ThemeViewModel>(
                 builder: (context, themeService, _) {
                   return AppDropdownButton<ThemeMode>(
                     value: themeService.themeMode,

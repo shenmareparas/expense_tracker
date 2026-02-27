@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../services/theme_service.dart';
+import '../viewmodels/theme_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/transaction_viewmodel.dart';
 import '../viewmodels/category_viewmodel.dart';
@@ -19,9 +19,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthViewModel()),
         ChangeNotifierProvider(create: (_) => TransactionViewModel()),
         ChangeNotifierProvider(create: (_) => CategoryViewModel()),
-        ChangeNotifierProvider(create: (_) => ThemeService()),
+        ChangeNotifierProvider(create: (_) => ThemeViewModel()),
       ],
-      child: Consumer<ThemeService>(
+      child: Consumer<ThemeViewModel>(
         builder: (context, themeService, _) {
           return MaterialApp(
             title: 'Expense Tracker',

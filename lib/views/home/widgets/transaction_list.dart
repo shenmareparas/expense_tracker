@@ -55,6 +55,20 @@ class _TransactionListViewState extends State<TransactionListView> {
         }
 
         final transactions = viewModel.filteredTransactions;
+        if (transactions.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                const SizedBox(height: 120),
+                _buildEmptyState(context),
+                const SizedBox(height: 80),
+              ],
+            ),
+          );
+        }
 
         return RefreshIndicator(
           onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
@@ -74,10 +88,6 @@ class _TransactionListViewState extends State<TransactionListView> {
                 }
                 // Extra space for FAB
                 return const SizedBox(height: 80);
-              }
-
-              if (index == 0 && transactions.isEmpty) {
-                return _buildEmptyState(context);
               }
 
               return _buildTransactionItem(

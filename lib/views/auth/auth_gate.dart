@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/auth_service.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 import '../../views/home/home_page.dart';
 import 'login_page.dart';
 
@@ -10,8 +11,9 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
     return StreamBuilder<AuthState>(
-      stream: AuthService.instance.onAuthStateChange,
+      stream: authViewModel.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(

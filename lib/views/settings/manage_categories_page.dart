@@ -113,18 +113,10 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
 
             final expenses =
                 viewModel.categories.where((c) => c.type == 'expense').toList()
-                  ..sort((a, b) {
-                    if (a.name.toLowerCase() == 'other') return 1;
-                    if (b.name.toLowerCase() == 'other') return -1;
-                    return a.orderIndex.compareTo(b.orderIndex);
-                  });
+                  ..sort(CategoryModel.sortWithOtherLast);
             final income =
                 viewModel.categories.where((c) => c.type == 'income').toList()
-                  ..sort((a, b) {
-                    if (a.name.toLowerCase() == 'other') return 1;
-                    if (b.name.toLowerCase() == 'other') return -1;
-                    return a.orderIndex.compareTo(b.orderIndex);
-                  });
+                  ..sort(CategoryModel.sortWithOtherLast);
 
             return TabBarView(
               children: [
@@ -280,7 +272,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
       builder: (context) => AlertDialog(
         title: const Text('Delete Category?'),
         content: Text(
-          'Are you sure you want to delete "${category.name}"? Transactions using this category will not be deleted, but they will logic reference a missing category.',
+          'Are you sure you want to delete "${category.name}"? Transactions using this category will not be deleted, but they will still reference a missing category.',
         ),
         actions: [
           TextButton(

@@ -16,10 +16,14 @@ void showFilterBottomSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
     builder: (context) {
+      String? selectedType = viewModel.filterType;
+      String? selectedCategory = viewModel.filterCategory;
+      DateTime? selectedStartDate = viewModel.filterStartDate;
+      DateTime? selectedEndDate = viewModel.filterEndDate;
       return StatefulBuilder(
         builder: (context, setState) {
-          final isIncomeFilter = viewModel.filterType == 'income';
-          final isExpenseFilter = viewModel.filterType == 'expense';
+          final isIncomeFilter = selectedType == 'income';
+          final isExpenseFilter = selectedType == 'expense';
           final categoryViewModel = Provider.of<CategoryViewModel>(
             context,
             listen: false,
@@ -52,55 +56,46 @@ void showFilterBottomSheet(
                   children: [
                     FilterChip(
                       label: const Text('All'),
-                      selected: viewModel.filterType == null,
+                      selected: selectedType == null,
                       onSelected: (_) {
-                        viewModel.setFilters(
-                          type: null,
-                          category: null,
-                          startDate: viewModel.filterStartDate,
-                          endDate: viewModel.filterEndDate,
-                        );
-                        setState(() {});
+                        setState(() {
+                          selectedType = null;
+                          selectedCategory = null;
+                        });
                       },
                     ),
                     FilterChip(
                       label: const Text('Income'),
                       selected: isIncomeFilter,
                       onSelected: (_) {
-                        viewModel.setFilters(
-                          type: 'income',
-                          category: null,
-                          startDate: viewModel.filterStartDate,
-                          endDate: viewModel.filterEndDate,
-                        );
-                        setState(() {});
+                        setState(() {
+                          selectedType = 'income';
+                          selectedCategory = null;
+                        });
                       },
                     ),
                     FilterChip(
                       label: const Text('Expense'),
                       selected: isExpenseFilter,
                       onSelected: (_) {
-                        viewModel.setFilters(
-                          type: 'expense',
-                          category: null,
-                          startDate: viewModel.filterStartDate,
-                          endDate: viewModel.filterEndDate,
-                        );
-                        setState(() {});
+                        setState(() {
+                          selectedType = 'expense';
+                          selectedCategory = null;
+                        });
                       },
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (viewModel.filterType != null) ...[
+                if (selectedType != null) ...[
                   const Text(
                     'Category',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   AppDropdown<String?>(
-                    key: ValueKey(viewModel.filterCategory),
-                    value: viewModel.filterCategory,
+                    key: ValueKey(selectedCategory),
+                    value: selectedCategory,
                     hint: 'All Categories',
                     prefixIcon: Icons.category_outlined,
                     items: [
@@ -108,7 +103,7 @@ void showFilterBottomSheet(
                         value: null,
                         child: Text('All Categories'),
                       ),
-                      ...(viewModel.filterType == 'income'
+                      ...(selectedType == 'income'
                               ? categoryViewModel.incomeCategories
                               : categoryViewModel.expenseCategories)
                           .map(
@@ -116,13 +111,9 @@ void showFilterBottomSheet(
                           ),
                     ],
                     onChanged: (val) {
-                      viewModel.setFilters(
-                        type: viewModel.filterType,
-                        category: val,
-                        startDate: viewModel.filterStartDate,
-                        endDate: viewModel.filterEndDate,
-                      );
-                      setState(() {});
+                      setState(() {
+                        selectedCategory = val;
+                      });
                     },
                   ),
                   const SizedBox(height: 16),
@@ -139,25 +130,24 @@ void showFilterBottomSheet(
                         onPressed: () async {
                           final date = await showDatePicker(
                             context: context,
-                            initialDate:
-                                viewModel.filterStartDate ?? DateTime.now(),
+                            initialDate: selectedStartDate ?? DateTime.now(),
                             firstDate: DateTime(2000),
                             lastDate: DateTime.now(),
                           );
                           if (date != null) {
-                            viewModel.setFilters(
-                              type: viewModel.filterType,
-                              category: viewModel.filterCategory,
-                              startDate: date,
-                              endDate: viewModel.filterEndDate,
-                            );
-                            setState(() {});
+                            setState(() {
+                              selectedStartDate = date;
+                              if (selectedEndDate != null &&
+                                  selectedEndDate!.isBefore(date)) {
+                                selectedEndDate = date;
+                              }
+                            });
                           }
                         },
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(
-                          viewModel.filterStartDate != null
-                              ? '${viewModel.filterStartDate!.day}/${viewModel.filterStartDate!.month}/${viewModel.filterStartDate!.year}'
+                          selectedStartDate != null
+                              ? '${selectedStartDate!.day}/${selectedStartDate!.month}/${selectedStartDate!.year}'
                               : 'Start Date',
                         ),
                       ),
@@ -168,26 +158,20 @@ void showFilterBottomSheet(
                         onPressed: () async {
                           final date = await showDatePicker(
                             context: context,
-                            initialDate:
-                                viewModel.filterEndDate ?? DateTime.now(),
-                            firstDate:
-                                viewModel.filterStartDate ?? DateTime(2000),
+                            initialDate: selectedEndDate ?? DateTime.now(),
+                            firstDate: selectedStartDate ?? DateTime(2000),
                             lastDate: DateTime.now(),
                           );
                           if (date != null) {
-                            viewModel.setFilters(
-                              type: viewModel.filterType,
-                              category: viewModel.filterCategory,
-                              startDate: viewModel.filterStartDate,
-                              endDate: date,
-                            );
-                            setState(() {});
+                            setState(() {
+                              selectedEndDate = date;
+                            });
                           }
                         },
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(
-                          viewModel.filterEndDate != null
-                              ? '${viewModel.filterEndDate!.day}/${viewModel.filterEndDate!.month}/${viewModel.filterEndDate!.year}'
+                          selectedEndDate != null
+                              ? '${selectedEndDate!.day}/${selectedEndDate!.month}/${selectedEndDate!.year}'
                               : 'End Date',
                         ),
                       ),
@@ -200,8 +184,12 @@ void showFilterBottomSheet(
                     Expanded(
                       child: TextButton(
                         onPressed: () {
-                          viewModel.clearFilters();
-                          setState(() {});
+                          setState(() {
+                            selectedType = null;
+                            selectedCategory = null;
+                            selectedStartDate = null;
+                            selectedEndDate = null;
+                          });
                         },
                         child: const Text('Clear All'),
                       ),
@@ -209,7 +197,18 @@ void showFilterBottomSheet(
                     const SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () async {
+                          viewModel.setFilters(
+                            type: selectedType,
+                            category: selectedCategory,
+                            startDate: selectedStartDate,
+                            endDate: selectedEndDate,
+                          );
+                          await viewModel.loadTransactions(forceRefresh: true);
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Theme.of(
                             context,

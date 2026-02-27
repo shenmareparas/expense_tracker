@@ -47,6 +47,18 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       if (categoryViewModel.categories.isEmpty) {
         categoryViewModel.loadCategories();
       }
+
+      // Set default category if not editing an existing transaction.
+      if (widget.transaction == null && _category == null) {
+        final categories = _type == 'income'
+            ? categoryViewModel.incomeCategories
+            : categoryViewModel.expenseCategories;
+        if (categories.isNotEmpty) {
+          setState(() {
+            _category = categories.first;
+          });
+        }
+      }
     });
   }
 
@@ -176,10 +188,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             final categories = _type == 'income'
                 ? categoryViewModel.incomeCategories
                 : categoryViewModel.expenseCategories;
-
-            if (_category == null || !categories.contains(_category)) {
-              _category = categories.isNotEmpty ? categories.first : null;
-            }
 
             final transactionViewModel = Provider.of<TransactionViewModel>(
               context,
@@ -468,10 +476,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                   height: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -488,11 +495,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               Text(
                                 isSaving
                                     ? (widget.transaction == null
-                                        ? 'Saving...'
-                                        : 'Updating...')
+                                          ? 'Saving...'
+                                          : 'Updating...')
                                     : (widget.transaction == null
-                                        ? 'Save Transaction'
-                                        : 'Update Transaction'),
+                                          ? 'Save Transaction'
+                                          : 'Update Transaction'),
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,

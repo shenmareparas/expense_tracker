@@ -27,6 +27,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Provider.of<TransactionViewModel>(
+        context,
+        listen: false,
+      ).loadAnalyticsSnapshot();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer<TransactionViewModel>(
       builder: (context, viewModel, child) {
@@ -48,7 +60,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         final sortedCategories = viewModel.sortedExpensesByCategory;
 
         return RefreshIndicator(
-          onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
+          onRefresh: () async {
+            await viewModel.loadTransactions(forceRefresh: true);
+            await viewModel.loadAnalyticsSnapshot(forceRefresh: true);
+          },
           child: ListView(
             padding: const EdgeInsets.all(24.0),
             children: [
