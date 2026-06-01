@@ -127,8 +127,6 @@ class CategoryViewModel extends ChangeNotifier {
     final filtered = _categories.where((c) => c.type == type).toList()
       ..sort(CategoryModel.sortWithOtherLast);
 
-    if (newIndex > oldIndex) newIndex -= 1;
-
     if (oldIndex >= filtered.length) return;
     if (filtered[oldIndex].name.toLowerCase() == 'other') {
       return; // Cannot move "Other"

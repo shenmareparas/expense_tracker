@@ -184,7 +184,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
     return ReorderableListView.builder(
       itemCount: categories.length,
       padding: const EdgeInsets.symmetric(vertical: 8),
-      onReorder: (oldIndex, newIndex) {
+      onReorderItem: (oldIndex, newIndex) {
         viewModel.reorderCategories(type, oldIndex, newIndex);
       },
       itemBuilder: (context, index) {
