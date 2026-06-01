@@ -108,7 +108,7 @@ class _HomePageState extends State<HomePage> {
                 });
               },
             ),
-          if (!_isSearching && (_selectedIndex == 0 || _selectedIndex == 1))
+          if (!_isSearching && _selectedIndex == 0)
             Consumer<TransactionViewModel>(
               builder: (context, viewModel, child) {
                 return IconButton(

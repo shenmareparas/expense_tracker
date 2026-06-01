@@ -63,15 +63,29 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _selectedDate.isAfter(now) ? now : _selectedDate,
       firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
+      lastDate: now,
     );
-    if (picked != null && picked != _selectedDate) {
+    if (picked != null) {
       setState(() {
         _selectedDate = picked;
+        // If selected date is today and previously chosen time is in the future, clamp it to now.
+        if (DateUtils.isSameDay(_selectedDate, now)) {
+          final chosenDateTime = DateTime(
+            _selectedDate.year,
+            _selectedDate.month,
+            _selectedDate.day,
+            _selectedTime.hour,
+            _selectedTime.minute,
+          );
+          if (chosenDateTime.isAfter(now)) {
+            _selectedTime = TimeOfDay.fromDateTime(now);
+          }
+        }
       });
     }
   }
@@ -81,7 +95,23 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       context: context,
       initialTime: _selectedTime,
     );
-    if (picked != null && picked != _selectedTime) {
+    if (picked != null) {
+      final now = DateTime.now();
+      final chosenDateTime = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        picked.hour,
+        picked.minute,
+      );
+      if (chosenDateTime.isAfter(now)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cannot select a future time.')),
+          );
+        }
+        return;
+      }
       setState(() {
         _selectedTime = picked;
       });
@@ -128,6 +158,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         _selectedTime.hour,
         _selectedTime.minute,
       );
+
+      if (transactionDateTime.isAfter(DateTime.now())) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot add a transaction in the future.')),
+        );
+        return;
+      }
 
       final success = widget.transaction == null
           ? await viewModel.addTransaction(
@@ -363,12 +400,16 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                               ).colorScheme.primary,
                                             ),
                                             const SizedBox(width: 12),
-                                            Text(
-                                              DateFormatter.formatDate(
-                                                _selectedDate,
-                                              ),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
+                                            Expanded(
+                                              child: Text(
+                                                DateFormatter.formatDate(
+                                                  _selectedDate,
+                                                ),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
@@ -405,10 +446,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                               ).colorScheme.primary,
                                             ),
                                             const SizedBox(width: 12),
-                                            Text(
-                                              _selectedTime.format(context),
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
+                                            Expanded(
+                                              child: Text(
+                                                _selectedTime.format(context),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],
