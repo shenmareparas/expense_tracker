@@ -11,7 +11,8 @@ class TransactionViewModel extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService.instance;
 
   List<TransactionModel> _transactions = [];
-  List<TransactionModel> get transactions => _transactions;
+  List<TransactionModel> get transactions =>
+      _hasAnalyticsSnapshot ? _analyticsTransactions : _transactions;
 
   /// Returns transactions filtered by local search query.
   /// Server-side filters (type, category, date) are already applied.
@@ -43,6 +44,12 @@ class TransactionViewModel extends ChangeNotifier {
   DateTime? _filterEndDate;
   DateTime? get filterEndDate => _filterEndDate;
 
+  DateTime? _analyticsStartDate;
+  DateTime? get analyticsStartDate => _analyticsStartDate;
+
+  DateTime? _analyticsEndDate;
+  DateTime? get analyticsEndDate => _analyticsEndDate;
+
   void setFilters({
     String? type,
     String? category,
@@ -55,6 +62,8 @@ class TransactionViewModel extends ChangeNotifier {
     _filterEndDate = endDate;
     _hasAnalyticsSnapshot = false;
     _analyticsTransactions = [];
+    _analyticsStartDate = null;
+    _analyticsEndDate = null;
     notifyListeners();
   }
 
@@ -322,17 +331,23 @@ class TransactionViewModel extends ChangeNotifier {
     await loadTransactions(forceRefresh: true);
   }
 
-  Future<void> loadAnalyticsSnapshot({bool forceRefresh = false}) async {
+  Future<void> loadAnalyticsSnapshot({
+    DateTime? startDate,
+    DateTime? endDate,
+    bool forceRefresh = false,
+  }) async {
     _errorMessage = null;
+    _analyticsStartDate = startDate;
+    _analyticsEndDate = endDate;
     try {
       final result = await _databaseService.getTransactions(
         forceRefresh: forceRefresh,
         limit: null,
         offset: 0,
-        type: _filterType,
-        category: _filterCategory,
-        startDate: _filterStartDate,
-        endDate: _filterEndDate,
+        type: null,
+        category: null,
+        startDate: _analyticsStartDate,
+        endDate: _analyticsEndDate,
       );
       _analyticsTransactions = List.from(result);
       _hasAnalyticsSnapshot = true;

@@ -14,9 +14,11 @@ class AnalyticsPage extends StatefulWidget {
 }
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
-  String _selectedTimePeriod = '7days'; // '7days', '30days', 'month', 'year', 'custom'
+  String _selectedTimePeriod =
+      '7days'; // '7days', '30days', 'month', 'year', 'custom'
   String _selectedType = 'expense'; // 'expense', 'income'
-  String _selectedChartType = 'trend'; // 'pie' (breakdown), 'trend' (daily trend)
+  String _selectedChartType =
+      'trend'; // 'pie' (breakdown), 'trend' (daily trend)
   String? _selectedCategoryFilter; // null means 'All Categories'
   int touchedIndex = -1;
   int touchedBarIndex = -1;
@@ -44,7 +46,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   void _applyFiltersSilently(String period) {
-    if (period == 'custom') return; // Custom is handled in the date picker callback
+    if (period == 'custom') {
+      return; // Custom is handled in the date picker callback
+    }
 
     final now = DateTime.now();
     DateTime startDate;
@@ -68,13 +72,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
 
     final vm = Provider.of<TransactionViewModel>(context, listen: false);
-    vm.setFilters(
-      type: null,
-      category: null,
-      startDate: startDate,
-      endDate: endDate,
-    );
-    vm.loadAnalyticsSnapshot();
+    vm.loadAnalyticsSnapshot(startDate: startDate, endDate: endDate);
   }
 
   void _changeTimePeriod(String period) {
@@ -92,11 +90,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final initialRange = DateTimeRange(
-      start: vm.filterStartDate != null && !vm.filterStartDate!.isAfter(today)
-          ? vm.filterStartDate!
+      start:
+          vm.analyticsStartDate != null &&
+              !vm.analyticsStartDate!.isAfter(today)
+          ? vm.analyticsStartDate!
           : today.subtract(const Duration(days: 7)),
-      end: vm.filterEndDate != null && !vm.filterEndDate!.isAfter(today)
-          ? vm.filterEndDate!
+      end: vm.analyticsEndDate != null && !vm.analyticsEndDate!.isAfter(today)
+          ? vm.analyticsEndDate!
           : today,
     );
 
@@ -125,13 +125,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         touchedIndex = -1;
         touchedBarIndex = -1;
       });
-      vm.setFilters(
-        type: null,
-        category: null,
-        startDate: picked.start,
-        endDate: picked.end,
-      );
-      vm.loadAnalyticsSnapshot();
+      vm.loadAnalyticsSnapshot(startDate: picked.start, endDate: picked.end);
     }
   }
 
@@ -147,7 +141,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     DateTime startDate;
 
     if (period == 'custom' && customStart != null && customEnd != null) {
-      startDate = DateTime(customStart.year, customStart.month, customStart.day);
+      startDate = DateTime(
+        customStart.year,
+        customStart.month,
+        customStart.day,
+      );
       endDate = DateTime(customEnd.year, customEnd.month, customEnd.day);
     } else {
       switch (period) {
@@ -177,7 +175,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       // Determine the range of months
       DateTime currentMonth = DateTime(startDate.year, startDate.month, 1);
       DateTime targetMonth = DateTime(endDate.year, endDate.month, 1);
-      
+
       while (!currentMonth.isAfter(targetMonth)) {
         dailyMap[currentMonth] = 0.0;
         currentMonth = DateTime(currentMonth.year, currentMonth.month + 1, 1);
@@ -185,7 +183,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
       for (final t in transactions) {
         if (t.type == type) {
-          final transactionMonth = DateTime(t.transactionDate.year, t.transactionDate.month, 1);
+          final transactionMonth = DateTime(
+            t.transactionDate.year,
+            t.transactionDate.month,
+            1,
+          );
           if (dailyMap.containsKey(transactionMonth)) {
             dailyMap[transactionMonth] = dailyMap[transactionMonth]! + t.amount;
           }
@@ -201,7 +203,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
       for (final t in transactions) {
         if (t.type == type) {
-          final dateKey = DateTime(t.transactionDate.year, t.transactionDate.month, t.transactionDate.day);
+          final dateKey = DateTime(
+            t.transactionDate.year,
+            t.transactionDate.month,
+            t.transactionDate.day,
+          );
           if (dailyMap.containsKey(dateKey)) {
             dailyMap[dateKey] = dailyMap[dateKey]! + t.amount;
           }
@@ -254,12 +260,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         double netBalance = totalIncome - totalExpense;
 
         // 2. Fetch ALL possible category names from CategoryViewModel matching selected type
-        final allCategoryNames = categoryViewModel.categories
-            .where((c) => c.type == _selectedType)
-            .map((c) => c.name)
-            .toSet()
-            .toList()
-          ..sort();
+        final allCategoryNames =
+            categoryViewModel.categories
+                .where((c) => c.type == _selectedType)
+                .map((c) => c.name)
+                .toSet()
+                .toList()
+              ..sort();
 
         // If CategoryViewModel is not populated yet, fall back to transactions categories
         if (allCategoryNames.isEmpty) {
@@ -269,31 +276,42 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 .map((t) => t.category)
                 .toSet()
                 .toList()
-              ..sort()
+              ..sort(),
           );
         }
 
         // 3. Filter transactions by category if a filter is active
         final filteredTransactions = _selectedCategoryFilter == null
             ? transactions
-            : transactions.where((t) => t.category == _selectedCategoryFilter).toList();
+            : transactions
+                  .where((t) => t.category == _selectedCategoryFilter)
+                  .toList();
 
         // 4. Calculate aggregates for filtered views
-        final categoriesMap = _getCategoriesData(filteredTransactions, _selectedType);
+        final categoriesMap = _getCategoriesData(
+          filteredTransactions,
+          _selectedType,
+        );
         final sortedCategories = categoriesMap.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
-        
-        double currentTotal = categoriesMap.values.fold(0.0, (sum, val) => sum + val);
+
+        double currentTotal = categoriesMap.values.fold(
+          0.0,
+          (sum, val) => sum + val,
+        );
         final dailyData = _getDailyData(
           filteredTransactions,
           _selectedType,
           _selectedTimePeriod,
-          viewModel.filterStartDate,
-          viewModel.filterEndDate,
+          viewModel.analyticsStartDate,
+          viewModel.analyticsEndDate,
         );
 
         // Overall category breakdown items (always overall list so they can select any of them)
-        final overallCategoriesMap = _getCategoriesData(transactions, _selectedType);
+        final overallCategoriesMap = _getCategoriesData(
+          transactions,
+          _selectedType,
+        );
         final sortedOverallCategories = overallCategoriesMap.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -308,18 +326,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             children: [
               _buildTimePeriodSelector(),
               if (_selectedTimePeriod == 'custom' &&
-                  viewModel.filterStartDate != null &&
-                  viewModel.filterEndDate != null) ...[
+                  viewModel.analyticsStartDate != null &&
+                  viewModel.analyticsEndDate != null) ...[
                 const SizedBox(height: 10),
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(100),
                     ),
                     child: Text(
-                      'Range: ${DateFormat('yMMMd').format(viewModel.filterStartDate!)} - ${DateFormat('yMMMd').format(viewModel.filterEndDate!)}',
+                      'Range: ${DateFormat('yMMMd').format(viewModel.analyticsStartDate!)} - ${DateFormat('yMMMd').format(viewModel.analyticsEndDate!)}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -332,37 +355,66 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               const SizedBox(height: 16),
               _buildCategoryChipsRow(allCategoryNames),
               const SizedBox(height: 20),
-              _buildBalanceSummaryCard(context, totalIncome, totalExpense, netBalance),
+              _buildBalanceSummaryCard(
+                context,
+                totalIncome,
+                totalExpense,
+                netBalance,
+              ),
               const SizedBox(height: 24),
-              _buildChartCard(context, currentTotal, sortedCategories, dailyData, viewModel),
+              _buildChartCard(
+                context,
+                currentTotal,
+                sortedCategories,
+                dailyData,
+                viewModel,
+              ),
               const SizedBox(height: 24),
               if (currentTotal > 0) ...[
-                _buildInsightsSection(dailyData, sortedCategories, currentTotal),
+                _buildInsightsSection(
+                  dailyData,
+                  sortedCategories,
+                  currentTotal,
+                ),
                 const SizedBox(height: 24),
-                _buildCategoryBreakdownList(context, sortedOverallCategories, transactions),
+                _buildCategoryBreakdownList(
+                  context,
+                  sortedOverallCategories,
+                  transactions,
+                ),
               ] else ...[
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                     side: BorderSide(
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.1),
                     ),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 48,
+                      horizontal: 24,
+                    ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.insights_outlined,
                           size: 64,
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 16),
                         const Text(
                           'No transactions found',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -370,7 +422,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                               ? 'Try changing the time frame or adding new transactions.'
                               : 'No data for category "$_selectedCategoryFilter" in this period.',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -399,7 +453,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Container(
       height: 46,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(4),
@@ -418,7 +474,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: isSelected ? Theme.of(context).colorScheme.surface : Colors.transparent,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.surface
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: isSelected
                       ? [
@@ -434,7 +492,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 child: Text(
                   p['label']!,
                   style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                     color: isSelected
                         ? Theme.of(context).colorScheme.primary
                         : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -460,9 +520,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             child: ChoiceChip(
               label: const Text('All Categories'),
               selected: _selectedCategoryFilter == null,
-              selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              selectedColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.15),
               labelStyle: TextStyle(
-                fontWeight: _selectedCategoryFilter == null ? FontWeight.bold : FontWeight.normal,
+                fontWeight: _selectedCategoryFilter == null
+                    ? FontWeight.bold
+                    : FontWeight.normal,
                 color: _selectedCategoryFilter == null
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -487,7 +551,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               child: ChoiceChip(
                 label: Text(category),
                 selected: isSelected,
-                selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                selectedColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.15),
                 labelStyle: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected
@@ -520,166 +586,204 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     double balance,
   ) {
     final bool isPositive = balance >= 0;
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Net Balance',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(100),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isPositive ? Icons.trending_up : Icons.trending_down,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isPositive ? 'Surplus' : 'Deficit',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return RepaintBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? [
+                    const Color(
+                      0xFF131524,
+                    ), // Extremely deep premium indigo/navy
+                    const Color(0xFF090A10), // Midnight obsidian
+                  ]
+                : [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.8),
                   ],
-                ),
-              ),
-            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          const SizedBox(height: 8),
-          Text(
-            '₹${balance.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: -0.5,
+          borderRadius: BorderRadius.circular(28),
+          border: isDark
+              ? Border.all(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.25),
+                  width: 1.5,
+                )
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: isDark
+                  ? Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.12)
+                  : Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.25),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
             ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_downward, color: Colors.white, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Income',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            '₹${income.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Net Balance',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 36,
-                color: Colors.white.withValues(alpha: 0.2),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive ? Icons.trending_up : Icons.trending_down,
+                        color: Colors.white,
+                        size: 14,
                       ),
-                      child: const Icon(Icons.arrow_upward, color: Colors.white, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Expenses',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 12,
-                            ),
-                          ),
-                          Text(
-                            '₹${expense.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                      const SizedBox(width: 4),
+                      Text(
+                        isPositive ? 'Surplus' : 'Deficit',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '₹${balance.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 34,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: -0.5,
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_downward,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Income',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              '₹${income.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 36,
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_upward,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Expenses',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              '₹${expense.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -695,63 +799,70 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         ? 'Total: ₹${total.toStringAsFixed(0)}'
         : 'Category "$_selectedCategoryFilter": ₹${total.toStringAsFixed(0)}';
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+    return RepaintBoundary(
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _selectedType == 'expense' ? 'Expense Analysis' : 'Income Analysis',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitleText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedType == 'expense'
+                              ? 'Expense Analysis'
+                              : 'Income Analysis',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitleText,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                _buildTypeAndChartToggles(),
-              ],
-            ),
-            const SizedBox(height: 24),
-            if (total == 0)
-              const SizedBox(
-                height: 220,
-                child: Center(
-                  child: Text(
-                    'No data available for this selection',
-                    style: TextStyle(color: Colors.grey),
+                  _buildTypeAndChartToggles(),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (total == 0)
+                const SizedBox(
+                  height: 220,
+                  child: Center(
+                    child: Text(
+                      'No data available for this selection',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ),
-                ),
-              )
-            else if (_selectedChartType == 'pie')
-              _buildPieChart(context, total, categories)
-            else
-              _buildDailyTrendChart(context, dailyData, viewModel),
-          ],
+                )
+              else if (_selectedChartType == 'pie')
+                _buildPieChart(context, total, categories)
+              else
+                _buildDailyTrendChart(context, dailyData, viewModel),
+            ],
+          ),
         ),
       ),
     );
@@ -772,7 +883,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             });
           },
           icon: Icon(
-            _selectedType == 'expense' ? Icons.arrow_upward : Icons.arrow_downward,
+            _selectedType == 'expense'
+                ? Icons.arrow_upward
+                : Icons.arrow_downward,
             color: _selectedType == 'expense' ? Colors.red : Colors.green,
             size: 20,
           ),
@@ -789,7 +902,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         IconButton(
           onPressed: () {
             setState(() {
-              _selectedChartType = _selectedChartType == 'pie' ? 'trend' : 'pie';
+              _selectedChartType = _selectedChartType == 'pie'
+                  ? 'trend'
+                  : 'pie';
             });
           },
           icon: Icon(
@@ -797,9 +912,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             color: Theme.of(context).colorScheme.primary,
             size: 20,
           ),
-          tooltip: _selectedChartType == 'pie' ? 'Show Trend Chart' : 'Show Pie Chart',
+          tooltip: _selectedChartType == 'pie'
+              ? 'Show Trend Chart'
+              : 'Show Pie Chart',
           style: IconButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.08),
             padding: const EdgeInsets.all(8),
           ),
         ),
@@ -821,15 +940,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             PieChartData(
               pieTouchData: PieTouchData(
                 touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                  setState(() {
-                    if (!event.isInterestedForInteractions ||
-                        pieTouchResponse == null ||
-                        pieTouchResponse.touchedSection == null) {
-                      touchedIndex = -1;
-                      return;
-                    }
-                    touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                  });
+                  // Ignore scroll/pan gestures to keep list scrolling buttery smooth
+                  if (event is FlPanStartEvent ||
+                      event is FlPanUpdateEvent ||
+                      event is FlPanEndEvent) {
+                    return;
+                  }
+
+                  final int newIndex;
+                  if (!event.isInterestedForInteractions ||
+                      pieTouchResponse == null ||
+                      pieTouchResponse.touchedSection == null) {
+                    newIndex = -1;
+                  } else {
+                    newIndex =
+                        pieTouchResponse.touchedSection!.touchedSectionIndex;
+                  }
+
+                  if (touchedIndex != newIndex) {
+                    setState(() {
+                      touchedIndex = newIndex;
+                    });
+                  }
                 },
               ),
               borderData: FlBorderData(show: false),
@@ -863,7 +995,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 touchedIndex == -1 ? 'Average' : categories[touchedIndex].key,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
                   fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
@@ -898,13 +1032,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       );
     }
 
-    final double maxVal = dailyData.map((e) => e.value).fold(1.0, (prev, element) => element > prev ? element : prev);
+    final double maxVal = dailyData
+        .map((e) => e.value)
+        .fold(1.0, (prev, element) => element > prev ? element : prev);
     final double yAxisMax = maxVal * 1.15;
 
     // Detect if we are using monthly bucket formatting
-    final DateTime start = viewModel.filterStartDate ?? DateTime.now().subtract(const Duration(days: 7));
+    final DateTime start =
+        viewModel.filterStartDate ??
+        DateTime.now().subtract(const Duration(days: 7));
     final DateTime end = viewModel.filterEndDate ?? DateTime.now();
-    final bool isMonthlyFormatted = _selectedTimePeriod == 'year' || end.difference(start).inDays > 65;
+    final bool isMonthlyFormatted =
+        _selectedTimePeriod == 'year' || end.difference(start).inDays > 65;
 
     return SizedBox(
       height: 220,
@@ -914,9 +1053,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           BarChartData(
             barTouchData: BarTouchData(
               touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => Theme.of(context).colorScheme.surfaceContainer,
+                getTooltipColor: (_) =>
+                    Theme.of(context).colorScheme.surfaceContainer,
                 tooltipBorder: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.1),
                 ),
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                   final entry = dailyData[groupIndex];
@@ -944,27 +1086,45 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 },
               ),
               touchCallback: (FlTouchEvent event, barTouchResponse) {
-                setState(() {
-                  if (!event.isInterestedForInteractions ||
-                      barTouchResponse == null ||
-                      barTouchResponse.spot == null) {
-                    touchedBarIndex = -1;
-                    return;
-                  }
-                  touchedBarIndex = barTouchResponse.spot!.touchedBarGroupIndex;
-                });
+                // Ignore scroll/pan gestures to keep list scrolling buttery smooth
+                if (event is FlPanStartEvent ||
+                    event is FlPanUpdateEvent ||
+                    event is FlPanEndEvent) {
+                  return;
+                }
+
+                final int newIndex;
+                if (!event.isInterestedForInteractions ||
+                    barTouchResponse == null ||
+                    barTouchResponse.spot == null) {
+                  newIndex = -1;
+                } else {
+                  newIndex = barTouchResponse.spot!.touchedBarGroupIndex;
+                }
+
+                if (touchedBarIndex != newIndex) {
+                  setState(() {
+                    touchedBarIndex = newIndex;
+                  });
+                }
               },
             ),
             titlesData: FlTitlesData(
               show: true,
-              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
                   getTitlesWidget: (double value, TitleMeta meta) {
                     final int idx = value.toInt();
-                    if (idx < 0 || idx >= dailyData.length) return const SizedBox();
+                    if (idx < 0 || idx >= dailyData.length) {
+                      return const SizedBox();
+                    }
 
                     bool shouldShowLabel = false;
                     final totalPoints = dailyData.length;
@@ -976,7 +1136,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       shouldShowLabel = idx % (totalPoints ~/ 5) == 0;
                     }
 
-                    if (!shouldShowLabel) return const SizedBox();
+                    if (!shouldShowLabel) {
+                      return const SizedBox();
+                    }
 
                     final entry = dailyData[idx];
                     final text = isMonthlyFormatted
@@ -988,7 +1150,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       child: Text(
                         text,
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1017,7 +1181,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       child: Text(
                         text,
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
                           fontSize: 9,
                         ),
                       ),
@@ -1031,17 +1197,27 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               drawVerticalLine: false,
               horizontalInterval: yAxisMax / 4 > 0 ? yAxisMax / 4 : 1.0,
               getDrawingHorizontalLine: (value) => FlLine(
-                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.05),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.05),
                 strokeWidth: 1,
               ),
             ),
             borderData: FlBorderData(show: false),
             barGroups: List.generate(dailyData.length, (i) {
               final entry = dailyData[i];
-              final isTouched = i == touchedBarIndex;
-              final Color barColor = isTouched
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.primary.withValues(alpha: 0.4);
+              final bool isAnyTouched = touchedBarIndex != -1;
+              final bool isTouched = i == touchedBarIndex;
+
+              final Color barColor = isAnyTouched
+                  ? (isTouched
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.3))
+                  : Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.85);
 
               return BarChartGroupData(
                 x: i,
@@ -1057,7 +1233,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     backDrawRodData: BackgroundBarChartRodData(
                       show: true,
                       toY: yAxisMax,
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.02),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.02),
                     ),
                   ),
                 ],
@@ -1082,7 +1260,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     // 2. Highest Single Day
     MapEntry<DateTime, double>? highestDay;
     if (dailyData.isNotEmpty) {
-      highestDay = dailyData.reduce((curr, next) => curr.value > next.value ? curr : next);
+      highestDay = dailyData.reduce(
+        (curr, next) => curr.value > next.value ? curr : next,
+      );
     }
 
     // 3. Most Expensive Category
@@ -1108,7 +1288,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           childAspectRatio: 1.35,
           children: [
             _buildInsightCard(
-              title: _selectedType == 'expense' ? 'Daily Spend Avg' : 'Daily Income Avg',
+              title: _selectedType == 'expense'
+                  ? 'Daily Spend Avg'
+                  : 'Daily Income Avg',
               value: '₹${averageDaily.toStringAsFixed(0)}',
               subtitle: 'On active days',
               icon: Icons.calendar_today,
@@ -1126,13 +1308,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               color: Colors.amber.shade500,
             ),
             _buildInsightCard(
-              title: _selectedCategoryFilter == null ? 'Top Category' : 'Selected Category',
-              value: _selectedCategoryFilter ?? (highestCategory != null ? highestCategory.key : 'None'),
-              subtitle: _selectedCategoryFilter == null && highestCategory != null
+              title: _selectedCategoryFilter == null
+                  ? 'Top Category'
+                  : 'Selected Category',
+              value:
+                  _selectedCategoryFilter ??
+                  (highestCategory != null ? highestCategory.key : 'None'),
+              subtitle:
+                  _selectedCategoryFilter == null && highestCategory != null
                   ? '${((highestCategory.value / total) * 100).toStringAsFixed(0)}% of total'
                   : _selectedCategoryFilter != null
-                      ? 'Drilled down active'
-                      : 'No entries',
+                  ? 'Drilled down active'
+                  : 'No entries',
               icon: Icons.category,
               color: Colors.indigo.shade400,
             ),
@@ -1188,7 +1375,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1196,14 +1386,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
                     fontSize: 9,
                   ),
                 ),
@@ -1223,7 +1417,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     // We calculate percentages based on overall transactions for that type,
     // so the breakdown bars remain proportional even when clicked!
     final overallMap = _getCategoriesData(rawTransactions, _selectedType);
-    final double overallTotal = overallMap.values.fold(0.0, (sum, val) => sum + val);
+    final double overallTotal = overallMap.values.fold(
+      0.0,
+      (sum, val) => sum + val,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1239,7 +1436,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         ...List.generate(categories.length, (i) {
           final entry = categories[i];
           final color = _chartColors[i % _chartColors.length];
-          final percentage = overallTotal > 0 ? (entry.value / overallTotal) * 100 : 0.0;
+          final percentage = overallTotal > 0
+              ? (entry.value / overallTotal) * 100
+              : 0.0;
           final isSelected = _selectedCategoryFilter == entry.key;
 
           return AnimatedContainer(
@@ -1251,7 +1450,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               border: Border.all(
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outline.withValues(alpha: 0.08),
+                    : Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.08),
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: [
@@ -1274,7 +1475,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     touchedBarIndex = -1;
                   });
                 },
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 leading: Container(
                   width: 44,
                   height: 44,
@@ -1289,11 +1493,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   children: [
                     Text(
                       entry.key,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     Text(
                       '₹${entry.value.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -1304,8 +1514,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: overallTotal > 0 ? entry.value / overallTotal : 0.0,
-                        backgroundColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.06),
+                        value: overallTotal > 0
+                            ? entry.value / overallTotal
+                            : 0.0,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.outline.withValues(alpha: 0.06),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                         minHeight: 6,
                       ),
@@ -1315,7 +1529,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       '${percentage.toStringAsFixed(1)}% of type total',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
