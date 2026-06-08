@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
@@ -76,6 +77,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onItemTapped(int index) {
+    AppHaptics.selectionClick(context);
     if (_selectedIndex == index) {
       _scrollToTop();
     } else {
@@ -245,6 +247,7 @@ class _HomePageState extends State<HomePage> {
             ? FloatingActionButton(
                 key: const ValueKey('add_transaction_fab'),
                 onPressed: () async {
+                  AppHaptics.lightImpact(context);
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(

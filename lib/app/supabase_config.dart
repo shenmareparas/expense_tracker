@@ -30,4 +30,3 @@ class SupabaseConfig {
   /// The Supabase client instance.
   static SupabaseClient get client => Supabase.instance.client;
 }
-

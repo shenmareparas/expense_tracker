@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/theme_viewmodel.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -33,6 +34,7 @@ class SettingsPage extends StatelessWidget {
               ),
               subtitle: const Text('Add or remove transaction categories'),
               onTap: () {
+                AppHaptics.selectionClick(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -40,6 +42,31 @@ class SettingsPage extends StatelessWidget {
                   ),
                 );
               },
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: Icon(
+                Icons.vibration,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text(
+                'Haptic Feedback',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Tactile feedback on interactions'),
+              trailing: Consumer<ThemeViewModel>(
+                builder: (context, settingsVM, _) {
+                  return Switch(
+                    value: settingsVM.hapticEnabled,
+                    onChanged: (bool value) {
+                      settingsVM.setHapticEnabled(value);
+                      if (value) {
+                        AppHaptics.lightImpact(context);
+                      }
+                    },
+                  );
+                },
+              ),
             ),
             const Divider(height: 1, indent: 16, endIndent: 16),
             ListTile(
@@ -53,6 +80,7 @@ class SettingsPage extends StatelessWidget {
               ),
               subtitle: const Text('Force refresh all data from server'),
               onTap: () async {
+                AppHaptics.selectionClick(context);
                 await Future.wait([
                   Provider.of<TransactionViewModel>(
                     context,
@@ -95,6 +123,7 @@ class SettingsPage extends StatelessWidget {
                     value: themeService.themeMode,
                     onChanged: (ThemeMode? newMode) {
                       if (newMode != null) {
+                        AppHaptics.selectionClick(context);
                         themeService.setThemeMode(newMode);
                       }
                     },
@@ -122,6 +151,7 @@ class SettingsPage extends StatelessWidget {
         // Logout Section
         ElevatedButton.icon(
           onPressed: () async {
+            AppHaptics.selectionClick(context);
             final confirm = await showDialog<bool>(
               context: context,
               builder: (context) {
@@ -155,14 +185,22 @@ class SettingsPage extends StatelessWidget {
                   actionsAlignment: MainAxisAlignment.spaceEvenly,
                   actions: [
                     OutlinedButton(
-                      onPressed: () => Navigator.pop(context, false),
+                      onPressed: () {
+                        AppHaptics.selectionClick(context);
+                        Navigator.pop(context, false);
+                      },
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                         side: BorderSide(
-                          color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                          color: theme.colorScheme.outline.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
                       child: Text(
@@ -170,12 +208,18 @@ class SettingsPage extends StatelessWidget {
                         style: TextStyle(color: theme.colorScheme.onSurface),
                       ),
                     ),
-                     FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
+                    FilledButton(
+                      onPressed: () {
+                        AppHaptics.vibrate(context);
+                        Navigator.pop(context, true);
+                      },
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.orange.withValues(alpha: 0.1),
                         foregroundColor: Colors.orange,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),

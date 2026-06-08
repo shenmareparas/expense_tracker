@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
@@ -19,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
 
   Future<void> _submit() async {
+    AppHaptics.mediumImpact(context);
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
 
     bool success;
@@ -64,6 +66,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _toggleMode() {
+    AppHaptics.selectionClick(context);
     setState(() {
       _isSignUp = !_isSignUp;
     });
@@ -111,17 +114,22 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: Theme.of(
                         context,
                       ).colorScheme.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.primary,
+                    child: Transform.scale(
+                      scale: 1.7,
+                      child: Image.asset(
+                        'assets/app_icon_monochrome.webp',
+                        width: 64,
+                        height: 64,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),

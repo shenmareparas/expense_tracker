@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../../models/transaction.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
@@ -200,7 +201,10 @@ class _TransactionListViewState extends State<TransactionListView> {
               actionsAlignment: MainAxisAlignment.spaceEvenly,
               actions: [
                 OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
+                  onPressed: () {
+                    AppHaptics.selectionClick(context);
+                    Navigator.pop(context, false);
+                  },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -219,7 +223,10 @@ class _TransactionListViewState extends State<TransactionListView> {
                   ),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
+                  onPressed: () {
+                    AppHaptics.vibrate(context);
+                    Navigator.pop(context, true);
+                  },
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.red.withValues(alpha: 0.1),
                     foregroundColor: Colors.red,
@@ -262,6 +269,7 @@ class _TransactionListViewState extends State<TransactionListView> {
             vertical: 4,
           ),
           onTap: () async {
+            AppHaptics.lightImpact(context);
             final result = await Navigator.push(
               context,
               MaterialPageRoute(

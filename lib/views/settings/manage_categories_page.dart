@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../models/category.dart';
@@ -96,7 +97,10 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
           actionsAlignment: MainAxisAlignment.spaceEvenly,
           actions: [
             OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                AppHaptics.selectionClick(context);
+                Navigator.pop(context);
+              },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -119,6 +123,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                 final name = _nameController.text.trim();
                 if (name.isEmpty) return;
 
+                AppHaptics.mediumImpact(context);
                 final viewModel = Provider.of<CategoryViewModel>(
                   context,
                   listen: false,
@@ -201,6 +206,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
         floatingActionButton: Builder(
           builder: (context) => FloatingActionButton.extended(
             onPressed: () {
+              AppHaptics.lightImpact(context);
               final tabIndex = DefaultTabController.of(context).index;
               _showCategoryDialog(
                 initialType: tabIndex == 0 ? 'expense' : 'income',
@@ -238,13 +244,19 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => viewModel.seedDefaultCategories(),
+              onPressed: () {
+                AppHaptics.mediumImpact(context);
+                viewModel.seedDefaultCategories();
+              },
               icon: const Icon(Icons.auto_awesome),
               label: const Text('Add Default Categories'),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: () => _showCategoryDialog(initialType: type),
+              onPressed: () {
+                AppHaptics.lightImpact(context);
+                _showCategoryDialog(initialType: type);
+              },
               icon: const Icon(Icons.add),
               label: const Text('Create Custom Category'),
             ),
@@ -257,6 +269,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
       itemCount: categories.length,
       padding: const EdgeInsets.symmetric(vertical: 8),
       onReorderItem: (oldIndex, newIndex) {
+        AppHaptics.selectionClick(context);
         viewModel.reorderCategories(type, oldIndex, newIndex);
       },
       itemBuilder: (context, index) {
@@ -290,15 +303,20 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                 if (!isOther) ...[
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                    onPressed: () =>
-                        _showDeleteConfirmation(context, viewModel, category),
+                    onPressed: () {
+                      AppHaptics.selectionClick(context);
+                      _showDeleteConfirmation(context, viewModel, category);
+                    },
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit, size: 20),
-                    onPressed: () => _showCategoryDialog(
-                      category: category,
-                      initialType: type,
-                    ),
+                    onPressed: () {
+                      AppHaptics.selectionClick(context);
+                      _showCategoryDialog(
+                        category: category,
+                        initialType: type,
+                      );
+                    },
                   ),
                 ] else
                   const Padding(
@@ -354,7 +372,10 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
           actionsAlignment: MainAxisAlignment.spaceEvenly,
           actions: [
             OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                AppHaptics.selectionClick(context);
+                Navigator.pop(context);
+              },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -374,6 +395,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
             ),
             FilledButton(
               onPressed: () {
+                AppHaptics.vibrate(context);
                 viewModel.deleteCategory(category.id);
                 Navigator.pop(context);
               },

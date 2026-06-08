@@ -75,7 +75,9 @@ class AuthService {
 
   Never _throwMappedError(Object error) {
     if (_isNetworkError(error)) {
-      throw const NetworkException('Connection failed. Please check your internet and try again.');
+      throw const NetworkException(
+        'Connection failed. Please check your internet and try again.',
+      );
     }
     if (error is AuthException) {
       final msg = error.message.toLowerCase();

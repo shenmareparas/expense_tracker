@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
 import '../../../viewmodels/category_viewmodel.dart';
@@ -193,6 +194,7 @@ void showFilterBottomSheet(
                                   : theme.colorScheme.onSurfaceVariant,
                             ),
                             onSelected: (selected) {
+                              AppHaptics.selectionClick(context);
                               setState(() {
                                 selectedCategory = null;
                               });
@@ -221,6 +223,7 @@ void showFilterBottomSheet(
                                     : theme.colorScheme.onSurfaceVariant,
                               ),
                               onSelected: (selected) {
+                                AppHaptics.selectionClick(context);
                                 setState(() {
                                   selectedCategory = selected ? category : null;
                                 });
@@ -387,6 +390,7 @@ void showFilterBottomSheet(
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
+                            AppHaptics.selectionClick(context);
                             setState(() {
                               selectedType = null;
                               selectedCategory = null;
@@ -418,6 +422,7 @@ void showFilterBottomSheet(
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () async {
+                            AppHaptics.mediumImpact(context);
                             viewModel.setFilters(
                               type: selectedType,
                               category: selectedCategory,
@@ -474,7 +479,10 @@ Widget _buildTypeChip({
   final theme = Theme.of(context);
   return Expanded(
     child: InkWell(
-      onTap: onTap,
+      onTap: () {
+        AppHaptics.selectionClick(context);
+        onTap();
+      },
       borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -529,7 +537,10 @@ Widget _buildDatePickerField({
         ],
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          AppHaptics.selectionClick(context);
+          onTap();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -577,6 +588,7 @@ Widget _buildDatePickerField({
               if (selectedDate != null)
                 GestureDetector(
                   onTap: () {
+                    AppHaptics.selectionClick(context);
                     onClear();
                   },
                   child: Padding(
@@ -652,6 +664,7 @@ class _DateRangeSelectorState extends State<_DateRangeSelector> {
   }
 
   void _applyPreset(String id) {
+    AppHaptics.selectionClick(context);
     if (id == 'custom') {
       _pickCustomRange();
       return;

@@ -265,7 +265,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           return Center(child: Text('Error: ${viewModel.errorMessage}'));
         }
 
-        bool shouldRecompute = _memoizedTransactions != transactions ||
+        bool shouldRecompute =
+            _memoizedTransactions != transactions ||
             _memoizedCategories != categoryViewModel.categories ||
             _memoizedSelectedType != _selectedType ||
             _memoizedSelectedCategoryFilter != _selectedCategoryFilter ||
@@ -298,12 +299,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               : List.from(categoryViewModel.expenseCategories);
 
           if (_allCategoryNames.isEmpty) {
-            _allCategoryNames = transactions
-                .where((t) => t.type == _selectedType)
-                .map((t) => t.category)
-                .toSet()
-                .toList()
-              ..sort();
+            _allCategoryNames =
+                transactions
+                    .where((t) => t.type == _selectedType)
+                    .map((t) => t.category)
+                    .toSet()
+                    .toList()
+                  ..sort();
           }
 
           _filteredTransactions = _selectedCategoryFilter == null
@@ -323,7 +325,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             0.0,
             (sum, val) => sum + val,
           );
-          
+
           _dailyData = _getDailyData(
             _filteredTransactions,
             _selectedType,
@@ -1347,7 +1349,9 @@ class _PieChartWidgetState extends State<_PieChartWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                touchedIndex == -1 ? 'Average' : widget.categories[touchedIndex].key,
+                touchedIndex == -1
+                    ? 'Average'
+                    : widget.categories[touchedIndex].key,
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(
@@ -1414,7 +1418,8 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
         DateTime.now().subtract(const Duration(days: 7));
     final DateTime end = widget.viewModel.filterEndDate ?? DateTime.now();
     final bool isMonthlyFormatted =
-        widget.selectedTimePeriod == 'year' || end.difference(start).inDays > 65;
+        widget.selectedTimePeriod == 'year' ||
+        end.difference(start).inDays > 65;
 
     return SizedBox(
       height: 220,

@@ -68,8 +68,7 @@ class TransactionModel {
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is TransactionModel && other.id == id;
+  bool operator ==(Object other) => other is TransactionModel && other.id == id;
 
   @override
   int get hashCode => id.hashCode;

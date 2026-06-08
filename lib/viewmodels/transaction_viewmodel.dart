@@ -198,7 +198,8 @@ class TransactionViewModel extends ChangeNotifier {
 
     try {
       final nextBatch = await _databaseService.getTransactions(
-        forceRefresh: false, // paginated requests naturally bypass the full cache
+        forceRefresh:
+            false, // paginated requests naturally bypass the full cache
         limit: _pageSize,
         offset: _currentOffset,
         type: _filterType,
@@ -240,12 +241,14 @@ class TransactionViewModel extends ChangeNotifier {
         description: description,
         transactionDate: transactionDate,
       );
-      
+
       // Optimistic insert: add the returned model to the list and re-sort.
       // This prevents the heavy full-refresh network call.
       _transactions.add(newTransaction);
-      _transactions.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
-      
+      _transactions.sort(
+        (a, b) => b.transactionDate.compareTo(a.transactionDate),
+      );
+
       _hasAnalyticsSnapshot = false;
       _analyticsTransactions = [];
       _recomputeAggregates();

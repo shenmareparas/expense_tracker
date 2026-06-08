@@ -11,7 +11,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
 - **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, and descriptions. Filter by category, transaction type, or date range.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, concurrent request deduplication, and optimistic state updates in ViewModels to minimize network overhead and ensure instant screen transitions.
-- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, premium animations, and tap-to-scroll-to-top gestures.
+- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, premium animations, conditional haptic feedback (tactile interaction clicks/vibrations), custom monochrome app assets, and tap-to-scroll-to-top gestures.
 
 ---
 
@@ -45,7 +45,7 @@ lib/
 ├── viewmodels/               # ViewModels implementing ChangeNotifier for state control
 │   ├── auth_viewmodel.dart   # Auth state (loading, error, session management)
 │   ├── category_viewmodel.dart # Category CRUD & ordering states
-│   ├── theme_viewmodel.dart  # Custom dynamic light & dark theme states
+│   ├── theme_viewmodel.dart  # Custom dynamic theme states (theme mode, haptics enablement)
 │   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
 ├── views/                    # UI Layer (Screens & Page-specific layouts)
 │   ├── analytics/            # Analytical dashboards and interactive charts
@@ -54,8 +54,9 @@ lib/
 │   ├── settings/             # User profile and styling settings
 │   └── transaction/          # Add/edit transactions & filter interfaces
 ├── widgets/                  # Reusable UI components & Design tokens
-└── utils/                    # Helper utilities (formatting, exceptions, helpers)
+└── utils/                    # Helper utilities (formatting, exceptions, haptics, helpers)
 ```
+
 
 ---
 

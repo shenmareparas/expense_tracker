@@ -22,7 +22,7 @@ lib/
 ├── viewmodels/               # ViewModels implementing ChangeNotifier for state control
 │   ├── auth_viewmodel.dart   # Auth state (loading, error, session management)
 │   ├── category_viewmodel.dart # Category CRUD & ordering states
-│   ├── theme_viewmodel.dart  # Custom dynamic light & dark theme states
+│   ├── theme_viewmodel.dart  # Custom dynamic light & dark theme states and haptic preferences
 │   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
 ├── views/                    # UI Layer (Screens & Page-specific layouts)
 │   ├── analytics/            # Analytical dashboards and interactive charts
@@ -44,7 +44,9 @@ lib/
 │   └── app_dropdown.dart     # Reusable animated and styled dropdowns
 └── utils/                    # Helper utilities
     ├── date_formatter.dart   # Date utility functions (formatting dates & times)
-    └── exceptions.dart       # Typed exception hierarchy (AppException, NetworkException, etc.)
+    ├── exceptions.dart       # Typed exception hierarchy (AppException, NetworkException, etc.)
+    └── haptics.dart          # Conditional haptic feedback utility (vibrations, impacts, clicks)
+
 ```
 
 ---
@@ -123,6 +125,7 @@ All data columns map strictly between remote database fields and Flutter immutab
    - High-contrast, premium text scales using the **Inter** Google Font family (packaged locally inside `google_fonts/` to prevent runtime fetching and styling delays).
    - Clean, smooth page transitions and micro-animations.
 5. **Scroll-to-Top Gesture**: Double-tapping the active navigation item or the AppBar title smoothly scrolls scrollable lists back to the top.
+6. **Tactile Haptic Feedback**: Use physical click and vibration sensations to reinforce UI feedback. Interactions must check user preferences (`ThemeViewModel.hapticEnabled`) before executing haptic events.
 
 ---
 
@@ -146,6 +149,13 @@ All data columns map strictly between remote database fields and Flutter immutab
 ### 4. File Structure & Imports
 - Use relative imports (e.g., `import '../../models/transaction.dart'`) for internal packages within the project, ensuring clear, modular dependencies.
 - Ensure clear, expressive comments, proper docstrings (`///`), and follow all rules defined in `analysis_options.yaml`.
+
+### 5. Conditional Haptic Feedback (`AppHaptics`)
+- Avoid calling standard `HapticFeedback` directly from `package:flutter/services.dart`. Use `AppHaptics` in `lib/utils/haptics.dart` instead.
+- Use `AppHaptics.selectionClick(context)` for general click inputs, dropdown modifications, date/time pickers, and page toggles.
+- Use `AppHaptics.lightImpact(context)` or `AppHaptics.mediumImpact(context)` when saving, submitting forms, or performing non-destructive state changes.
+- Use `AppHaptics.vibrate(context)` for critical confirmation states (e.g., deletions, logging out).
+
 
 ---
 

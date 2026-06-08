@@ -17,7 +17,7 @@ class AppException implements Exception {
 /// Thrown when an operation is attempted without a signed-in user.
 class UnauthenticatedException extends AppException {
   const UnauthenticatedException()
-      : super('You must be signed in to perform this action.');
+    : super('You must be signed in to perform this action.');
 }
 
 /// Thrown when a database or network request fails.
