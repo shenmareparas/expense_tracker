@@ -14,7 +14,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    GoogleFonts.config.allowRuntimeFetching = false;
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthViewModel()),

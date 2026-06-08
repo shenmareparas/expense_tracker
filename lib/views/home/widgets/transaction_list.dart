@@ -7,25 +7,29 @@ import '../../../utils/date_formatter.dart';
 
 /// Displays the list of transactions with scroll-to-load-more pagination.
 class TransactionListView extends StatefulWidget {
-  const TransactionListView({super.key});
+  final ScrollController? scrollController;
+  const TransactionListView({super.key, this.scrollController});
 
   @override
   State<TransactionListView> createState() => _TransactionListViewState();
 }
 
 class _TransactionListViewState extends State<TransactionListView> {
-  final ScrollController _scrollController = ScrollController();
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = widget.scrollController ?? ScrollController();
     _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    if (widget.scrollController == null) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/category.dart';
 import '../services/database_service.dart';
+import '../utils/exceptions.dart';
 
 /// ViewModel for category management.
 ///
@@ -56,7 +57,7 @@ class CategoryViewModel extends ChangeNotifier {
       );
       _recomputeCategoryLists();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -78,7 +79,7 @@ class CategoryViewModel extends ChangeNotifier {
       await loadCategories(forceRefresh: true);
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
       _isLoading = false;
       notifyListeners();
       return false;
@@ -97,10 +98,11 @@ class CategoryViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      String? oldName;
-      try {
-        oldName = _categories.firstWhere((c) => c.id == id).name;
-      } catch (_) {}
+      // Use firstWhereOrNull to avoid StateError if category is not in local list
+      final oldName = _categories
+          .where((c) => c.id == id)
+          .map((c) => c.name)
+          .firstOrNull;
 
       await _databaseService.updateCategory(
         id: id,
@@ -112,7 +114,7 @@ class CategoryViewModel extends ChangeNotifier {
       await loadCategories(forceRefresh: true);
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
       _isLoading = false;
       notifyListeners();
       return false;
@@ -169,8 +171,9 @@ class CategoryViewModel extends ChangeNotifier {
   }
 
   Future<void> deleteCategory(String id) async {
-    final cat = _categories.firstWhere((c) => c.id == id);
-    if (cat.name.toLowerCase() == 'other') return; // Protect "Other"
+    // Use firstWhereOrNull to safely guard against stale local state
+    final cat = _categories.where((c) => c.id == id).firstOrNull;
+    if (cat == null || cat.name.toLowerCase() == 'other') return;
 
     _isLoading = true;
     notifyListeners();
@@ -178,7 +181,7 @@ class CategoryViewModel extends ChangeNotifier {
       await _databaseService.deleteCategory(id);
       await loadCategories(forceRefresh: true);
     } catch (e) {
-      _errorMessage = 'Failed to delete category';
+      _errorMessage = _mapError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -216,10 +219,18 @@ class CategoryViewModel extends ChangeNotifier {
       }
       await loadCategories(forceRefresh: true);
     } catch (e) {
-      _errorMessage = 'Failed to seed default categories';
+      _errorMessage = _mapError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Maps raw exceptions to user-friendly, non-leaky messages.
+  String _mapError(Object error) {
+    if (error is AppException) {
+      return error.message;
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

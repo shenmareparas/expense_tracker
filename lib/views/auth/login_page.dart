@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
@@ -31,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
       success = await authViewModel.signUp(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password: _passwordController.text, // Never trim passwords
       );
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -41,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
     } else {
       success = await authViewModel.signIn(
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password: _passwordController.text, // Never trim passwords
       );
     }
 
@@ -153,6 +154,7 @@ class _LoginPageState extends State<LoginPage> {
                       label: 'Full Name',
                       icon: Icons.person_outline,
                       keyboardType: TextInputType.name,
+                      maxLength: 50,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -161,6 +163,7 @@ class _LoginPageState extends State<LoginPage> {
                     label: 'Email',
                     icon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
+                    maxLength: 254,
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
@@ -168,6 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                     label: 'Password',
                     icon: Icons.lock_outline,
                     obscureText: _obscurePassword,
+                    maxLength: 128,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
@@ -269,13 +273,17 @@ class _LoginPageState extends State<LoginPage> {
     bool obscureText = false,
     TextInputType? keyboardType,
     Widget? suffixIcon,
+    int? maxLength,
   }) {
     return TextField(
       controller: controller,
+      maxLength: maxLength,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, size: 22),
         suffixIcon: suffixIcon,
+        counterText: '', // hide the character counter UI
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,

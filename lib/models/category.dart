@@ -61,4 +61,11 @@ class CategoryModel {
       createdAt: createdAt ?? this.createdAt,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is CategoryModel && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

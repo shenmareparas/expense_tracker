@@ -20,29 +20,69 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _transactionScrollController = ScrollController();
+  final ScrollController _analyticsScrollController = ScrollController();
+  final ScrollController _settingsScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TransactionViewModel>(
+      final transactionVM = Provider.of<TransactionViewModel>(
         context,
         listen: false,
-      ).loadTransactions();
-      Provider.of<CategoryViewModel>(context, listen: false).loadCategories();
+      );
+      if (transactionVM.transactions.isEmpty) {
+        transactionVM.loadTransactions();
+      }
+
+      final categoryVM = Provider.of<CategoryViewModel>(context, listen: false);
+      if (categoryVM.categories.isEmpty) {
+        categoryVM.loadCategories();
+      }
     });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _transactionScrollController.dispose();
+    _analyticsScrollController.dispose();
+    _settingsScrollController.dispose();
     super.dispose();
   }
 
+  void _scrollToTop() {
+    ScrollController? controller;
+    switch (_selectedIndex) {
+      case 0:
+        controller = _transactionScrollController;
+        break;
+      case 1:
+        controller = _analyticsScrollController;
+        break;
+      case 2:
+        controller = _settingsScrollController;
+        break;
+    }
+
+    if (controller != null && controller.hasClients) {
+      controller.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (_selectedIndex == index) {
+      _scrollToTop();
+    } else {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   String get _appBarTitle {
@@ -60,37 +100,31 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      const TransactionListView(),
-      const AnalyticsPage(),
-      const SettingsPage(),
-    ];
-
     return Scaffold(
       appBar: AppBar(
         leading: _selectedIndex == 0
             ? (_isSearching
-                ? IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        _isSearching = false;
-                        Provider.of<TransactionViewModel>(
-                          context,
-                          listen: false,
-                        ).setSearchQuery('');
-                      });
-                    },
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: () {
-                      setState(() {
-                        _isSearching = true;
-                      });
-                    },
-                  ))
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _isSearching = false;
+                          Provider.of<TransactionViewModel>(
+                            context,
+                            listen: false,
+                          ).setSearchQuery('');
+                        });
+                      },
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: () {
+                        setState(() {
+                          _isSearching = true;
+                        });
+                      },
+                    ))
             : null,
         title: _isSearching
             ? TextField(
@@ -107,7 +141,11 @@ class _HomePageState extends State<HomePage> {
                   ).setSearchQuery(value);
                 },
               )
-            : Text(_appBarTitle),
+            : GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _scrollToTop,
+                child: Text(_appBarTitle),
+              ),
         actions: [
           if (_isSearching)
             IconButton(
@@ -129,6 +167,7 @@ class _HomePageState extends State<HomePage> {
                   icon: Badge(
                     isLabelVisible:
                         viewModel.filterType != null ||
+                        viewModel.filterCategory != null ||
                         viewModel.filterStartDate != null ||
                         viewModel.filterEndDate != null,
                     smallSize: 8,
@@ -136,6 +175,7 @@ class _HomePageState extends State<HomePage> {
                       Icons.filter_list,
                       color:
                           viewModel.filterType != null ||
+                              viewModel.filterCategory != null ||
                               viewModel.filterStartDate != null ||
                               viewModel.filterEndDate != null
                           ? Theme.of(context).colorScheme.primary
@@ -168,7 +208,11 @@ class _HomePageState extends State<HomePage> {
         },
         child: KeyedSubtree(
           key: ValueKey(_selectedIndex),
-          child: pages[_selectedIndex],
+          child: [
+            TransactionListView(scrollController: _transactionScrollController),
+            AnalyticsPage(scrollController: _analyticsScrollController),
+            SettingsPage(scrollController: _settingsScrollController),
+          ][_selectedIndex],
         ),
       ),
       bottomNavigationBar: NavigationBar(

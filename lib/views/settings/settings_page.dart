@@ -9,11 +9,13 @@ import 'manage_categories_page.dart';
 
 /// Settings page — accesses ThemeService via Provider instead of constructor.
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  final ScrollController? scrollController;
+  const SettingsPage({super.key, this.scrollController});
 
   @override
   Widget build(BuildContext context) {
     return ListView(
+      controller: scrollController,
       padding: const EdgeInsets.all(24.0),
       children: [
         _buildSectionHeader(context, 'General'),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
@@ -233,14 +234,16 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 ? categoryViewModel.incomeCategories
                 : categoryViewModel.expenseCategories;
 
-            final transactionViewModel = Provider.of<TransactionViewModel>(
-              context,
-            );
-            final isSaving = transactionViewModel.isSaving;
-
-            return transactionViewModel.isLoading && !isSaving
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
+            // Use Selector so we only rebuild when isSaving/isLoading changes,
+            // not on every background transaction list update.
+            return Selector<TransactionViewModel,
+                ({bool isSaving, bool isLoading})>(
+              selector: (_, vm) =>
+                  (isSaving: vm.isSaving, isLoading: vm.isLoading),
+              builder: (context, state, _) {
+                return state.isLoading && !state.isSaving
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView(
                     padding: const EdgeInsets.fromLTRB(24, 120, 24, 24),
                     children: [
                       // Type Toggle
@@ -340,10 +343,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               _buildSectionTitle('Description'),
                               TextField(
                                 controller: _descriptionController,
+                                maxLength: 200,
+                                maxLengthEnforcement:
+                                    MaxLengthEnforcement.enforced,
                                 decoration: _inputDecoration(
                                   'What was this for?',
                                   Icons.description,
-                                ),
+                                ).copyWith(counterText: ''),
                                 textCapitalization:
                                     TextCapitalization.sentences,
                               ),
@@ -477,7 +483,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                         width: double.infinity,
                         height: 56,
                         child: FilledButton(
-                          onPressed: isSaving ? null : _saveTransaction,
+                          onPressed: state.isSaving ? null : _saveTransaction,
                           style: FilledButton.styleFrom(
                             backgroundColor: _type == 'expense'
                                 ? Colors.red.withValues(alpha: 0.1)
@@ -494,7 +500,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              if (isSaving) ...[
+                              if (state.isSaving) ...[
                                 SizedBox(
                                   width: 22,
                                   height: 22,
@@ -521,7 +527,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                 const SizedBox(width: 12),
                               ],
                               Text(
-                                isSaving
+                                state.isSaving
                                     ? (widget.transaction == null
                                           ? 'Saving...'
                                           : 'Updating...')
@@ -543,6 +549,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       ),
                     ],
                   );
+              },
+            );
           },
         ),
       ),

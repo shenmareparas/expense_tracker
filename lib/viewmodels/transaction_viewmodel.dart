@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/transaction.dart';
 import '../services/database_service.dart';
+import '../utils/exceptions.dart';
 
 /// ViewModel for transaction state management.
 ///
@@ -181,7 +182,7 @@ class TransactionViewModel extends ChangeNotifier {
       _currentOffset = _transactions.length;
       _recomputeAggregates();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -197,7 +198,7 @@ class TransactionViewModel extends ChangeNotifier {
 
     try {
       final nextBatch = await _databaseService.getTransactions(
-        forceRefresh: true,
+        forceRefresh: false, // paginated requests naturally bypass the full cache
         limit: _pageSize,
         offset: _currentOffset,
         type: _filterType,
@@ -213,7 +214,7 @@ class TransactionViewModel extends ChangeNotifier {
       _analyticsTransactions = [];
       _recomputeAggregates();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
     } finally {
       _isLoadingMore = false;
       notifyListeners();
@@ -232,17 +233,25 @@ class TransactionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _databaseService.addTransaction(
+      final newTransaction = await _databaseService.addTransaction(
         amount: amount,
         type: type,
         category: category,
         description: description,
         transactionDate: transactionDate,
       );
-      await loadTransactions(forceRefresh: true);
+      
+      // Optimistic insert: add the returned model to the list and re-sort.
+      // This prevents the heavy full-refresh network call.
+      _transactions.add(newTransaction);
+      _transactions.sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+      
+      _hasAnalyticsSnapshot = false;
+      _analyticsTransactions = [];
+      _recomputeAggregates();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
       return false;
     } finally {
       _isSaving = false;
@@ -310,7 +319,9 @@ class TransactionViewModel extends ChangeNotifier {
         description: description,
         transactionDate: transactionDate,
       );
-      await loadTransactions(forceRefresh: true);
+      // Optimistic update already applied above — no need for a full reload.
+      // Invalidate cache so the next filter change or manual refresh is fresh.
+      _databaseService.clearCache();
       return true;
     } catch (e) {
       if (backup != null) {
@@ -318,7 +329,7 @@ class TransactionViewModel extends ChangeNotifier {
         _recomputeAggregates();
         notifyListeners();
       }
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
       return false;
     } finally {
       _isSaving = false;
@@ -354,8 +365,16 @@ class TransactionViewModel extends ChangeNotifier {
       _recomputeAggregates();
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _mapError(e);
       notifyListeners();
     }
+  }
+
+  /// Maps raw exceptions to user-friendly, non-leaky messages.
+  String _mapError(Object error) {
+    if (error is AppException) {
+      return error.message;
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

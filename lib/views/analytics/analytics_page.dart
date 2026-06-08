@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../models/transaction.dart';
+import '../../models/category.dart';
 
 class AnalyticsPage extends StatefulWidget {
-  const AnalyticsPage({super.key});
+  final ScrollController? scrollController;
+  const AnalyticsPage({super.key, this.scrollController});
 
   @override
   State<AnalyticsPage> createState() => _AnalyticsPageState();
@@ -20,8 +22,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   String _selectedChartType =
       'trend'; // 'pie' (breakdown), 'trend' (daily trend)
   String? _selectedCategoryFilter; // null means 'All Categories'
-  int touchedIndex = -1;
-  int touchedBarIndex = -1;
+  // touchedIndex / touchedBarIndex are now held inside _PieChartWidget and
+  // _BarChartWidget sub-widgets so chart interactions don't trigger a full
+  // analytics page rebuild with all its aggregation loops.
+
+  // --- Memoization Cache ---
+  List<TransactionModel>? _memoizedTransactions;
+  List<CategoryModel>? _memoizedCategories;
+  String? _memoizedSelectedType;
+  String? _memoizedSelectedCategoryFilter;
+  String? _memoizedSelectedTimePeriod;
+  DateTime? _memoizedStartDate;
+  DateTime? _memoizedEndDate;
+
+  double _totalIncome = 0;
+  double _totalExpense = 0;
+  double _netBalance = 0;
+  List<String> _allCategoryNames = [];
+  List<TransactionModel> _filteredTransactions = [];
+  List<MapEntry<String, double>> _sortedCategories = [];
+  double _currentTotal = 0;
+  List<MapEntry<DateTime, double>> _dailyData = [];
+  List<MapEntry<String, double>> _sortedOverallCategories = [];
 
   final List<Color> _chartColors = [
     const Color(0xFF6366F1), // Indigo
@@ -79,8 +101,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     setState(() {
       _selectedTimePeriod = period;
       _selectedCategoryFilter = null;
-      touchedIndex = -1;
-      touchedBarIndex = -1;
     });
     _applyFiltersSilently(period);
   }
@@ -122,8 +142,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       setState(() {
         _selectedTimePeriod = 'custom';
         _selectedCategoryFilter = null;
-        touchedIndex = -1;
-        touchedBarIndex = -1;
       });
       vm.loadAnalyticsSnapshot(startDate: picked.start, endDate: picked.end);
     }
@@ -247,73 +265,80 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           return Center(child: Text('Error: ${viewModel.errorMessage}'));
         }
 
-        // 1. Calculate overall financial summary
-        double totalIncome = 0;
-        double totalExpense = 0;
-        for (final t in transactions) {
-          if (t.type == 'income') {
-            totalIncome += t.amount;
-          } else {
-            totalExpense += t.amount;
+        bool shouldRecompute = _memoizedTransactions != transactions ||
+            _memoizedCategories != categoryViewModel.categories ||
+            _memoizedSelectedType != _selectedType ||
+            _memoizedSelectedCategoryFilter != _selectedCategoryFilter ||
+            _memoizedSelectedTimePeriod != _selectedTimePeriod ||
+            _memoizedStartDate != viewModel.analyticsStartDate ||
+            _memoizedEndDate != viewModel.analyticsEndDate;
+
+        if (shouldRecompute) {
+          _memoizedTransactions = transactions;
+          _memoizedCategories = categoryViewModel.categories;
+          _memoizedSelectedType = _selectedType;
+          _memoizedSelectedCategoryFilter = _selectedCategoryFilter;
+          _memoizedSelectedTimePeriod = _selectedTimePeriod;
+          _memoizedStartDate = viewModel.analyticsStartDate;
+          _memoizedEndDate = viewModel.analyticsEndDate;
+
+          _totalIncome = 0;
+          _totalExpense = 0;
+          for (final t in transactions) {
+            if (t.type == 'income') {
+              _totalIncome += t.amount;
+            } else {
+              _totalExpense += t.amount;
+            }
           }
-        }
-        double netBalance = totalIncome - totalExpense;
+          _netBalance = _totalIncome - _totalExpense;
 
-        // 2. Fetch ALL possible category names from CategoryViewModel matching selected type
-        final allCategoryNames =
-            categoryViewModel.categories
-                .where((c) => c.type == _selectedType)
-                .map((c) => c.name)
-                .toSet()
-                .toList()
-              ..sort();
+          _allCategoryNames = _selectedType == 'income'
+              ? List.from(categoryViewModel.incomeCategories)
+              : List.from(categoryViewModel.expenseCategories);
 
-        // If CategoryViewModel is not populated yet, fall back to transactions categories
-        if (allCategoryNames.isEmpty) {
-          allCategoryNames.addAll(
-            transactions
+          if (_allCategoryNames.isEmpty) {
+            _allCategoryNames = transactions
                 .where((t) => t.type == _selectedType)
                 .map((t) => t.category)
                 .toSet()
                 .toList()
-              ..sort(),
+              ..sort();
+          }
+
+          _filteredTransactions = _selectedCategoryFilter == null
+              ? transactions
+              : transactions
+                    .where((t) => t.category == _selectedCategoryFilter)
+                    .toList();
+
+          final categoriesMap = _getCategoriesData(
+            _filteredTransactions,
+            _selectedType,
           );
+          _sortedCategories = categoriesMap.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
+
+          _currentTotal = categoriesMap.values.fold(
+            0.0,
+            (sum, val) => sum + val,
+          );
+          
+          _dailyData = _getDailyData(
+            _filteredTransactions,
+            _selectedType,
+            _selectedTimePeriod,
+            viewModel.analyticsStartDate,
+            viewModel.analyticsEndDate,
+          );
+
+          final overallCategoriesMap = _getCategoriesData(
+            transactions,
+            _selectedType,
+          );
+          _sortedOverallCategories = overallCategoriesMap.entries.toList()
+            ..sort((a, b) => b.value.compareTo(a.value));
         }
-
-        // 3. Filter transactions by category if a filter is active
-        final filteredTransactions = _selectedCategoryFilter == null
-            ? transactions
-            : transactions
-                  .where((t) => t.category == _selectedCategoryFilter)
-                  .toList();
-
-        // 4. Calculate aggregates for filtered views
-        final categoriesMap = _getCategoriesData(
-          filteredTransactions,
-          _selectedType,
-        );
-        final sortedCategories = categoriesMap.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-
-        double currentTotal = categoriesMap.values.fold(
-          0.0,
-          (sum, val) => sum + val,
-        );
-        final dailyData = _getDailyData(
-          filteredTransactions,
-          _selectedType,
-          _selectedTimePeriod,
-          viewModel.analyticsStartDate,
-          viewModel.analyticsEndDate,
-        );
-
-        // Overall category breakdown items (always overall list so they can select any of them)
-        final overallCategoriesMap = _getCategoriesData(
-          transactions,
-          _selectedType,
-        );
-        final sortedOverallCategories = overallCategoriesMap.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
 
         return RefreshIndicator(
           onRefresh: () async {
@@ -322,6 +347,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             _applyFiltersSilently(_selectedTimePeriod);
           },
           child: ListView(
+            controller: widget.scrollController,
             padding: const EdgeInsets.all(20.0),
             children: [
               _buildTimePeriodSelector(),
@@ -353,33 +379,34 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 ),
               ],
               const SizedBox(height: 16),
-              _buildCategoryChipsRow(allCategoryNames),
+              _buildCategoryChipsRow(_allCategoryNames),
               const SizedBox(height: 20),
               _buildBalanceSummaryCard(
                 context,
-                totalIncome,
-                totalExpense,
-                netBalance,
+                _totalIncome,
+                _totalExpense,
+                _netBalance,
               ),
               const SizedBox(height: 24),
               _buildChartCard(
                 context,
-                currentTotal,
-                sortedCategories,
-                dailyData,
+                _currentTotal,
+                _sortedCategories,
+                _dailyData,
                 viewModel,
               ),
               const SizedBox(height: 24),
-              if (currentTotal > 0) ...[
+              if (_currentTotal > 0) ...[
+                const SizedBox(height: 24),
                 _buildInsightsSection(
-                  dailyData,
-                  sortedCategories,
-                  currentTotal,
+                  _dailyData,
+                  _sortedCategories,
+                  _currentTotal,
                 ),
                 const SizedBox(height: 24),
                 _buildCategoryBreakdownList(
                   context,
-                  sortedOverallCategories,
+                  _sortedOverallCategories,
                   transactions,
                 ),
               ] else ...[
@@ -534,8 +561,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               onSelected: (selected) {
                 setState(() {
                   _selectedCategoryFilter = null;
-                  touchedIndex = -1;
-                  touchedBarIndex = -1;
                 });
               },
               shape: RoundedRectangleBorder(
@@ -563,8 +588,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 onSelected: (selected) {
                   setState(() {
                     _selectedCategoryFilter = selected ? category : null;
-                    touchedIndex = -1;
-                    touchedBarIndex = -1;
                   });
                 },
                 shape: RoundedRectangleBorder(
@@ -878,8 +901,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             setState(() {
               _selectedType = _selectedType == 'expense' ? 'income' : 'expense';
               _selectedCategoryFilter = null;
-              touchedIndex = -1;
-              touchedBarIndex = -1;
             });
           },
           icon: Icon(
@@ -931,92 +952,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     double total,
     List<MapEntry<String, double>> categories,
   ) {
-    return SizedBox(
-      height: 220,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          PieChart(
-            PieChartData(
-              pieTouchData: PieTouchData(
-                touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                  // Ignore scroll/pan gestures to keep list scrolling buttery smooth
-                  if (event is FlPanStartEvent ||
-                      event is FlPanUpdateEvent ||
-                      event is FlPanEndEvent) {
-                    return;
-                  }
-
-                  final int newIndex;
-                  if (!event.isInterestedForInteractions ||
-                      pieTouchResponse == null ||
-                      pieTouchResponse.touchedSection == null) {
-                    newIndex = -1;
-                  } else {
-                    newIndex =
-                        pieTouchResponse.touchedSection!.touchedSectionIndex;
-                  }
-
-                  if (touchedIndex != newIndex) {
-                    setState(() {
-                      touchedIndex = newIndex;
-                    });
-                  }
-                },
-              ),
-              borderData: FlBorderData(show: false),
-              sectionsSpace: 3,
-              centerSpaceRadius: 65,
-              sections: List.generate(categories.length, (i) {
-                final isTouched = i == touchedIndex;
-                final radius = isTouched ? 45.0 : 35.0;
-                final color = _chartColors[i % _chartColors.length];
-                final entry = categories[i];
-                final percentage = (entry.value / total) * 100;
-
-                return PieChartSectionData(
-                  color: color,
-                  value: entry.value,
-                  title: isTouched ? '${percentage.toStringAsFixed(1)}%' : '',
-                  radius: radius,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                );
-              }),
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                touchedIndex == -1 ? 'Average' : categories[touchedIndex].key,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.6),
-                  fontWeight: FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                touchedIndex == -1
-                    ? '₹${(total / (categories.isEmpty ? 1 : categories.length)).toStringAsFixed(0)}'
-                    : '₹${categories[touchedIndex].value.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return _PieChartWidget(
+      total: total,
+      categories: categories,
+      chartColors: _chartColors,
     );
   }
 
@@ -1025,226 +964,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     List<MapEntry<DateTime, double>> dailyData,
     TransactionViewModel viewModel,
   ) {
-    if (dailyData.isEmpty) {
-      return const SizedBox(
-        height: 220,
-        child: Center(child: Text('No daily data points')),
-      );
-    }
-
-    final double maxVal = dailyData
-        .map((e) => e.value)
-        .fold(1.0, (prev, element) => element > prev ? element : prev);
-    final double yAxisMax = maxVal * 1.15;
-
-    // Detect if we are using monthly bucket formatting
-    final DateTime start =
-        viewModel.filterStartDate ??
-        DateTime.now().subtract(const Duration(days: 7));
-    final DateTime end = viewModel.filterEndDate ?? DateTime.now();
-    final bool isMonthlyFormatted =
-        _selectedTimePeriod == 'year' || end.difference(start).inDays > 65;
-
-    return SizedBox(
-      height: 220,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 16.0, right: 8.0),
-        child: BarChart(
-          BarChartData(
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) =>
-                    Theme.of(context).colorScheme.surfaceContainer,
-                tooltipBorder: BorderSide(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.outline.withValues(alpha: 0.1),
-                ),
-                getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                  final entry = dailyData[groupIndex];
-                  final String dateStr = isMonthlyFormatted
-                      ? DateFormat('MMMM yyyy').format(entry.key)
-                      : DateFormat('MMM d, yyyy').format(entry.key);
-                  return BarTooltipItem(
-                    '$dateStr\n',
-                    TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                    children: <TextSpan>[
-                      TextSpan(
-                        text: '₹${rod.toY.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              touchCallback: (FlTouchEvent event, barTouchResponse) {
-                // Ignore scroll/pan gestures to keep list scrolling buttery smooth
-                if (event is FlPanStartEvent ||
-                    event is FlPanUpdateEvent ||
-                    event is FlPanEndEvent) {
-                  return;
-                }
-
-                final int newIndex;
-                if (!event.isInterestedForInteractions ||
-                    barTouchResponse == null ||
-                    barTouchResponse.spot == null) {
-                  newIndex = -1;
-                } else {
-                  newIndex = barTouchResponse.spot!.touchedBarGroupIndex;
-                }
-
-                if (touchedBarIndex != newIndex) {
-                  setState(() {
-                    touchedBarIndex = newIndex;
-                  });
-                }
-              },
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (double value, TitleMeta meta) {
-                    final int idx = value.toInt();
-                    if (idx < 0 || idx >= dailyData.length) {
-                      return const SizedBox();
-                    }
-
-                    bool shouldShowLabel = false;
-                    final totalPoints = dailyData.length;
-                    if (totalPoints <= 8) {
-                      shouldShowLabel = true;
-                    } else if (totalPoints <= 16) {
-                      shouldShowLabel = idx % 2 == 0;
-                    } else {
-                      shouldShowLabel = idx % (totalPoints ~/ 5) == 0;
-                    }
-
-                    if (!shouldShowLabel) {
-                      return const SizedBox();
-                    }
-
-                    final entry = dailyData[idx];
-                    final text = isMonthlyFormatted
-                        ? DateFormat('MMM').format(entry.key)
-                        : DateFormat('d/M').format(entry.key);
-
-                    return SideTitleWidget(
-                      meta: meta,
-                      child: Text(
-                        text,
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    );
-                  },
-                  reservedSize: 22,
-                ),
-              ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 42,
-                  getTitlesWidget: (double value, TitleMeta meta) {
-                    if (value == 0) return const SizedBox();
-                    String text = '';
-                    if (value >= 100000) {
-                      text = '${(value / 100000).toStringAsFixed(1)}L';
-                    } else if (value >= 1000) {
-                      text = '${(value / 1000).toStringAsFixed(0)}k';
-                    } else {
-                      text = value.toStringAsFixed(0);
-                    }
-                    return SideTitleWidget(
-                      meta: meta,
-                      child: Text(
-                        text,
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5),
-                          fontSize: 9,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            gridData: FlGridData(
-              show: true,
-              drawVerticalLine: false,
-              horizontalInterval: yAxisMax / 4 > 0 ? yAxisMax / 4 : 1.0,
-              getDrawingHorizontalLine: (value) => FlLine(
-                color: Theme.of(
-                  context,
-                ).colorScheme.outline.withValues(alpha: 0.05),
-                strokeWidth: 1,
-              ),
-            ),
-            borderData: FlBorderData(show: false),
-            barGroups: List.generate(dailyData.length, (i) {
-              final entry = dailyData[i];
-              final bool isAnyTouched = touchedBarIndex != -1;
-              final bool isTouched = i == touchedBarIndex;
-
-              final Color barColor = isAnyTouched
-                  ? (isTouched
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.3))
-                  : Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.85);
-
-              return BarChartGroupData(
-                x: i,
-                barRods: [
-                  BarChartRodData(
-                    toY: entry.value,
-                    color: barColor,
-                    width: dailyData.length > 20 ? 6 : 12,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(4),
-                    ),
-                    backDrawRodData: BackgroundBarChartRodData(
-                      show: true,
-                      toY: yAxisMax,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.02),
-                    ),
-                  ),
-                ],
-              );
-            }),
-            maxY: yAxisMax,
-          ),
-        ),
-      ),
+    return _BarChartWidget(
+      dailyData: dailyData,
+      viewModel: viewModel,
+      selectedTimePeriod: _selectedTimePeriod,
     );
   }
 
@@ -1471,8 +1194,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 onTap: () {
                   setState(() {
                     _selectedCategoryFilter = isSelected ? null : entry.key;
-                    touchedIndex = -1;
-                    touchedBarIndex = -1;
                   });
                 },
                 contentPadding: const EdgeInsets.symmetric(
@@ -1541,6 +1262,360 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           );
         }),
       ],
+    );
+  }
+}
+
+class _PieChartWidget extends StatefulWidget {
+  final double total;
+  final List<MapEntry<String, double>> categories;
+  final List<Color> chartColors;
+
+  const _PieChartWidget({
+    required this.total,
+    required this.categories,
+    required this.chartColors,
+  });
+
+  @override
+  State<_PieChartWidget> createState() => _PieChartWidgetState();
+}
+
+class _PieChartWidgetState extends State<_PieChartWidget> {
+  int touchedIndex = -1;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 220,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          PieChart(
+            PieChartData(
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  // Ignore scroll/pan gestures to keep list scrolling buttery smooth
+                  if (event is FlPanStartEvent ||
+                      event is FlPanUpdateEvent ||
+                      event is FlPanEndEvent) {
+                    return;
+                  }
+
+                  final int newIndex;
+                  if (!event.isInterestedForInteractions ||
+                      pieTouchResponse == null ||
+                      pieTouchResponse.touchedSection == null) {
+                    newIndex = -1;
+                  } else {
+                    newIndex =
+                        pieTouchResponse.touchedSection!.touchedSectionIndex;
+                  }
+
+                  if (touchedIndex != newIndex) {
+                    setState(() {
+                      touchedIndex = newIndex;
+                    });
+                  }
+                },
+              ),
+              borderData: FlBorderData(show: false),
+              sectionsSpace: 3,
+              centerSpaceRadius: 65,
+              sections: List.generate(widget.categories.length, (i) {
+                final isTouched = i == touchedIndex;
+                final radius = isTouched ? 45.0 : 35.0;
+                final color = widget.chartColors[i % widget.chartColors.length];
+                final entry = widget.categories[i];
+                final percentage = (entry.value / widget.total) * 100;
+
+                return PieChartSectionData(
+                  color: color,
+                  value: entry.value,
+                  title: isTouched ? '${percentage.toStringAsFixed(1)}%' : '',
+                  radius: radius,
+                  titleStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                );
+              }),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                touchedIndex == -1 ? 'Average' : widget.categories[touchedIndex].key,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                touchedIndex == -1
+                    ? '₹${(widget.total / (widget.categories.isEmpty ? 1 : widget.categories.length)).toStringAsFixed(0)}'
+                    : '₹${widget.categories[touchedIndex].value.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BarChartWidget extends StatefulWidget {
+  final List<MapEntry<DateTime, double>> dailyData;
+  final TransactionViewModel viewModel;
+  final String selectedTimePeriod;
+
+  const _BarChartWidget({
+    required this.dailyData,
+    required this.viewModel,
+    required this.selectedTimePeriod,
+  });
+
+  @override
+  State<_BarChartWidget> createState() => _BarChartWidgetState();
+}
+
+class _BarChartWidgetState extends State<_BarChartWidget> {
+  int touchedBarIndex = -1;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.dailyData.isEmpty) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: Text('No daily data points')),
+      );
+    }
+
+    final double maxVal = widget.dailyData
+        .map((e) => e.value)
+        .fold(1.0, (prev, element) => element > prev ? element : prev);
+    final double yAxisMax = maxVal * 1.15;
+
+    // Detect if we are using monthly bucket formatting
+    final DateTime start =
+        widget.viewModel.filterStartDate ??
+        DateTime.now().subtract(const Duration(days: 7));
+    final DateTime end = widget.viewModel.filterEndDate ?? DateTime.now();
+    final bool isMonthlyFormatted =
+        widget.selectedTimePeriod == 'year' || end.difference(start).inDays > 65;
+
+    return SizedBox(
+      height: 220,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 16.0, right: 8.0),
+        child: BarChart(
+          BarChartData(
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) =>
+                    Theme.of(context).colorScheme.surfaceContainer,
+                tooltipBorder: BorderSide(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withValues(alpha: 0.1),
+                ),
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  final entry = widget.dailyData[groupIndex];
+                  final String dateStr = isMonthlyFormatted
+                      ? DateFormat('MMMM yyyy').format(entry.key)
+                      : DateFormat('MMM d, yyyy').format(entry.key);
+                  return BarTooltipItem(
+                    '$dateStr\n',
+                    TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    children: <TextSpan>[
+                      TextSpan(
+                        text: '₹${rod.toY.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              touchCallback: (FlTouchEvent event, barTouchResponse) {
+                // Ignore scroll/pan gestures to keep list scrolling buttery smooth
+                if (event is FlPanStartEvent ||
+                    event is FlPanUpdateEvent ||
+                    event is FlPanEndEvent) {
+                  return;
+                }
+
+                final int newIndex;
+                if (!event.isInterestedForInteractions ||
+                    barTouchResponse == null ||
+                    barTouchResponse.spot == null) {
+                  newIndex = -1;
+                } else {
+                  newIndex = barTouchResponse.spot!.touchedBarGroupIndex;
+                }
+
+                if (touchedBarIndex != newIndex) {
+                  setState(() {
+                    touchedBarIndex = newIndex;
+                  });
+                }
+              },
+            ),
+            titlesData: FlTitlesData(
+              show: true,
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    final int idx = value.toInt();
+                    if (idx < 0 || idx >= widget.dailyData.length) {
+                      return const SizedBox();
+                    }
+
+                    bool shouldShowLabel = false;
+                    final totalPoints = widget.dailyData.length;
+                    if (totalPoints <= 8) {
+                      shouldShowLabel = true;
+                    } else if (totalPoints <= 16) {
+                      shouldShowLabel = idx % 2 == 0;
+                    } else {
+                      shouldShowLabel = idx % (totalPoints ~/ 5) == 0;
+                    }
+
+                    if (!shouldShowLabel) {
+                      return const SizedBox();
+                    }
+
+                    final entry = widget.dailyData[idx];
+                    final text = isMonthlyFormatted
+                        ? DateFormat('MMM').format(entry.key)
+                        : DateFormat('d/M').format(entry.key);
+
+                    return SideTitleWidget(
+                      meta: meta,
+                      child: Text(
+                        text,
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  },
+                  reservedSize: 22,
+                ),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 42,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    if (value == 0) return const SizedBox();
+                    String text = '';
+                    if (value >= 100000) {
+                      text = '${(value / 100000).toStringAsFixed(1)}L';
+                    } else if (value >= 1000) {
+                      text = '${(value / 1000).toStringAsFixed(0)}k';
+                    } else {
+                      text = value.toStringAsFixed(0);
+                    }
+                    return SideTitleWidget(
+                      meta: meta,
+                      child: Text(
+                        text,
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          fontSize: 9,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: false,
+              horizontalInterval: yAxisMax / 4 > 0 ? yAxisMax / 4 : 1.0,
+              getDrawingHorizontalLine: (value) => FlLine(
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.05),
+                strokeWidth: 1,
+              ),
+            ),
+            borderData: FlBorderData(show: false),
+            barGroups: List.generate(widget.dailyData.length, (i) {
+              final entry = widget.dailyData[i];
+              final bool isAnyTouched = touchedBarIndex != -1;
+              final bool isTouched = i == touchedBarIndex;
+
+              final Color barColor = isAnyTouched
+                  ? (isTouched
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.3))
+                  : Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.85);
+
+              return BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: entry.value,
+                    color: barColor,
+                    width: widget.dailyData.length > 20 ? 6 : 12,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(4),
+                    ),
+                    backDrawRodData: BackgroundBarChartRodData(
+                      show: true,
+                      toY: yAxisMax,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.outline.withValues(alpha: 0.02),
+                    ),
+                  ),
+                ],
+              );
+            }),
+            maxY: yAxisMax,
+          ),
+        ),
+      ),
     );
   }
 }

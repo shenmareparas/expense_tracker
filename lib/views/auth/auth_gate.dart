@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../views/home/home_page.dart';
 import 'login_page.dart';
@@ -12,7 +11,7 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-    return StreamBuilder<AuthState>(
+    return StreamBuilder<bool>(
       stream: authViewModel.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -21,9 +20,9 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        final session = snapshot.data?.session;
+        final isAuthenticated = snapshot.data ?? false;
 
-        if (session != null) {
+        if (isAuthenticated) {
           return const HomePage();
         }
 

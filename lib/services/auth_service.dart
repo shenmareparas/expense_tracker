@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app/supabase_config.dart';
+import '../utils/exceptions.dart';
 
 /// Singleton service layer for authentication operations.
 /// Decouples auth logic from the Supabase SDK.
@@ -13,8 +14,9 @@ class AuthService {
 
   final SupabaseClient _client = SupabaseConfig.client;
 
-  /// Stream of auth state changes (sign in, sign out, token refresh, etc.).
-  Stream<AuthState> get onAuthStateChange => _client.auth.onAuthStateChange;
+  /// Stream of boolean values indicating if the user is signed in.
+  Stream<bool> get onAuthStateChange =>
+      _client.auth.onAuthStateChange.map((event) => event.session != null);
 
   /// The currently signed-in user, or null.
   User? get currentUser => _client.auth.currentUser;
@@ -55,7 +57,7 @@ class AuthService {
         return await action();
       } catch (e) {
         final isLastAttempt = attempt == _maxAttempts;
-        if (isLastAttempt || !_isNetworkError(e)) rethrow;
+        if (isLastAttempt || !_isNetworkError(e)) _throwMappedError(e);
         // Exponential back-off: 1s, 2s
         await Future<void>.delayed(Duration(seconds: attempt));
       }
@@ -69,5 +71,19 @@ class AuthService {
     if (error is SocketException) return true;
     if (error is AuthRetryableFetchException) return true;
     return false;
+  }
+
+  Never _throwMappedError(Object error) {
+    if (_isNetworkError(error)) {
+      throw const NetworkException('Connection failed. Please check your internet and try again.');
+    }
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid') || msg.contains('credentials')) {
+        throw const AppAuthException('Invalid email or password.');
+      }
+      throw AppAuthException(error.message);
+    }
+    throw Exception('Something went wrong. Please try again.');
   }
 }

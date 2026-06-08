@@ -1,9 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../utils/exceptions.dart';
 
 /// ViewModel for authentication state management.
 class AuthViewModel extends ChangeNotifier {
@@ -11,7 +9,7 @@ class AuthViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-  Stream<AuthState> get authStateChanges => _authService.onAuthStateChange;
+  Stream<bool> get authStateChanges => _authService.onAuthStateChange;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
@@ -69,14 +67,7 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Maps raw exceptions to user-friendly messages.
   String _friendlyMessage(Object error) {
-    if (error is SocketException || error is AuthRetryableFetchException) {
-      return 'Connection failed. Please check your internet and try again.';
-    }
-    if (error is AuthException) {
-      final msg = error.message.toLowerCase();
-      if (msg.contains('invalid') || msg.contains('credentials')) {
-        return 'Invalid email or password.';
-      }
+    if (error is AppException) {
       return error.message;
     }
     return 'Something went wrong. Please try again.';

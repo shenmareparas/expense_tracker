@@ -36,11 +36,11 @@ void showFilterBottomSheet(
           } else if (selectedType == 'expense') {
             displayCategories = categoryViewModel.expenseCategories;
           } else {
-            // If Type is 'All' (null), combine and deduplicate categories
+            // If Type is 'All' (null), combine and deduplicate categories while maintaining settings order (expense first)
             displayCategories = {
-              ...categoryViewModel.incomeCategories,
               ...categoryViewModel.expenseCategories,
-            }.toList()..sort();
+              ...categoryViewModel.incomeCategories,
+            }.toList();
           }
 
           // Ensure selectedCategory is cleared if it doesn't exist in the currently selectable categories
@@ -247,210 +247,16 @@ void showFilterBottomSheet(
                   const SizedBox(height: 10),
 
                   // Quick Date Range Presets using sliding Period Selector
-                  (() {
-                    String selectedPeriod = 'all';
-                    if (selectedStartDate != null || selectedEndDate != null) {
-                      final now = DateTime.now();
-                      final today = DateTime(now.year, now.month, now.day);
-                      final todayEnd = DateTime(
-                        now.year,
-                        now.month,
-                        now.day,
-                        23,
-                        59,
-                        59,
-                      );
-                      if (selectedStartDate ==
-                              today.subtract(const Duration(days: 6)) &&
-                          selectedEndDate?.day == todayEnd.day &&
-                          selectedEndDate?.month == todayEnd.month &&
-                          selectedEndDate?.year == todayEnd.year) {
-                        selectedPeriod = '7days';
-                      } else if (selectedStartDate ==
-                              today.subtract(const Duration(days: 29)) &&
-                          selectedEndDate?.day == todayEnd.day &&
-                          selectedEndDate?.month == todayEnd.month &&
-                          selectedEndDate?.year == todayEnd.year) {
-                        selectedPeriod = '30days';
-                      } else if (selectedStartDate ==
-                              DateTime(now.year, now.month, 1) &&
-                          selectedEndDate?.day == todayEnd.day &&
-                          selectedEndDate?.month == todayEnd.month &&
-                          selectedEndDate?.year == todayEnd.year) {
-                        selectedPeriod = 'month';
-                      } else if (selectedStartDate ==
-                              DateTime(now.year, 1, 1) &&
-                          selectedEndDate?.day == todayEnd.day &&
-                          selectedEndDate?.month == todayEnd.month &&
-                          selectedEndDate?.year == todayEnd.year) {
-                        selectedPeriod = 'year';
-                      } else {
-                        selectedPeriod = 'custom';
-                      }
-                    }
-
-                    final periods = [
-                      {'id': 'all', 'label': 'All Time'},
-                      {'id': '7days', 'label': '7 Days'},
-                      {'id': '30days', 'label': '30 Days'},
-                      {'id': 'month', 'label': 'Month'},
-                      {'id': 'year', 'label': 'Year'},
-                      {'id': 'custom', 'label': 'Custom'},
-                    ];
-
-                    void applyTimePeriod(String period) {
-                      if (period == 'all') {
-                        setState(() {
-                          selectedStartDate = null;
-                          selectedEndDate = null;
-                        });
-                        return;
-                      }
-
-                      final now = DateTime.now();
-                      DateTime startDate;
-                      DateTime endDate = DateTime(
-                        now.year,
-                        now.month,
-                        now.day,
-                        23,
-                        59,
-                        59,
-                      );
-
-                      switch (period) {
-                        case '7days':
-                          startDate = DateTime(
-                            now.year,
-                            now.month,
-                            now.day,
-                          ).subtract(const Duration(days: 6));
-                          break;
-                        case '30days':
-                          startDate = DateTime(
-                            now.year,
-                            now.month,
-                            now.day,
-                          ).subtract(const Duration(days: 29));
-                          break;
-                        case 'month':
-                          startDate = DateTime(now.year, now.month, 1);
-                          break;
-                        case 'year':
-                          startDate = DateTime(now.year, 1, 1);
-                          break;
-                        default:
-                          return;
-                      }
-
+                  _DateRangeSelector(
+                    startDate: selectedStartDate,
+                    endDate: selectedEndDate,
+                    onRangeChanged: (start, end) {
                       setState(() {
-                        selectedStartDate = startDate;
-                        selectedEndDate = endDate;
+                        selectedStartDate = start;
+                        selectedEndDate = end;
                       });
-                    }
-
-                    Future<void> selectCustomDateRange() async {
-                      final now = DateTime.now();
-                      final today = DateTime(now.year, now.month, now.day);
-                      final initialRange = DateTimeRange(
-                        start:
-                            selectedStartDate ??
-                            today.subtract(const Duration(days: 7)),
-                        end: selectedEndDate ?? today,
-                      );
-
-                      final DateTimeRange? picked = await showDateRangePicker(
-                        context: context,
-                        firstDate: DateTime(2000),
-                        lastDate: today,
-                        initialDateRange: initialRange,
-                        builder: (context, child) {
-                          return Theme(
-                            data: Theme.of(context).copyWith(
-                              appBarTheme: AppBarTheme(
-                                backgroundColor: theme.colorScheme.primary,
-                                foregroundColor: theme.colorScheme.onPrimary,
-                              ),
-                            ),
-                            child: child!,
-                          );
-                        },
-                      );
-
-                      if (picked != null) {
-                        setState(() {
-                          selectedStartDate = picked.start;
-                          selectedEndDate = DateTime(
-                            picked.end.year,
-                            picked.end.month,
-                            picked.end.day,
-                            23,
-                            59,
-                            59,
-                          );
-                        });
-                      }
-                    }
-
-                    return Container(
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: Row(
-                        children: periods.map((p) {
-                          final isSelected = selectedPeriod == p['id'];
-                          return Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                if (p['id'] == 'custom') {
-                                  selectCustomDateRange();
-                                } else {
-                                  applyTimePeriod(p['id']!);
-                                }
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? theme.colorScheme.surface
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(
-                                              alpha: 0.05,
-                                            ),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : null,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  p['label']!,
-                                  style: TextStyle(
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    );
-                  })(),
+                    },
+                  ),
                   const SizedBox(height: 16),
 
                   // Date Fields Row
@@ -697,7 +503,6 @@ Widget _buildTypeChip({
   );
 }
 
-
 Widget _buildDatePickerField({
   required BuildContext context,
   required String label,
@@ -789,4 +594,182 @@ Widget _buildDatePickerField({
       ),
     ),
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _DateRangeSelector — replaces the IIFE that was previously inline in build().
+//
+// Holds the selected period string in its own local state and calls
+// [onRangeChanged] with the computed start/end DateTimes whenever the user
+// taps a preset or picks a custom range.
+// ─────────────────────────────────────────────────────────────────────────────
+
+typedef _RangeCallback = void Function(DateTime? start, DateTime? end);
+
+class _DateRangeSelector extends StatefulWidget {
+  const _DateRangeSelector({
+    required this.startDate,
+    required this.endDate,
+    required this.onRangeChanged,
+  });
+
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final _RangeCallback onRangeChanged;
+
+  @override
+  State<_DateRangeSelector> createState() => _DateRangeSelectorState();
+}
+
+class _DateRangeSelectorState extends State<_DateRangeSelector> {
+  static const _periods = [
+    {'id': '7days', 'label': '7 Days'},
+    {'id': '30days', 'label': '30 Days'},
+    {'id': 'month', 'label': 'Month'},
+    {'id': 'year', 'label': 'Year'},
+    {'id': 'custom', 'label': 'Custom'},
+  ];
+
+  /// Derives the active period label from the given start/end dates.
+  String _derivePeriod(DateTime? start, DateTime? end) {
+    if (start == null && end == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    final endMatches =
+        end != null &&
+        end.day == todayEnd.day &&
+        end.month == todayEnd.month &&
+        end.year == todayEnd.year;
+
+    if (!endMatches) return 'custom';
+    if (start == today.subtract(const Duration(days: 6))) return '7days';
+    if (start == today.subtract(const Duration(days: 29))) return '30days';
+    if (start == DateTime(now.year, now.month, 1)) return 'month';
+    if (start == DateTime(now.year, 1, 1)) return 'year';
+    return 'custom';
+  }
+
+  void _applyPreset(String id) {
+    if (id == 'custom') {
+      _pickCustomRange();
+      return;
+    }
+
+    final now = DateTime.now();
+    final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    late DateTime startDate;
+
+    switch (id) {
+      case '7days':
+        startDate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 6));
+      case '30days':
+        startDate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(const Duration(days: 29));
+      case 'month':
+        startDate = DateTime(now.year, now.month, 1);
+      case 'year':
+        startDate = DateTime(now.year, 1, 1);
+      default:
+        return;
+    }
+    widget.onRangeChanged(startDate, endDate);
+  }
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: today,
+      initialDateRange: DateTimeRange(
+        start: widget.startDate ?? today.subtract(const Duration(days: 7)),
+        end: widget.endDate ?? today,
+      ),
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            appBarTheme: AppBarTheme(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: theme.colorScheme.onPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && mounted) {
+      widget.onRangeChanged(
+        picked.start,
+        DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activePeriod = _derivePeriod(widget.startDate, widget.endDate);
+
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: _periods.map((p) {
+          final isSelected = activePeriod == p['id'];
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => _applyPreset(p['id']!),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? theme.colorScheme.surface
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  p['label']!,
+                  style: TextStyle(
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../models/category.dart';
@@ -63,9 +64,12 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: _nameController,
+                maxLength: 40,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
                 decoration: InputDecoration(
                   labelText: 'Category Name',
                   hintText: 'e.g. Shopping, Travel',
+                  counterText: '', // hide the character counter UI
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHighest
                       .withValues(alpha: 0.3),
