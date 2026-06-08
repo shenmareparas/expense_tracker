@@ -161,7 +161,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
       if (transactionDateTime.isAfter(DateTime.now())) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cannot add a transaction in the future.')),
+          const SnackBar(
+            content: Text('Cannot add a transaction in the future.'),
+          ),
         );
         return;
       }
@@ -471,48 +473,20 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                       const SizedBox(height: 48),
 
                       // Save Button
-                      Container(
+                      SizedBox(
                         width: double.infinity,
                         height: 56,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          gradient: LinearGradient(
-                            colors: _type == 'expense'
-                                ? [
-                                    const Color(0xFFFF5252),
-                                    const Color(0xFFD32F2F),
-                                  ]
-                                : [
-                                    const Color(0xFF4CAF50),
-                                    const Color(0xFF2E7D32),
-                                  ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  (_type == 'expense'
-                                          ? const Color(0xFFFF5252)
-                                          : const Color(0xFF4CAF50))
-                                      .withValues(
-                                        alpha:
-                                            Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? 0.3
-                                            : 0.5,
-                                      ),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
+                        child: FilledButton(
                           onPressed: isSaving ? null : _saveTransaction,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            foregroundColor: Colors.white,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _type == 'expense'
+                                ? Colors.red.withValues(alpha: 0.1)
+                                : Colors.green.withValues(alpha: 0.1),
+                            foregroundColor: _type == 'expense'
+                                ? Colors.red
+                                : Colors.green,
                             shadowColor: Colors.transparent,
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
@@ -521,13 +495,15 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               if (isSaving) ...[
-                                const SizedBox(
+                                SizedBox(
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
+                                      _type == 'expense'
+                                          ? Colors.red
+                                          : Colors.green,
                                     ),
                                   ),
                                 ),
@@ -538,7 +514,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                       ? Icons.check_circle_outline
                                       : Icons.update,
                                   size: 24,
-                                  color: Colors.white,
+                                  color: _type == 'expense'
+                                      ? Colors.red
+                                      : Colors.green,
                                 ),
                                 const SizedBox(width: 12),
                               ],
@@ -550,10 +528,12 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                     : (widget.transaction == null
                                           ? 'Save Transaction'
                                           : 'Update Transaction'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: _type == 'expense'
+                                      ? Colors.red
+                                      : Colors.green,
                                   letterSpacing: 1.1,
                                 ),
                               ),

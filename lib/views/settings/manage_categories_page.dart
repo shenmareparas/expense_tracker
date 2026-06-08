@@ -36,6 +36,18 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
       builder: (context) {
         final theme = Theme.of(context);
         return AlertDialog(
+          icon: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              category == null ? Icons.category_rounded : Icons.edit_rounded,
+              color: theme.colorScheme.primary,
+              size: 32,
+            ),
+          ),
           title: Text(
             category == null ? 'Add Category' : 'Edit Category',
             style: theme.textTheme.titleLarge?.copyWith(
@@ -43,7 +55,7 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
             ),
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -54,7 +66,6 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                 decoration: InputDecoration(
                   labelText: 'Category Name',
                   hintText: 'e.g. Shopping, Travel',
-                  prefixIcon: const Icon(Icons.label_outline_rounded),
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHighest
                       .withValues(alpha: 0.3),
@@ -78,10 +89,26 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
               ),
             ],
           ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
           actions: [
-            TextButton(
+            OutlinedButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
             ),
             FilledButton(
               onPressed: () async {
@@ -113,6 +140,17 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                   }
                 }
               },
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
               child: Text(category == null ? 'Add' : 'Save'),
             ),
           ],
@@ -284,22 +322,51 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
       builder: (context) {
         final theme = Theme.of(context);
         return AlertDialog(
+          icon: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.delete_rounded,
+              color: Colors.red,
+              size: 32,
+            ),
+          ),
           title: Text(
-            'Delete Category?',
+            'Delete Category',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           content: Text(
-            'Are you sure you want to delete "${category.name}"? Existing transactions will not be deleted, but they will no longer be categorized.',
+            'This will remove it from your categories list. Existing transactions in this category will not be deleted.',
+            textAlign: TextAlign.center,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(28),
           ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
           actions: [
-            TextButton(
+            OutlinedButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                side: BorderSide(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: theme.colorScheme.onSurface),
+              ),
             ),
             FilledButton(
               onPressed: () {
@@ -307,10 +374,21 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
                 Navigator.pop(context);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: Colors.red.withValues(alpha: 0.1),
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              child: const Text('Delete'),
+              child: const Text(
+                'Delete',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );

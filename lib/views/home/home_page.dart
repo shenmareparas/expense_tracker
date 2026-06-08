@@ -68,6 +68,30 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: _selectedIndex == 0
+            ? (_isSearching
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      setState(() {
+                        _searchController.clear();
+                        _isSearching = false;
+                        Provider.of<TransactionViewModel>(
+                          context,
+                          listen: false,
+                        ).setSearchQuery('');
+                      });
+                    },
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () {
+                      setState(() {
+                        _isSearching = true;
+                      });
+                    },
+                  ))
+            : null,
         title: _isSearching
             ? TextField(
                 controller: _searchController,
@@ -91,7 +115,6 @@ class _HomePageState extends State<HomePage> {
               onPressed: () {
                 setState(() {
                   _searchController.clear();
-                  _isSearching = false;
                   Provider.of<TransactionViewModel>(
                     context,
                     listen: false,
@@ -100,15 +123,6 @@ class _HomePageState extends State<HomePage> {
               },
             )
           else if (_selectedIndex == 0)
-            IconButton(
-              icon: const Icon(Icons.search),
-              onPressed: () {
-                setState(() {
-                  _isSearching = true;
-                });
-              },
-            ),
-          if (!_isSearching && _selectedIndex == 0)
             Consumer<TransactionViewModel>(
               builder: (context, viewModel, child) {
                 return IconButton(

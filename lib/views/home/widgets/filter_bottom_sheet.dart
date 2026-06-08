@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
 import '../../../viewmodels/category_viewmodel.dart';
-import '../../../widgets/app_dropdown.dart';
 
 /// Shows the filter bottom sheet for transactions.
 void showFilterBottomSheet(
@@ -45,7 +44,8 @@ void showFilterBottomSheet(
           }
 
           // Ensure selectedCategory is cleared if it doesn't exist in the currently selectable categories
-          if (selectedCategory != null && !displayCategories.contains(selectedCategory)) {
+          if (selectedCategory != null &&
+              !displayCategories.contains(selectedCategory)) {
             selectedCategory = null;
           }
 
@@ -68,7 +68,9 @@ void showFilterBottomSheet(
                       height: 5,
                       margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
+                        ),
                         borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
@@ -89,7 +91,10 @@ void showFilterBottomSheet(
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.close_rounded),
                         style: IconButton.styleFrom(
-                          backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          backgroundColor: theme
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
                           padding: const EdgeInsets.all(8),
                         ),
                       ),
@@ -113,9 +118,13 @@ void showFilterBottomSheet(
                         context: context,
                         label: 'All',
                         isSelected: selectedType == null,
-                        selectedColor: theme.colorScheme.primary.withValues(alpha: 0.15),
+                        selectedColor: theme.colorScheme.primary.withValues(
+                          alpha: 0.15,
+                        ),
                         textColor: theme.colorScheme.primary,
-                        borderColor: theme.colorScheme.primary.withValues(alpha: 0.5),
+                        borderColor: theme.colorScheme.primary.withValues(
+                          alpha: 0.5,
+                        ),
                         onTap: () {
                           setState(() {
                             selectedType = null;
@@ -162,85 +171,287 @@ void showFilterBottomSheet(
                     ),
                   ),
                   const SizedBox(height: 10),
-                  AppDropdown<String?>(
-                    key: ValueKey('${selectedType}_$selectedCategory'),
-                    value: selectedCategory,
-                    hint: 'All Categories',
-                    prefixIcon: Icons.category_outlined,
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('All Categories'),
-                      ),
-                      ...displayCategories.map(
-                        (c) => DropdownMenuItem(value: c, child: Text(c)),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      setState(() {
-                        selectedCategory = val;
-                      });
-                    },
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: const Text('All Categories'),
+                            selected: selectedCategory == null,
+                            selectedColor: theme.colorScheme.primary.withValues(
+                              alpha: 0.15,
+                            ),
+                            labelStyle: TextStyle(
+                              fontWeight: selectedCategory == null
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: selectedCategory == null
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            onSelected: (selected) {
+                              setState(() {
+                                selectedCategory = null;
+                              });
+                            },
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            showCheckmark: false,
+                          ),
+                        ),
+                        ...displayCategories.map((category) {
+                          final isSelected = selectedCategory == category;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: ChoiceChip(
+                              label: Text(category),
+                              selected: isSelected,
+                              selectedColor: theme.colorScheme.primary
+                                  .withValues(alpha: 0.15),
+                              labelStyle: TextStyle(
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                              onSelected: (selected) {
+                                setState(() {
+                                  selectedCategory = selected ? category : null;
+                                });
+                              },
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              showCheckmark: false,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 
                   // Date Range Label
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Date Range',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Date Range',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 10),
 
-                  // Quick Date Range Presets
-                  Row(
-                    children: [
-                      _buildPresetChip(
+                  // Quick Date Range Presets using sliding Period Selector
+                  (() {
+                    String selectedPeriod = 'all';
+                    if (selectedStartDate != null || selectedEndDate != null) {
+                      final now = DateTime.now();
+                      final today = DateTime(now.year, now.month, now.day);
+                      final todayEnd = DateTime(
+                        now.year,
+                        now.month,
+                        now.day,
+                        23,
+                        59,
+                        59,
+                      );
+                      if (selectedStartDate ==
+                              today.subtract(const Duration(days: 6)) &&
+                          selectedEndDate?.day == todayEnd.day &&
+                          selectedEndDate?.month == todayEnd.month &&
+                          selectedEndDate?.year == todayEnd.year) {
+                        selectedPeriod = '7days';
+                      } else if (selectedStartDate ==
+                              today.subtract(const Duration(days: 29)) &&
+                          selectedEndDate?.day == todayEnd.day &&
+                          selectedEndDate?.month == todayEnd.month &&
+                          selectedEndDate?.year == todayEnd.year) {
+                        selectedPeriod = '30days';
+                      } else if (selectedStartDate ==
+                              DateTime(now.year, now.month, 1) &&
+                          selectedEndDate?.day == todayEnd.day &&
+                          selectedEndDate?.month == todayEnd.month &&
+                          selectedEndDate?.year == todayEnd.year) {
+                        selectedPeriod = 'month';
+                      } else if (selectedStartDate ==
+                              DateTime(now.year, 1, 1) &&
+                          selectedEndDate?.day == todayEnd.day &&
+                          selectedEndDate?.month == todayEnd.month &&
+                          selectedEndDate?.year == todayEnd.year) {
+                        selectedPeriod = 'year';
+                      } else {
+                        selectedPeriod = 'custom';
+                      }
+                    }
+
+                    final periods = [
+                      {'id': 'all', 'label': 'All Time'},
+                      {'id': '7days', 'label': '7 Days'},
+                      {'id': '30days', 'label': '30 Days'},
+                      {'id': 'month', 'label': 'Month'},
+                      {'id': 'year', 'label': 'Year'},
+                      {'id': 'custom', 'label': 'Custom'},
+                    ];
+
+                    void applyTimePeriod(String period) {
+                      if (period == 'all') {
+                        setState(() {
+                          selectedStartDate = null;
+                          selectedEndDate = null;
+                        });
+                        return;
+                      }
+
+                      final now = DateTime.now();
+                      DateTime startDate;
+                      DateTime endDate = DateTime(
+                        now.year,
+                        now.month,
+                        now.day,
+                        23,
+                        59,
+                        59,
+                      );
+
+                      switch (period) {
+                        case '7days':
+                          startDate = DateTime(
+                            now.year,
+                            now.month,
+                            now.day,
+                          ).subtract(const Duration(days: 6));
+                          break;
+                        case '30days':
+                          startDate = DateTime(
+                            now.year,
+                            now.month,
+                            now.day,
+                          ).subtract(const Duration(days: 29));
+                          break;
+                        case 'month':
+                          startDate = DateTime(now.year, now.month, 1);
+                          break;
+                        case 'year':
+                          startDate = DateTime(now.year, 1, 1);
+                          break;
+                        default:
+                          return;
+                      }
+
+                      setState(() {
+                        selectedStartDate = startDate;
+                        selectedEndDate = endDate;
+                      });
+                    }
+
+                    Future<void> selectCustomDateRange() async {
+                      final now = DateTime.now();
+                      final today = DateTime(now.year, now.month, now.day);
+                      final initialRange = DateTimeRange(
+                        start:
+                            selectedStartDate ??
+                            today.subtract(const Duration(days: 7)),
+                        end: selectedEndDate ?? today,
+                      );
+
+                      final DateTimeRange? picked = await showDateRangePicker(
                         context: context,
-                        label: 'Today',
-                        onTap: () {
-                          final now = DateTime.now();
-                          setState(() {
-                            selectedStartDate = DateTime(now.year, now.month, now.day);
-                            selectedEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-                          });
+                        firstDate: DateTime(2000),
+                        lastDate: today,
+                        initialDateRange: initialRange,
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              appBarTheme: AppBarTheme(
+                                backgroundColor: theme.colorScheme.primary,
+                                foregroundColor: theme.colorScheme.onPrimary,
+                              ),
+                            ),
+                            child: child!,
+                          );
                         },
+                      );
+
+                      if (picked != null) {
+                        setState(() {
+                          selectedStartDate = picked.start;
+                          selectedEndDate = DateTime(
+                            picked.end.year,
+                            picked.end.month,
+                            picked.end.day,
+                            23,
+                            59,
+                            59,
+                          );
+                        });
+                      }
+                    }
+
+                    return Container(
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 8),
-                      _buildPresetChip(
-                        context: context,
-                        label: 'This Week',
-                        onTap: () {
-                          final now = DateTime.now();
-                          final weekday = now.weekday;
-                          final monday = now.subtract(Duration(days: weekday - 1));
-                          setState(() {
-                            selectedStartDate = DateTime(monday.year, monday.month, monday.day);
-                            selectedEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-                          });
-                        },
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        children: periods.map((p) {
+                          final isSelected = selectedPeriod == p['id'];
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                if (p['id'] == 'custom') {
+                                  selectCustomDateRange();
+                                } else {
+                                  applyTimePeriod(p['id']!);
+                                }
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? theme.colorScheme.surface
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(
+                                              alpha: 0.05,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  p['label']!,
+                                  style: TextStyle(
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
-                      const SizedBox(width: 8),
-                      _buildPresetChip(
-                        context: context,
-                        label: 'This Month',
-                        onTap: () {
-                          final now = DateTime.now();
-                          setState(() {
-                            selectedStartDate = DateTime(now.year, now.month, 1);
-                            selectedEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                    );
+                  })(),
+                  const SizedBox(height: 16),
 
                   // Date Fields Row
                   Row(
@@ -252,30 +463,42 @@ void showFilterBottomSheet(
                         onTap: () async {
                           final now = DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
-                          final initialRange = (selectedStartDate != null && selectedEndDate != null)
-                              ? DateTimeRange(start: selectedStartDate!, end: selectedEndDate!)
+                          final initialRange =
+                              (selectedStartDate != null &&
+                                  selectedEndDate != null)
+                              ? DateTimeRange(
+                                  start: selectedStartDate!,
+                                  end: selectedEndDate!,
+                                )
                               : DateTimeRange(
-                                  start: today.subtract(const Duration(days: 7)),
+                                  start: today.subtract(
+                                    const Duration(days: 7),
+                                  ),
                                   end: today,
                                 );
 
-                          final DateTimeRange? picked = await showDateRangePicker(
-                            context: context,
-                            firstDate: DateTime(2000),
-                            lastDate: today,
-                            initialDateRange: initialRange,
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  appBarTheme: AppBarTheme(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
-                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                ),
-                                child: child!,
+                          final DateTimeRange? picked =
+                              await showDateRangePicker(
+                                context: context,
+                                firstDate: DateTime(2000),
+                                lastDate: today,
+                                initialDateRange: initialRange,
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      appBarTheme: AppBarTheme(
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
-                            },
-                          );
 
                           if (picked != null) {
                             setState(() {
@@ -298,30 +521,42 @@ void showFilterBottomSheet(
                         onTap: () async {
                           final now = DateTime.now();
                           final today = DateTime(now.year, now.month, now.day);
-                          final initialRange = (selectedStartDate != null && selectedEndDate != null)
-                              ? DateTimeRange(start: selectedStartDate!, end: selectedEndDate!)
+                          final initialRange =
+                              (selectedStartDate != null &&
+                                  selectedEndDate != null)
+                              ? DateTimeRange(
+                                  start: selectedStartDate!,
+                                  end: selectedEndDate!,
+                                )
                               : DateTimeRange(
-                                  start: today.subtract(const Duration(days: 7)),
+                                  start: today.subtract(
+                                    const Duration(days: 7),
+                                  ),
                                   end: today,
                                 );
 
-                          final DateTimeRange? picked = await showDateRangePicker(
-                            context: context,
-                            firstDate: DateTime(2000),
-                            lastDate: today,
-                            initialDateRange: initialRange,
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  appBarTheme: AppBarTheme(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
-                                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                ),
-                                child: child!,
+                          final DateTimeRange? picked =
+                              await showDateRangePicker(
+                                context: context,
+                                firstDate: DateTime(2000),
+                                lastDate: today,
+                                initialDateRange: initialRange,
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      appBarTheme: AppBarTheme(
+                                        backgroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        foregroundColor: Theme.of(
+                                          context,
+                                        ).colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
-                            },
-                          );
 
                           if (picked != null) {
                             setState(() {
@@ -359,7 +594,9 @@ void showFilterBottomSheet(
                               borderRadius: BorderRadius.circular(16),
                             ),
                             side: BorderSide(
-                              color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.5,
+                              ),
                             ),
                           ),
                           child: Text(
@@ -381,7 +618,9 @@ void showFilterBottomSheet(
                               startDate: selectedStartDate,
                               endDate: selectedEndDate,
                             );
-                            await viewModel.loadTransactions(forceRefresh: true);
+                            await viewModel.loadTransactions(
+                              forceRefresh: true,
+                            );
                             if (context.mounted) {
                               Navigator.pop(context);
                             }
@@ -458,38 +697,6 @@ Widget _buildTypeChip({
   );
 }
 
-Widget _buildPresetChip({
-  required BuildContext context,
-  required String label,
-  required VoidCallback onTap,
-}) {
-  final theme = Theme.of(context);
-  return Expanded(
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.1),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-      ),
-    ),
-  );
-}
 
 Widget _buildDatePickerField({
   required BuildContext context,
@@ -538,7 +745,9 @@ Widget _buildDatePickerField({
                       label,
                       style: TextStyle(
                         fontSize: 10,
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -552,7 +761,9 @@ Widget _buildDatePickerField({
                         fontWeight: FontWeight.bold,
                         color: selectedDate != null
                             ? theme.colorScheme.onSurface
-                            : theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.4,
+                              ),
                       ),
                     ),
                   ],
