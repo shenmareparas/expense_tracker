@@ -8,7 +8,7 @@ class SupabaseConfig {
 
   /// Initialize Supabase. Call once in main().
   static Future<void> initialize() async {
-    await Supabase.initialize(url: _url, anonKey: _anonKey);
+    await Supabase.initialize(url: _url, publishableKey: _anonKey);
   }
 
   /// The Supabase client instance.

@@ -119,8 +119,37 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 48),
         // Logout Section
         ElevatedButton.icon(
-          onPressed: () {
-            Provider.of<AuthViewModel>(context, listen: false).signOut();
+          onPressed: () async {
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Sign Out'),
+                content: const Text(
+                  'Are you sure you want to sign out of your account?',
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Sign Out'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirm == true && context.mounted) {
+              Provider.of<AuthViewModel>(context, listen: false).signOut();
+            }
           },
           icon: const Icon(Icons.logout, color: Colors.red),
           label: const Text(

@@ -33,61 +33,91 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(category == null ? 'Add Category' : 'Edit Category'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Category Name',
-                hintText: 'e.g. Shopping, Travel',
-                border: OutlineInputBorder(),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          title: Text(
+            category == null ? 'Add Category' : 'Edit Category',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              TextField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Category Name',
+                  hintText: 'e.g. Shopping, Travel',
+                  prefixIcon: const Icon(Icons.label_outline_rounded),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.3),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                ),
+                textCapitalization: TextCapitalization.words,
               ),
-              textCapitalization: TextCapitalization.words,
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = _nameController.text.trim();
+                if (name.isEmpty) return;
+
+                final viewModel = Provider.of<CategoryViewModel>(
+                  context,
+                  listen: false,
+                );
+                bool success;
+                if (category == null) {
+                  success = await viewModel.addCategory(
+                    name: name,
+                    type: initialType,
+                  );
+                } else {
+                  success = await viewModel.updateCategory(
+                    id: category.id,
+                    name: name,
+                    type: initialType,
+                  );
+                }
+
+                if (success && mounted) {
+                  _nameController.clear();
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                }
+              },
+              child: Text(category == null ? 'Add' : 'Save'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = _nameController.text.trim();
-              if (name.isEmpty) return;
-
-              final viewModel = Provider.of<CategoryViewModel>(
-                context,
-                listen: false,
-              );
-              bool success;
-              if (category == null) {
-                success = await viewModel.addCategory(
-                  name: name,
-                  type: initialType,
-                );
-              } else {
-                success = await viewModel.updateCategory(
-                  id: category.id,
-                  name: name,
-                  type: initialType,
-                );
-              }
-
-              if (success && mounted) {
-                _nameController.clear();
-                if (context.mounted) {
-                  Navigator.pop(context);
-                }
-              }
-            },
-            child: Text(category == null ? 'Add' : 'Update'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -202,22 +232,9 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: ListTile(
-            leading: isOther
-                ? const CircleAvatar(
-                    backgroundColor: Colors.grey,
-                    child: Icon(Icons.more_horiz, color: Colors.white),
-                  )
-                : CircleAvatar(
-                    backgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer,
-                    child: Text(
-                      category.name[0].toUpperCase(),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                    ),
-                  ),
+            leading: !isOther
+                ? const Icon(Icons.drag_handle, color: Colors.grey, size: 20)
+                : const SizedBox(width: 20),
             title: Text(
               category.name,
               style: TextStyle(
@@ -230,18 +247,17 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
               children: [
                 if (!isOther) ...[
                   IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                    onPressed: () =>
+                        _showDeleteConfirmation(context, viewModel, category),
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.edit, size: 20),
                     onPressed: () => _showCategoryDialog(
                       category: category,
                       initialType: type,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                    onPressed: () =>
-                        _showDeleteConfirmation(context, viewModel, category),
-                  ),
-                  const Icon(Icons.drag_handle, color: Colors.grey, size: 20),
                 ] else
                   const Padding(
                     padding: EdgeInsets.only(right: 12),
@@ -265,25 +281,40 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Category?'),
-        content: Text(
-          'Are you sure you want to delete "${category.name}"? Transactions using this category will not be deleted, but they will still reference a missing category.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          title: Text(
+            'Delete Category?',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              viewModel.deleteCategory(category.id);
-              Navigator.pop(context);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          content: Text(
+            'Are you sure you want to delete "${category.name}"? Existing transactions will not be deleted, but they will no longer be categorized.',
           ),
-        ],
-      ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                viewModel.deleteCategory(category.id);
+                Navigator.pop(context);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
   }
 
