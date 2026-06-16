@@ -169,7 +169,7 @@ class _HomePageState extends State<HomePage> {
                   icon: Badge(
                     isLabelVisible:
                         viewModel.filterType != null ||
-                        viewModel.filterCategory != null ||
+                        viewModel.filterCategories.isNotEmpty ||
                         viewModel.filterStartDate != null ||
                         viewModel.filterEndDate != null,
                     smallSize: 8,
@@ -177,7 +177,7 @@ class _HomePageState extends State<HomePage> {
                       Icons.filter_list,
                       color:
                           viewModel.filterType != null ||
-                              viewModel.filterCategory != null ||
+                              viewModel.filterCategories.isNotEmpty ||
                               viewModel.filterStartDate != null ||
                               viewModel.filterEndDate != null
                           ? Theme.of(context).colorScheme.primary

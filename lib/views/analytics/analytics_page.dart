@@ -21,16 +21,27 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   String _selectedType = 'expense'; // 'expense', 'income'
   String _selectedChartType =
       'trend'; // 'pie' (breakdown), 'trend' (daily trend)
-  String? _selectedCategoryFilter; // null means 'All Categories'
+  final List<String> _selectedCategoryFilters =
+      []; // empty means 'All Categories'
   // touchedIndex / touchedBarIndex are now held inside _PieChartWidget and
   // _BarChartWidget sub-widgets so chart interactions don't trigger a full
   // analytics page rebuild with all its aggregation loops.
+
+  bool _areListsEqual(List<String>? a, List<String>? b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 
   // --- Memoization Cache ---
   List<TransactionModel>? _memoizedTransactions;
   List<CategoryModel>? _memoizedCategories;
   String? _memoizedSelectedType;
-  String? _memoizedSelectedCategoryFilter;
+  List<String>? _memoizedSelectedCategoryFilters;
   String? _memoizedSelectedTimePeriod;
   DateTime? _memoizedStartDate;
   DateTime? _memoizedEndDate;
@@ -100,7 +111,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   void _changeTimePeriod(String period) {
     setState(() {
       _selectedTimePeriod = period;
-      _selectedCategoryFilter = null;
+      _selectedCategoryFilters.clear();
     });
     _applyFiltersSilently(period);
   }
@@ -141,7 +152,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     if (picked != null) {
       setState(() {
         _selectedTimePeriod = 'custom';
-        _selectedCategoryFilter = null;
+        _selectedCategoryFilters.clear();
       });
       vm.loadAnalyticsSnapshot(startDate: picked.start, endDate: picked.end);
     }
@@ -269,7 +280,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             _memoizedTransactions != transactions ||
             _memoizedCategories != categoryViewModel.categories ||
             _memoizedSelectedType != _selectedType ||
-            _memoizedSelectedCategoryFilter != _selectedCategoryFilter ||
+            !_areListsEqual(
+              _memoizedSelectedCategoryFilters,
+              _selectedCategoryFilters,
+            ) ||
             _memoizedSelectedTimePeriod != _selectedTimePeriod ||
             _memoizedStartDate != viewModel.analyticsStartDate ||
             _memoizedEndDate != viewModel.analyticsEndDate;
@@ -278,7 +292,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           _memoizedTransactions = transactions;
           _memoizedCategories = categoryViewModel.categories;
           _memoizedSelectedType = _selectedType;
-          _memoizedSelectedCategoryFilter = _selectedCategoryFilter;
+          _memoizedSelectedCategoryFilters = List.from(
+            _selectedCategoryFilters,
+          );
           _memoizedSelectedTimePeriod = _selectedTimePeriod;
           _memoizedStartDate = viewModel.analyticsStartDate;
           _memoizedEndDate = viewModel.analyticsEndDate;
@@ -308,10 +324,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ..sort();
           }
 
-          _filteredTransactions = _selectedCategoryFilter == null
+          _filteredTransactions = _selectedCategoryFilters.isEmpty
               ? transactions
               : transactions
-                    .where((t) => t.category == _selectedCategoryFilter)
+                    .where((t) => _selectedCategoryFilters.contains(t.category))
                     .toList();
 
           final categoriesMap = _getCategoriesData(
@@ -447,9 +463,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _selectedCategoryFilter == null
+                          _selectedCategoryFilters.isEmpty
                               ? 'Try changing the time frame or adding new transactions.'
-                              : 'No data for category "$_selectedCategoryFilter" in this period.',
+                              : 'No data for selected categories in this period.',
                           style: TextStyle(
                             color: Theme.of(
                               context,
@@ -548,21 +564,21 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             padding: const EdgeInsets.only(right: 8.0),
             child: ChoiceChip(
               label: const Text('All Categories'),
-              selected: _selectedCategoryFilter == null,
+              selected: _selectedCategoryFilters.isEmpty,
               selectedColor: Theme.of(
                 context,
               ).colorScheme.primary.withValues(alpha: 0.15),
               labelStyle: TextStyle(
-                fontWeight: _selectedCategoryFilter == null
+                fontWeight: _selectedCategoryFilters.isEmpty
                     ? FontWeight.bold
                     : FontWeight.normal,
-                color: _selectedCategoryFilter == null
+                color: _selectedCategoryFilters.isEmpty
                     ? Theme.of(context).colorScheme.primary
                     : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               onSelected: (selected) {
                 setState(() {
-                  _selectedCategoryFilter = null;
+                  _selectedCategoryFilters.clear();
                 });
               },
               shape: RoundedRectangleBorder(
@@ -572,7 +588,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ),
           ),
           ...categories.map((category) {
-            final isSelected = _selectedCategoryFilter == category;
+            final isSelected = _selectedCategoryFilters.contains(category);
             return Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: ChoiceChip(
@@ -589,7 +605,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 ),
                 onSelected: (selected) {
                   setState(() {
-                    _selectedCategoryFilter = selected ? category : null;
+                    if (selected) {
+                      _selectedCategoryFilters.add(category);
+                    } else {
+                      _selectedCategoryFilters.remove(category);
+                    }
                   });
                 },
                 shape: RoundedRectangleBorder(
@@ -820,9 +840,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     List<MapEntry<DateTime, double>> dailyData,
     TransactionViewModel viewModel,
   ) {
-    final String subtitleText = _selectedCategoryFilter == null
+    final String subtitleText = _selectedCategoryFilters.isEmpty
         ? 'Total: ₹${total.toStringAsFixed(0)}'
-        : 'Category "$_selectedCategoryFilter": ₹${total.toStringAsFixed(0)}';
+        : _selectedCategoryFilters.length == 1
+        ? 'Category "${_selectedCategoryFilters.first}": ₹${total.toStringAsFixed(0)}'
+        : 'Multiple Categories: ₹${total.toStringAsFixed(0)}';
 
     return RepaintBoundary(
       child: Card(
@@ -902,7 +924,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           onPressed: () {
             setState(() {
               _selectedType = _selectedType == 'expense' ? 'income' : 'expense';
-              _selectedCategoryFilter = null;
+              _selectedCategoryFilters.clear();
             });
           },
           icon: Icon(
@@ -1033,16 +1055,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               color: Colors.amber.shade500,
             ),
             _buildInsightCard(
-              title: _selectedCategoryFilter == null
+              title: _selectedCategoryFilters.isEmpty
                   ? 'Top Category'
-                  : 'Selected Category',
-              value:
-                  _selectedCategoryFilter ??
-                  (highestCategory != null ? highestCategory.key : 'None'),
+                  : 'Selected Categories',
+              value: _selectedCategoryFilters.isEmpty
+                  ? (highestCategory != null ? highestCategory.key : 'None')
+                  : _selectedCategoryFilters.length == 1
+                  ? _selectedCategoryFilters.first
+                  : '${_selectedCategoryFilters.length} Selected',
               subtitle:
-                  _selectedCategoryFilter == null && highestCategory != null
+                  _selectedCategoryFilters.isEmpty && highestCategory != null
                   ? '${((highestCategory.value / total) * 100).toStringAsFixed(0)}% of total'
-                  : _selectedCategoryFilter != null
+                  : _selectedCategoryFilters.isNotEmpty
                   ? 'Drilled down active'
                   : 'No entries',
               icon: Icons.category,
@@ -1164,7 +1188,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           final percentage = overallTotal > 0
               ? (entry.value / overallTotal) * 100
               : 0.0;
-          final isSelected = _selectedCategoryFilter == entry.key;
+          final isSelected = _selectedCategoryFilters.contains(entry.key);
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -1195,7 +1219,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               child: ListTile(
                 onTap: () {
                   setState(() {
-                    _selectedCategoryFilter = isSelected ? null : entry.key;
+                    if (isSelected) {
+                      _selectedCategoryFilters.remove(entry.key);
+                    } else {
+                      _selectedCategoryFilters.add(entry.key);
+                    }
                   });
                 },
                 contentPadding: const EdgeInsets.symmetric(

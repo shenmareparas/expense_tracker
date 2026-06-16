@@ -18,7 +18,7 @@ void showFilterBottomSheet(
     ),
     builder: (context) {
       String? selectedType = viewModel.filterType;
-      String? selectedCategory = viewModel.filterCategory;
+      List<String> selectedCategories = List.from(viewModel.filterCategories);
       DateTime? selectedStartDate = viewModel.filterStartDate;
       DateTime? selectedEndDate = viewModel.filterEndDate;
 
@@ -44,11 +44,10 @@ void showFilterBottomSheet(
             }.toList();
           }
 
-          // Ensure selectedCategory is cleared if it doesn't exist in the currently selectable categories
-          if (selectedCategory != null &&
-              !displayCategories.contains(selectedCategory)) {
-            selectedCategory = null;
-          }
+          // Filter out any selected categories that are no longer in displayCategories
+          selectedCategories = selectedCategories
+              .where((c) => displayCategories.contains(c))
+              .toList();
 
           return Padding(
             padding: EdgeInsets.only(
@@ -181,22 +180,22 @@ void showFilterBottomSheet(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: ChoiceChip(
                             label: const Text('All Categories'),
-                            selected: selectedCategory == null,
+                            selected: selectedCategories.isEmpty,
                             selectedColor: theme.colorScheme.primary.withValues(
                               alpha: 0.15,
                             ),
                             labelStyle: TextStyle(
-                              fontWeight: selectedCategory == null
+                              fontWeight: selectedCategories.isEmpty
                                   ? FontWeight.bold
                                   : FontWeight.normal,
-                              color: selectedCategory == null
+                              color: selectedCategories.isEmpty
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.onSurfaceVariant,
                             ),
                             onSelected: (selected) {
                               AppHaptics.selectionClick(context);
                               setState(() {
-                                selectedCategory = null;
+                                selectedCategories.clear();
                               });
                             },
                             shape: RoundedRectangleBorder(
@@ -206,7 +205,7 @@ void showFilterBottomSheet(
                           ),
                         ),
                         ...displayCategories.map((category) {
-                          final isSelected = selectedCategory == category;
+                          final isSelected = selectedCategories.contains(category);
                           return Padding(
                             padding: const EdgeInsets.only(right: 8.0),
                             child: ChoiceChip(
@@ -225,7 +224,11 @@ void showFilterBottomSheet(
                               onSelected: (selected) {
                                 AppHaptics.selectionClick(context);
                                 setState(() {
-                                  selectedCategory = selected ? category : null;
+                                  if (selected) {
+                                    selectedCategories.add(category);
+                                  } else {
+                                    selectedCategories.remove(category);
+                                  }
                                 });
                               },
                               shape: RoundedRectangleBorder(
@@ -393,7 +396,7 @@ void showFilterBottomSheet(
                             AppHaptics.selectionClick(context);
                             setState(() {
                               selectedType = null;
-                              selectedCategory = null;
+                              selectedCategories.clear();
                               selectedStartDate = null;
                               selectedEndDate = null;
                             });
@@ -425,7 +428,7 @@ void showFilterBottomSheet(
                             AppHaptics.mediumImpact(context);
                             viewModel.setFilters(
                               type: selectedType,
-                              category: selectedCategory,
+                              categories: selectedCategories,
                               startDate: selectedStartDate,
                               endDate: selectedEndDate,
                             );

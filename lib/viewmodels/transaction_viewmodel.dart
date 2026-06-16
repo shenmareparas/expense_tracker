@@ -36,8 +36,8 @@ class TransactionViewModel extends ChangeNotifier {
   String? _filterType;
   String? get filterType => _filterType;
 
-  String? _filterCategory;
-  String? get filterCategory => _filterCategory;
+  List<String> _filterCategories = [];
+  List<String> get filterCategories => _filterCategories;
 
   DateTime? _filterStartDate;
   DateTime? get filterStartDate => _filterStartDate;
@@ -53,12 +53,12 @@ class TransactionViewModel extends ChangeNotifier {
 
   void setFilters({
     String? type,
-    String? category,
+    List<String>? categories,
     DateTime? startDate,
     DateTime? endDate,
   }) {
     _filterType = type;
-    _filterCategory = category;
+    _filterCategories = categories ?? [];
     _filterStartDate = startDate;
     _filterEndDate = endDate;
     _hasAnalyticsSnapshot = false;
@@ -76,7 +76,7 @@ class TransactionViewModel extends ChangeNotifier {
 
   void clearFilters() {
     _filterType = null;
-    _filterCategory = null;
+    _filterCategories = [];
     _filterStartDate = null;
     _filterEndDate = null;
     _searchQuery = '';
@@ -172,7 +172,7 @@ class TransactionViewModel extends ChangeNotifier {
         limit: _pageSize,
         offset: 0,
         type: _filterType,
-        category: _filterCategory,
+        categories: _filterCategories,
         startDate: _filterStartDate,
         endDate: _filterEndDate,
       );
@@ -203,7 +203,7 @@ class TransactionViewModel extends ChangeNotifier {
         limit: _pageSize,
         offset: _currentOffset,
         type: _filterType,
-        category: _filterCategory,
+        categories: _filterCategories,
         startDate: _filterStartDate,
         endDate: _filterEndDate,
       );
@@ -359,7 +359,7 @@ class TransactionViewModel extends ChangeNotifier {
         limit: null,
         offset: 0,
         type: null,
-        category: null,
+        categories: null,
         startDate: _analyticsStartDate,
         endDate: _analyticsEndDate,
       );

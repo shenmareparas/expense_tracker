@@ -88,11 +88,12 @@ class DatabaseService {
   /// filter changes.
   String _buildFilterKey({
     String? type,
-    String? category,
+    List<String>? categories,
     DateTime? startDate,
     DateTime? endDate,
   }) {
-    return '${type ?? ''}_${category ?? ''}_${startDate?.toIso8601String() ?? ''}_${endDate?.toIso8601String() ?? ''}';
+    final categoriesStr = categories != null ? categories.join(',') : '';
+    return '${type ?? ''}_${categoriesStr}_${startDate?.toIso8601String() ?? ''}_${endDate?.toIso8601String() ?? ''}';
   }
 
   Future<List<TransactionModel>> getTransactions({
@@ -100,13 +101,13 @@ class DatabaseService {
     int? limit,
     int offset = 0,
     String? type,
-    String? category,
+    List<String>? categories,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final filterKey = _buildFilterKey(
       type: type,
-      category: category,
+      categories: categories,
       startDate: startDate,
       endDate: endDate,
     );
@@ -141,8 +142,8 @@ class DatabaseService {
       if (type != null) {
         query = query.eq('type', type);
       }
-      if (category != null) {
-        query = query.eq('category', category);
+      if (categories != null && categories.isNotEmpty) {
+        query = query.inFilter('category', categories);
       }
       if (startDate != null) {
         query = query.gte(
