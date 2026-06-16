@@ -22,8 +22,8 @@ lib/
 ├── viewmodels/               # ViewModels implementing ChangeNotifier for state control
 │   ├── auth_viewmodel.dart   # Auth state (loading, error, session management)
 │   ├── category_viewmodel.dart # Category CRUD & ordering states
-│   ├── theme_viewmodel.dart  # Custom dynamic light & dark theme states and haptic preferences
-│   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
+│   ├── theme_viewmodel.dart  # Custom dynamic light & dark theme states, haptic preferences, default analytics tab, and custom tab ordering
+│   └── transaction_viewmodel.dart # Transaction feed (non-paginated full loads), optimistic updates, multi-select category filters, and analytics snapshots
 ├── views/                    # UI Layer (Screens & Page-specific layouts)
 │   ├── analytics/            # Analytical dashboards and interactive charts
 │   │   └── analytics_page.dart # Interactive insights, charts, and date filter drill-downs
@@ -57,7 +57,7 @@ The project uses a custom, dynamic in-memory caching mechanism in the `DatabaseS
 
 > [!IMPORTANT]
 > - **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`).
-> - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `category`, `startDate`, `endDate`). Changing a filter bypasses the stale cache and triggers a fresh remote load.
+> - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
 > - **Invalidation**: All mutation operations (add, edit, delete, reorder) must explicitly invalidate the relevant cache to guarantee immediate data updates in the UI.
 > - **Request Deduplication**: A concurrency guard using `_ongoingTransactionFetch` (via the `Completer` pattern) prevents concurrent callers from spawning duplicate identical network requests for full transaction loads.
 
@@ -136,6 +136,8 @@ All data columns map strictly between remote database fields and Flutter immutab
 - Use `Consumer<T>` or `context.watch<T>()` in the UI to react to changes.
 - Use `context.read<T>()` inside callbacks (e.g., `onPressed`) to trigger actions without rebuilding the widget tree needlessly.
 - **Optimistic UI Updates**: `TransactionViewModel` updates lists immediately when a transaction is added, updated, or deleted. It recomputes aggregates and only invalidates the remote cache (or executes background sync) without blocking the user on heavy full-refresh network calls.
+- **Full Dataset Loading (Non-paginated)**: To ensure accurate computation of aggregates and analytics, transaction loading is non-paginated.
+- **Multi-select Category Filters**: Filtering supports selecting multiple categories simultaneously (an empty list selects all categories). The filter state is managed inside `TransactionViewModel`.
 
 ### 2. Services & Supabase Integration
 - Centralize all API/DB communication in `services/`. Views and ViewModels should **never** access Supabase or any REST clients directly.

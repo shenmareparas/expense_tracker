@@ -7,10 +7,11 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 ## 🚀 Key Features
 
 - **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
-- **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses and incomes by category, filterable by date ranges.
+- **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
-- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, and descriptions. Filter by category, transaction type, or date range.
+- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, and descriptions. Filter transactions by multiple categories (multi-select), transaction type, or date range.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, concurrent request deduplication, and optimistic state updates in ViewModels to minimize network overhead and ensure instant screen transitions.
+- **⚙️ Customizable Settings & Tab Ordering**: Personalize the analytics experience by configuring a default landing tab and reordering analytics tabs to your preference, saved persistently via `SharedPreferences`.
 - **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, premium animations, conditional haptic feedback (tactile interaction clicks/vibrations), custom monochrome app assets, and tap-to-scroll-to-top gestures.
 
 ---
@@ -64,7 +65,7 @@ lib/
 
 The `DatabaseService` uses an **in-memory cache** combined with query safeguards to prevent unnecessary PostgREST calls and ensure fluid navigation:
 - **TTL (Time to Live)**: Cache is valid for `30 seconds`.
-- **Compound Cache Key**: The cache uses a composite key generated from active filters (`type`, `category`, `startDate`, `endDate`).
+- **Compound Cache Key**: The cache uses a composite key generated from active filters (`type`, `categories` list, `startDate`, `endDate`).
 - **Cache Invalidation**: Any database mutation (insert, update, delete, reordering) invalidates the cache immediately to force a sync.
 - **Request Deduplication**: A concurrency guard prevents concurrent identical network requests.
 - **Optimistic UI**: Transactions are inserted, updated, and deleted locally first, recalculating stats immediately, avoiding blocking spinners.
