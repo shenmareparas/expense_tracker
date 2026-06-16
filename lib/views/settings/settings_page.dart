@@ -147,6 +147,66 @@ class SettingsPage extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 32),
+        _buildSectionHeader(context, 'Analytics Preferences'),
+        _buildSettingsCard(
+          context: context,
+          children: [
+            ListTile(
+              leading: Icon(
+                Icons.tab,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text(
+                'Default Tab',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Tab selected when opening analytics'),
+              trailing: Consumer<ThemeViewModel>(
+                builder: (context, themeVM, _) {
+                  return AppDropdownButton<String>(
+                    value: themeVM.defaultAnalyticsTab,
+                    onChanged: (String? value) {
+                      if (value != null) {
+                        AppHaptics.selectionClick(context);
+                        themeVM.setDefaultAnalyticsTab(value);
+                      }
+                    },
+                    items: () {
+                      final tabNames = {
+                        'net': 'Net Balance',
+                        'expense': 'Expense',
+                        'income': 'Income',
+                      };
+                      return themeVM.analyticsTabOrder.map((key) {
+                        return DropdownMenuItem<String>(
+                          value: key,
+                          child: Text(tabNames[key] ?? key),
+                        );
+                      }).toList();
+                    }(),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: Icon(
+                Icons.reorder,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text(
+                'Tab Order',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Reorder balance summary card tabs'),
+              onTap: () {
+                AppHaptics.selectionClick(context);
+                _showReorderTabsDialog(context);
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: 48),
         // Logout Section
         ElevatedButton.icon(
@@ -303,6 +363,152 @@ class SettingsPage extends StatelessWidget {
           child: Column(children: children),
         ),
       ),
+    );
+  }
+
+  void _showReorderTabsDialog(BuildContext context) {
+    final themeVM = Provider.of<ThemeViewModel>(context, listen: false);
+    final List<String> localOrder = List.from(themeVM.analyticsTabOrder);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final tabNames = {
+              'net': 'Net Balance',
+              'expense': 'Expense',
+              'income': 'Income',
+            };
+
+            final tabIcons = {
+              'net': Icons.account_balance_wallet_outlined,
+              'expense': Icons.arrow_upward_rounded,
+              'income': Icons.arrow_downward_rounded,
+            };
+
+            final tabColors = {
+              'net': Colors.indigo,
+              'expense': Colors.redAccent,
+              'income': Colors.greenAccent,
+            };
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              backgroundColor: theme.colorScheme.surface,
+              icon: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.reorder_rounded,
+                  color: theme.colorScheme.primary,
+                  size: 32,
+                ),
+              ),
+              title: Text(
+                'Customize Tab Order',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 240,
+                child: ReorderableListView(
+                  // ignore: deprecated_member_use
+                  onReorder: (int oldIndex, int newIndex) {
+                    setState(() {
+                      if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+                      final String item = localOrder.removeAt(oldIndex);
+                      localOrder.insert(newIndex, item);
+                    });
+                    themeVM.setAnalyticsTabOrder(localOrder);
+                  },
+                  children: localOrder.map((key) {
+                    final color = tabColors[key] ?? theme.colorScheme.primary;
+                    final icon = tabIcons[key] ?? Icons.tab;
+                    return Container(
+                      key: ValueKey(key),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.03)
+                            : theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withValues(
+                            alpha: 0.08,
+                          ),
+                        ),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        leading: Icon(
+                          Icons.drag_indicator_rounded,
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                        title: Text(
+                          tabNames[key] ?? key,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        trailing: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: color, size: 18),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                FilledButton(
+                  onPressed: () {
+                    AppHaptics.selectionClick(context);
+                    Navigator.pop(context);
+                  },
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

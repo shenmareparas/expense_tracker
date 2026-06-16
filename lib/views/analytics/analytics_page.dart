@@ -4,8 +4,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
+import '../../viewmodels/theme_viewmodel.dart';
 import '../../models/transaction.dart';
 import '../../models/category.dart';
+import '../../utils/haptics.dart';
 
 class AnalyticsPage extends StatefulWidget {
   final ScrollController? scrollController;
@@ -23,6 +25,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       'trend'; // 'pie' (breakdown), 'trend' (daily trend)
   final List<String> _selectedCategoryFilters =
       []; // empty means 'All Categories'
+  String _selectedCardView = 'net'; // 'net', 'income', 'expense'
   // touchedIndex / touchedBarIndex are now held inside _PieChartWidget and
   // _BarChartWidget sub-widgets so chart interactions don't trigger a full
   // analytics page rebuild with all its aggregation loops.
@@ -41,6 +44,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   List<TransactionModel>? _memoizedTransactions;
   List<CategoryModel>? _memoizedCategories;
   String? _memoizedSelectedType;
+  String? _memoizedSelectedCardView;
   List<String>? _memoizedSelectedCategoryFilters;
   String? _memoizedSelectedTimePeriod;
   DateTime? _memoizedStartDate;
@@ -72,6 +76,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   @override
   void initState() {
     super.initState();
+    final themeVM = Provider.of<ThemeViewModel>(context, listen: false);
+    _selectedCardView = themeVM.defaultAnalyticsTab;
+    if (_selectedCardView == 'income') {
+      _selectedType = 'income';
+    } else if (_selectedCardView == 'expense') {
+      _selectedType = 'expense';
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _applyFiltersSilently(_selectedTimePeriod);
@@ -211,14 +222,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       }
 
       for (final t in transactions) {
-        if (t.type == type) {
+        if (type == 'net' || t.type == type) {
           final transactionMonth = DateTime(
             t.transactionDate.year,
             t.transactionDate.month,
             1,
           );
           if (dailyMap.containsKey(transactionMonth)) {
-            dailyMap[transactionMonth] = dailyMap[transactionMonth]! + t.amount;
+            final double value = type == 'net'
+                ? (t.type == 'income' ? t.amount : -t.amount)
+                : t.amount;
+            dailyMap[transactionMonth] = dailyMap[transactionMonth]! + value;
           }
         }
       }
@@ -231,14 +245,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       }
 
       for (final t in transactions) {
-        if (t.type == type) {
+        if (type == 'net' || t.type == type) {
           final dateKey = DateTime(
             t.transactionDate.year,
             t.transactionDate.month,
             t.transactionDate.day,
           );
           if (dailyMap.containsKey(dateKey)) {
-            dailyMap[dateKey] = dailyMap[dateKey]! + t.amount;
+            final double value = type == 'net'
+                ? (t.type == 'income' ? t.amount : -t.amount)
+                : t.amount;
+            dailyMap[dateKey] = dailyMap[dateKey]! + value;
           }
         }
       }
@@ -280,6 +297,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             _memoizedTransactions != transactions ||
             _memoizedCategories != categoryViewModel.categories ||
             _memoizedSelectedType != _selectedType ||
+            _memoizedSelectedCardView != _selectedCardView ||
             !_areListsEqual(
               _memoizedSelectedCategoryFilters,
               _selectedCategoryFilters,
@@ -292,6 +310,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           _memoizedTransactions = transactions;
           _memoizedCategories = categoryViewModel.categories;
           _memoizedSelectedType = _selectedType;
+          _memoizedSelectedCardView = _selectedCardView;
           _memoizedSelectedCategoryFilters = List.from(
             _selectedCategoryFilters,
           );
@@ -344,7 +363,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
           _dailyData = _getDailyData(
             _filteredTransactions,
-            _selectedType,
+            _selectedCardView == 'net' ? 'net' : _selectedType,
             _selectedTimePeriod,
             viewModel.analyticsStartDate,
             viewModel.analyticsEndDate,
@@ -404,6 +423,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 _totalIncome,
                 _totalExpense,
                 _netBalance,
+                transactions,
               ),
               const SizedBox(height: 24),
               _buildChartCard(
@@ -629,21 +649,71 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     double income,
     double expense,
     double balance,
+    List<TransactionModel> transactions,
   ) {
     final bool isPositive = balance >= 0;
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
+    Widget buildCardTab(String viewType, String label) {
+      final isSelected = _selectedCardView == viewType;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () {
+            AppHaptics.selectionClick(context);
+            setState(() {
+              _selectedCardView = viewType;
+              if (viewType == 'income') {
+                _selectedType = 'income';
+                _selectedCategoryFilters.clear();
+              } else if (viewType == 'expense') {
+                _selectedType = 'expense';
+                _selectedCategoryFilters.clear();
+              }
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? Colors.white : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? (isDark
+                          ? const Color(0xFF131524)
+                          : Theme.of(context).colorScheme.primary)
+                    : Colors.white.withValues(alpha: 0.7),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return RepaintBoundary(
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDark
                 ? [
-                    const Color(
-                      0xFF131524,
-                    ), // Extremely deep premium indigo/navy
-                    const Color(0xFF090A10), // Midnight obsidian
+                    const Color(0xFF1E2038), // Deep premium indigo/navy
+                    const Color(0xFF0F101C), // Midnight obsidian
                   ]
                 : [
                     Theme.of(context).colorScheme.primary,
@@ -659,7 +729,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               ? Border.all(
                   color: Theme.of(
                     context,
-                  ).colorScheme.primary.withValues(alpha: 0.25),
+                  ).colorScheme.primary.withValues(alpha: 0.3),
                   width: 1.5,
                 )
               : null,
@@ -668,7 +738,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               color: isDark
                   ? Theme.of(
                       context,
-                    ).colorScheme.primary.withValues(alpha: 0.12)
+                    ).colorScheme.primary.withValues(alpha: 0.15)
                   : Theme.of(
                       context,
                     ).colorScheme.primary.withValues(alpha: 0.25),
@@ -680,157 +750,284 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Net Balance',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isPositive ? Icons.trending_up : Icons.trending_down,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        isPositive ? 'Surplus' : 'Deficit',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '₹${balance.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: -0.5,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(3),
+              child: Row(
+                children: () {
+                  final themeVM = Provider.of<ThemeViewModel>(
+                    context,
+                    listen: false,
+                  );
+                  final tabNames = {
+                    'net': 'Net Balance',
+                    'expense': 'Expense',
+                    'income': 'Income',
+                  };
+                  return themeVM.analyticsTabOrder.map((tabKey) {
+                    return buildCardTab(tabKey, tabNames[tabKey] ?? tabKey);
+                  }).toList();
+                }(),
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_downward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Income',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              '₹${income.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+
+            // Header Switcher
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: _buildCardHeader(
+                key: ValueKey<String>(_selectedCardView),
+                viewType: _selectedCardView,
+                isPositive: isPositive,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Rolling/Tweening Amount Text
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(
+                begin: 0,
+                end: _selectedCardView == 'income'
+                    ? income
+                    : _selectedCardView == 'expense'
+                    ? expense
+                    : balance,
+              ),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Text(
+                  '₹${value.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                    fontFeatures: [FontFeature.tabularFigures()],
                   ),
-                ),
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: Colors.white.withValues(alpha: 0.2),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_upward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Expenses',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              '₹${expense.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // Footer Switcher
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: _buildCardFooter(
+                key: ValueKey<String>(_selectedCardView),
+                viewType: _selectedCardView,
+                transactions: transactions,
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildCardHeader({
+    required Key key,
+    required String viewType,
+    required bool isPositive,
+  }) {
+    switch (viewType) {
+      case 'income':
+        return Row(
+          key: key,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Total Earnings',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.arrow_downward,
+                    color: Colors.greenAccent,
+                    size: 14,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Income',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      case 'expense':
+        return Row(
+          key: key,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Total Spending',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.arrow_upward, color: Colors.redAccent, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Expense',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      case 'net':
+      default:
+        return Row(
+          key: key,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Net Balance',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isPositive ? Icons.trending_up : Icons.trending_down,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isPositive ? 'Surplus' : 'Deficit',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+    }
+  }
+
+  Widget _buildCardFooter({
+    required Key key,
+    required String viewType,
+    required List<TransactionModel> transactions,
+  }) {
+    switch (viewType) {
+      case 'income':
+        final incomeCount = transactions
+            .where((t) => t.type == 'income')
+            .length;
+        return Row(
+          key: key,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: Colors.white.withValues(alpha: 0.7),
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Received across $incomeCount entry${incomeCount == 1 ? '' : 'ies'}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        );
+      case 'expense':
+        final expenseCount = transactions
+            .where((t) => t.type == 'expense')
+            .length;
+        return Row(
+          key: key,
+          children: [
+            Icon(
+              Icons.shopping_bag_outlined,
+              color: Colors.white.withValues(alpha: 0.7),
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Incurred across $expenseCount transaction${expenseCount == 1 ? '' : 's'}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        );
+      case 'net':
+      default:
+        return Row(
+          key: key,
+          children: [
+            Icon(
+              Icons.swap_horiz,
+              color: Colors.white.withValues(alpha: 0.7),
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Recorded across ${transactions.length} transaction${transactions.length == 1 ? '' : 's'}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
+          ],
+        );
+    }
   }
 
   Widget _buildChartCard(
@@ -840,11 +1037,24 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     List<MapEntry<DateTime, double>> dailyData,
     TransactionViewModel viewModel,
   ) {
-    final String subtitleText = _selectedCategoryFilters.isEmpty
+    final bool isNetView = _selectedCardView == 'net';
+    final String titleText = isNetView
+        ? 'Net Balance Analysis'
+        : _selectedType == 'expense'
+        ? 'Expense Analysis'
+        : 'Income Analysis';
+
+    final String subtitleText = isNetView
+        ? 'Net Balance: ₹${_netBalance.toStringAsFixed(0)}'
+        : _selectedCategoryFilters.isEmpty
         ? 'Total: ₹${total.toStringAsFixed(0)}'
         : _selectedCategoryFilters.length == 1
         ? 'Category "${_selectedCategoryFilters.first}": ₹${total.toStringAsFixed(0)}'
         : 'Multiple Categories: ₹${total.toStringAsFixed(0)}';
+
+    final bool hasData = isNetView
+        ? (_totalIncome > 0 || _totalExpense > 0)
+        : total > 0;
 
     return RepaintBoundary(
       child: Card(
@@ -868,9 +1078,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _selectedType == 'expense'
-                              ? 'Expense Analysis'
-                              : 'Income Analysis',
+                          titleText,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -894,7 +1102,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 ],
               ),
               const SizedBox(height: 24),
-              if (total == 0)
+              if (!hasData)
                 const SizedBox(
                   height: 220,
                   child: Center(
@@ -905,7 +1113,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ),
                 )
               else if (_selectedChartType == 'pie')
-                _buildPieChart(context, total, categories)
+                _buildPieChart(
+                  context,
+                  isNetView ? (_totalIncome + _totalExpense) : total,
+                  isNetView
+                      ? [
+                          MapEntry('Income', _totalIncome),
+                          MapEntry('Expense', _totalExpense),
+                        ]
+                      : categories,
+                )
               else
                 _buildDailyTrendChart(context, dailyData, viewModel),
             ],
@@ -919,30 +1136,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Expense/Income toggle icon
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _selectedType = _selectedType == 'expense' ? 'income' : 'expense';
-              _selectedCategoryFilters.clear();
-            });
-          },
-          icon: Icon(
-            _selectedType == 'expense'
-                ? Icons.arrow_upward
-                : Icons.arrow_downward,
-            color: _selectedType == 'expense' ? Colors.red : Colors.green,
-            size: 20,
-          ),
-          tooltip: 'Toggle Income/Expense',
-          style: IconButton.styleFrom(
-            backgroundColor: _selectedType == 'expense'
-                ? Colors.red.withValues(alpha: 0.08)
-                : Colors.green.withValues(alpha: 0.08),
-            padding: const EdgeInsets.all(8),
-          ),
-        ),
-        const SizedBox(width: 8),
         // Chart Type toggle button
         IconButton(
           onPressed: () {
@@ -1440,6 +1633,11 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
         .fold(1.0, (prev, element) => element > prev ? element : prev);
     final double yAxisMax = maxVal * 1.15;
 
+    final double minVal = widget.dailyData
+        .map((e) => e.value)
+        .fold(0.0, (prev, element) => element < prev ? element : prev);
+    final double yAxisMin = minVal < 0 ? minVal * 1.15 : 0.0;
+
     // Detect if we are using monthly bucket formatting
     final DateTime start =
         widget.viewModel.filterStartDate ??
@@ -1455,8 +1653,12 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
         padding: const EdgeInsets.only(top: 16.0, right: 8.0),
         child: BarChart(
           BarChartData(
+            minY: yAxisMin,
+            maxY: yAxisMax,
             barTouchData: BarTouchData(
               touchTooltipData: BarTouchTooltipData(
+                fitInsideHorizontally: true,
+                fitInsideVertically: true,
                 getTooltipColor: (_) =>
                     Theme.of(context).colorScheme.surfaceContainer,
                 tooltipBorder: BorderSide(
@@ -1478,9 +1680,11 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                     ),
                     children: <TextSpan>[
                       TextSpan(
-                        text: '₹${rod.toY.toStringAsFixed(2)}',
+                        text: '₹${entry.value.toStringAsFixed(2)}',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
+                          color: entry.value >= 0
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.redAccent,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -1572,10 +1776,11 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                   reservedSize: 42,
                   getTitlesWidget: (double value, TitleMeta meta) {
                     if (value == 0) return const SizedBox();
+                    final double absVal = value.abs();
                     String text = '';
-                    if (value >= 100000) {
+                    if (absVal >= 100000) {
                       text = '${(value / 100000).toStringAsFixed(1)}L';
-                    } else if (value >= 1000) {
+                    } else if (absVal >= 1000) {
                       text = '${(value / 1000).toStringAsFixed(0)}k';
                     } else {
                       text = value.toStringAsFixed(0);
@@ -1599,7 +1804,9 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              horizontalInterval: yAxisMax / 4 > 0 ? yAxisMax / 4 : 1.0,
+              horizontalInterval: (yAxisMax - yAxisMin) / 4 > 0
+                  ? (yAxisMax - yAxisMin) / 4
+                  : 1.0,
               getDrawingHorizontalLine: (value) => FlLine(
                 color: Theme.of(
                   context,
@@ -1613,29 +1820,39 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
               final bool isAnyTouched = touchedBarIndex != -1;
               final bool isTouched = i == touchedBarIndex;
 
+              final Color baseColor = entry.value >= 0
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.redAccent;
+
               final Color barColor = isAnyTouched
-                  ? (isTouched
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.3))
-                  : Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.85);
+                  ? (isTouched ? baseColor : baseColor.withValues(alpha: 0.3))
+                  : baseColor.withValues(alpha: 0.85);
 
               return BarChartGroupData(
                 x: i,
                 barRods: [
                   BarChartRodData(
-                    toY: entry.value,
+                    toY: entry.value >= 0 ? entry.value : 0.0,
+                    fromY: entry.value < 0 ? entry.value : 0.0,
                     color: barColor,
                     width: widget.dailyData.length > 20 ? 6 : 12,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      topRight: Radius.circular(4),
+                    borderRadius: BorderRadius.only(
+                      topLeft: entry.value >= 0
+                          ? const Radius.circular(4)
+                          : Radius.zero,
+                      topRight: entry.value >= 0
+                          ? const Radius.circular(4)
+                          : Radius.zero,
+                      bottomLeft: entry.value < 0
+                          ? const Radius.circular(4)
+                          : Radius.zero,
+                      bottomRight: entry.value < 0
+                          ? const Radius.circular(4)
+                          : Radius.zero,
                     ),
                     backDrawRodData: BackgroundBarChartRodData(
                       show: true,
+                      fromY: yAxisMin,
                       toY: yAxisMax,
                       color: Theme.of(
                         context,
@@ -1645,7 +1862,6 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                 ],
               );
             }),
-            maxY: yAxisMax,
           ),
         ),
       ),
