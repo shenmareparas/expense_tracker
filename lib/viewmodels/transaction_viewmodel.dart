@@ -162,14 +162,14 @@ class TransactionViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _currentOffset = 0;
-    _hasMore = true;
+    _hasMore = false;
     _hasAnalyticsSnapshot = false;
     _analyticsTransactions = [];
     notifyListeners();
     try {
       final result = await _databaseService.getTransactions(
         forceRefresh: forceRefresh,
-        limit: _pageSize,
+        limit: null,
         offset: 0,
         type: _filterType,
         categories: _filterCategories,
@@ -178,7 +178,7 @@ class TransactionViewModel extends ChangeNotifier {
       );
       _transactions = List.from(result);
 
-      _hasMore = result.length == _pageSize;
+      _hasMore = false;
       _currentOffset = _transactions.length;
       _recomputeAggregates();
     } catch (e) {

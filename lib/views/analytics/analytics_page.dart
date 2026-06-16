@@ -52,7 +52,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   double _totalIncome = 0;
   double _totalExpense = 0;
-  double _netBalance = 0;
+  double _filteredIncome = 0;
+  double _filteredExpense = 0;
+  double _filteredNetBalance = 0;
   List<String> _allCategoryNames = [];
   List<TransactionModel> _filteredTransactions = [];
   List<MapEntry<String, double>> _sortedCategories = [];
@@ -327,7 +329,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               _totalExpense += t.amount;
             }
           }
-          _netBalance = _totalIncome - _totalExpense;
 
           _allCategoryNames = _selectedType == 'income'
               ? List.from(categoryViewModel.incomeCategories)
@@ -348,6 +349,17 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               : transactions
                     .where((t) => _selectedCategoryFilters.contains(t.category))
                     .toList();
+
+          _filteredIncome = 0;
+          _filteredExpense = 0;
+          for (final t in _filteredTransactions) {
+            if (t.type == 'income') {
+              _filteredIncome += t.amount;
+            } else {
+              _filteredExpense += t.amount;
+            }
+          }
+          _filteredNetBalance = _filteredIncome - _filteredExpense;
 
           final categoriesMap = _getCategoriesData(
             _filteredTransactions,
@@ -420,10 +432,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               const SizedBox(height: 20),
               _buildBalanceSummaryCard(
                 context,
-                _totalIncome,
-                _totalExpense,
-                _netBalance,
-                transactions,
+                _filteredIncome,
+                _filteredExpense,
+                _filteredNetBalance,
+                _filteredTransactions,
               ),
               const SizedBox(height: 24),
               _buildChartCard(
@@ -1045,12 +1057,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         : 'Income Analysis';
 
     final String subtitleText = isNetView
-        ? 'Net Balance: ₹${_netBalance.toStringAsFixed(0)}'
+        ? (_selectedCategoryFilters.isEmpty
+              ? 'Net Balance: ₹${_filteredNetBalance.toStringAsFixed(0)}'
+              : 'Net Balance')
         : _selectedCategoryFilters.isEmpty
         ? 'Total: ₹${total.toStringAsFixed(0)}'
         : _selectedCategoryFilters.length == 1
-        ? 'Category "${_selectedCategoryFilters.first}": ₹${total.toStringAsFixed(0)}'
-        : 'Multiple Categories: ₹${total.toStringAsFixed(0)}';
+        ? 'Category "${_selectedCategoryFilters.first}"'
+        : 'Multiple Categories';
 
     final bool hasData = isNetView
         ? (_totalIncome > 0 || _totalExpense > 0)
