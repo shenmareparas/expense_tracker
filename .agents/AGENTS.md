@@ -85,3 +85,19 @@ All data columns map strictly between remote database fields and Flutter immutab
    - Use **Optimistic UI Updates** to update lists immediately when a transaction is added, updated, or deleted, recalculating aggregates and sync in the background.
 2. **Imports**: Use relative imports (e.g. `import '../../models/transaction.dart'`) for internal packages within the project.
 3. **Lint Rules**: Follow all rules defined in `analysis_options.yaml`.
+
+---
+
+## 🚀 Releasing & Builds
+
+To release a new version of the app on GitHub:
+1. Build the release APK:
+   ```bash
+   flutter build apk
+   ```
+2. Recreate the release and upload the new APK using the provided script:
+   ```bash
+   bun scripts/recreate_release.js
+   ```
+   *Note: The script automatically handles deleting the old release, creating the new release, and uploading the newly generated APK. The git tag `v1.0.0` should be recreated/pushed to match the latest release commit before running.*
+

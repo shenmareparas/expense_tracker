@@ -1,4 +1,4 @@
-# 💸 Expense Tracker
+# <img src="screenshots/ic_launcher-playstore.png" width="48" height="48" align="center"> Expense Tracker
 
 A modern, highly-polished, and feature-rich **Expense Tracker** application built with Flutter, backed by **Supabase** backend, and managed using the **Provider** state management pattern.
 
@@ -13,6 +13,20 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, concurrent request deduplication, and optimistic state updates in ViewModels to minimize network overhead and ensure instant screen transitions.
 - **⚙️ Customizable Settings & Tab Ordering**: Personalize the analytics experience by configuring a default landing tab and reordering analytics tabs to your preference, saved persistently via `SharedPreferences`.
 - **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, premium animations, conditional haptic feedback (tactile interaction clicks/vibrations), custom monochrome app assets, and tap-to-scroll-to-top gestures.
+
+---
+
+## 📸 Screenshots
+
+| Light Mode | Dark Mode |
+|:---:|:---:|
+| <img src="screenshots/1a.webp" width="300"> | <img src="screenshots/1b.webp" width="300"> |
+| <img src="screenshots/2a.webp" width="300"> | <img src="screenshots/2b.webp" width="300"> |
+| <img src="screenshots/3a.webp" width="300"> | <img src="screenshots/3b.webp" width="300"> |
+| <img src="screenshots/4a.webp" width="300"> | <img src="screenshots/4b.webp" width="300"> |
+| <img src="screenshots/5a.webp" width="300"> | <img src="screenshots/5b.webp" width="300"> |
+| <img src="screenshots/6a.webp" width="300"> | <img src="screenshots/6b.webp" width="300"> |
+| <img src="screenshots/7a.webp" width="300"> | <img src="screenshots/7b.webp" width="300"> |
 
 ---
 
