@@ -6,7 +6,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 
 ## 🚀 Key Features
 
-- **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
+- **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, Password Reset, in-app OTP recovery verification, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
 - **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
 - **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, and descriptions. Filter transactions by multiple categories (multi-select), transaction type, or date range.
@@ -50,7 +50,7 @@ lib/
 │   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
 ├── views/                    # UI Layer (Screens & Page-specific layouts)
 │   ├── analytics/            # Analytical dashboards and interactive charts
-│   ├── auth/                 # Login, signup, and authentication gates
+│   ├── auth/                 # Login, signup, password reset (OTP), update password, and authentication gates
 │   ├── home/                 # Primary feed and navigation skeleton (scroll-to-top)
 │   ├── settings/             # User profile and styling settings
 │   └── transaction/          # Add/edit transactions & filter interfaces

@@ -3,14 +3,20 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../views/home/home_page.dart';
 import 'login_page.dart';
+import 'update_password_page.dart';
 
-/// Listens to auth state and routes to either [LoginPage] or [HomePage].
+/// Listens to auth state and routes to [LoginPage], [HomePage], or [UpdatePasswordPage].
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final authViewModel = Provider.of<AuthViewModel>(context);
+    
+    if (authViewModel.isInRecoveryMode) {
+      return const UpdatePasswordPage();
+    }
+
     return StreamBuilder<bool>(
       stream: authViewModel.authStateChanges,
       builder: (context, snapshot) {

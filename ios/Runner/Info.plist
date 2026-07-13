@@ -66,5 +66,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>io.supabase.expensetracker</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.supabase.expensetracker</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

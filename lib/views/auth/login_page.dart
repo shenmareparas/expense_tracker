@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import 'forgot_password_page.dart';
 
 /// Login / Sign-up page.
 class LoginPage extends StatefulWidget {
@@ -197,6 +198,28 @@ class _LoginPageState extends State<LoginPage> {
                       },
                     ),
                   ),
+                  if (!_isSignUp) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          AppHaptics.lightImpact(context);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordPage(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text('Forgot Password?'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 32),
                   Consumer<AuthViewModel>(
                     builder: (context, authState, child) {

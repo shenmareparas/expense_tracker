@@ -18,6 +18,42 @@ class AuthService {
   Stream<bool> get onAuthStateChange =>
       _client.auth.onAuthStateChange.map((event) => event.session != null);
 
+  /// Stream of raw AuthState events (needed for detecting recovery flow).
+  Stream<AuthState> get onRawAuthStateChange => _client.auth.onAuthStateChange;
+
+  /// Sends a password reset email/link to the user.
+  Future<void> sendResetPasswordLink(String email) {
+    return _retry(
+      () => _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'io.supabase.expensetracker://reset-callback',
+      ),
+    );
+  }
+
+  /// Verifies the password recovery OTP code.
+  Future<AuthResponse> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) {
+    return _retry(
+      () => _client.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.recovery,
+      ),
+    );
+  }
+
+  /// Updates the current user's password.
+  Future<UserResponse> updatePassword(String newPassword) {
+    return _retry(
+      () => _client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      ),
+    );
+  }
+
   /// The currently signed-in user, or null.
   User? get currentUser => _client.auth.currentUser;
 
@@ -82,6 +118,9 @@ class AuthService {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
       if (msg.contains('invalid') || msg.contains('credentials')) {
+        if (msg.contains('token') || msg.contains('otp') || msg.contains('code') || msg.contains('expired')) {
+          throw const AppAuthException('Invalid or expired verification code.');
+        }
         throw const AppAuthException('Invalid email or password.');
       }
       throw AppAuthException(error.message);
