@@ -1,6 +1,6 @@
 # <img src="screenshots/ic_launcher-playstore.png" width="48" height="48" align="center"> Expense Tracker
 
-A modern, highly-polished, and feature-rich **Expense Tracker** application built with Flutter, backed by a **Supabase** backend, and managed using the **Provider** state management pattern.
+A modern, highly-polished, and feature-rich **Expense Tracker** application built with Flutter, backed by a **Supabase** backend, and state-managed with **Provider** following a strict **MVVM + Service** architecture.
 
 ---
 
@@ -13,13 +13,15 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
   - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, and unified Settle Up confirmation modal.
   - **Settle Up Payments**: Support Settle Up for both lenders and debtors, logging income settlement transactions when receiving money and expense settlement transactions when paying back.
   - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split dropdown, and accessible via a low-profile expand/collapse toggle.
+  - **Six Split Modes**: `AddSplitPage` supports splitting `equally`, `youOweFull`, `partnerOwesFull`, by `exactAmounts`, by `percentages`, or by `shares` — with live calculation previews.
   - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
   - **Transaction & Analytics Integration**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
-- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. Filter transactions by multiple categories (multi-select), payment method (UPI / Cash), transaction type, or date range.
-- **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, concurrent request deduplication, and optimistic state updates in ViewModels to minimize network overhead and ensure instant screen transitions.
-- **⚙️ Customizable Settings & Preferences**: Personalize the experience by configuring default landing tabs, analytics tab orders, and hidden friends saved persistently via `SharedPreferences`.
-- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, rounded press highlights (`Clip.antiAlias`), conditional haptic feedback, custom app assets, and tap-to-scroll-to-top gestures.
+- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type, or date range.
+- **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, compound filter keys, concurrent request deduplication via `Completer`, and optimistic state updates with rollback in ViewModels to minimize network overhead and ensure instant screen transitions.
+- **📈 Analytics Snapshot**: A dedicated `loadAnalyticsSnapshot()` mechanism in `TransactionViewModel` fetches a separate date-filtered dataset for analytics without clobbering the main transaction feed or filters.
+- **⚙️ Customizable Settings & Preferences**: Personalize the experience by configuring theme (system/light/dark), haptic feedback, default analytics tab, analytics tab order, and hidden friends — all saved persistently via `SharedPreferences`.
+- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes (`#000000` scaffold / `#0A0A0A` surface for dark mode), custom Inter typography (packaged locally to avoid network delays), rounded press highlights (`Clip.antiAlias`), conditional haptic feedback, `AnimatedSwitcher` tab transitions, and tap-to-scroll-to-top gestures.
 
 ---
 
@@ -55,32 +57,51 @@ The project adheres strictly to the **Model-View-ViewModel (MVVM)** pattern comb
 
 ```
 lib/
-├── app/                      # Application bootstrap, routing, and configurations
-│   ├── app.dart              # Main MaterialApp & MultiProvider configuration
-│   └── supabase_config.dart  # Supabase client and initialization logic
-├── models/                   # Domain data models (data serialization/deserialization)
-│   ├── category.dart         # CategoryModel defining structure and copyWith / serialization methods
-│   ├── profile.dart          # ProfileModel representing registered app user profiles
-│   ├── split_expense.dart    # SplitExpenseModel tracking split debt shares & status
-│   └── transaction.dart      # TransactionModel defining structure and copyWith / serialization methods
-├── services/                 # Core business services interfacing with remote APIs/DB
-│   ├── auth_service.dart     # Authentication layer with Supabase Auth & retry policies
-│   └── database_service.dart # Database operations with Supabase PostgREST, Caching, and Deduplication
-├── viewmodels/               # ViewModels implementing ChangeNotifier for state control
-│   ├── auth_viewmodel.dart   # Auth state (loading, error, session management)
-│   ├── category_viewmodel.dart # Category CRUD & ordering states
-│   ├── split_viewmodel.dart  # Split expense feed, user profiles, hidden friends, and debt status management
-│   ├── theme_viewmodel.dart  # Custom dynamic theme states (theme mode, haptics enablement)
-│   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
-├── views/                    # UI Layer (Screens & Page-specific layouts)
-│   ├── analytics/            # Analytical dashboards and interactive charts
-│   ├── auth/                 # Login, signup, password reset (OTP), update password, and authentication gates
-│   ├── home/                 # Primary feed and navigation skeleton (scroll-to-top)
-│   ├── settings/             # User profile and styling settings
-│   ├── split/                # Split Page, UserSplitDetailPage, and AddSplitPage
-│   └── transaction/          # Add/edit transactions & filter interfaces
-├── widgets/                  # Reusable UI components & Design tokens
-└── utils/                    # Helper utilities (formatting, exceptions, haptics, helpers)
+├── app/
+│   ├── app.dart              # MyApp: MultiProvider + MaterialApp light/dark theme
+│   └── supabase_config.dart  # Compile-time credential injection + SupabaseClient accessor
+├── models/                   # Pure Dart — no Flutter imports, no business logic
+│   ├── category.dart         # CategoryModel (sortWithOtherLast static helper)
+│   ├── profile.dart          # ProfileModel (displayName getter)
+│   ├── split_expense.dart    # SplitExpenseModel (displayPayer/displayBorrower helpers)
+│   └── transaction.dart      # TransactionModel (full CRUD fields + copyWith)
+├── services/                 # ONLY layer that imports supabase_flutter
+│   ├── auth_service.dart     # Singleton: Supabase Auth + retry/back-off + error mapping
+│   └── database_service.dart # Singleton: PostgREST ops, 30s TTL cache, Completer dedup
+├── viewmodels/               # ALL business logic lives here — ChangeNotifier state machines
+│   ├── auth_viewmodel.dart   # Loading/error flags, recovery mode, session stream
+│   ├── category_viewmodel.dart  # CRUD, drag reorder with rollback, seeding, name lists
+│   ├── split_viewmodel.dart  # Feed, net balances, settle up, hidden friends; user identity via AuthService
+│   ├── theme_viewmodel.dart  # Theme mode, haptics, analytics tab preferences
+│   └── transaction_viewmodel.dart  # Feed, filters, search, analytics snapshot, optimistic ops
+├── views/                    # UI ONLY — consume ViewModels via Provider/Consumer
+│   ├── analytics/
+│   │   └── analytics_page.dart   # FL Chart pie + bar, memoized aggregations
+│   ├── auth/
+│   │   ├── auth_gate.dart         # Routes to LoginPage/HomePage/UpdatePasswordPage
+│   │   ├── forgot_password_page.dart
+│   │   ├── login_page.dart
+│   │   └── update_password_page.dart
+│   ├── home/
+│   │   ├── home_page.dart         # Bottom nav, AnimatedSwitcher tab transitions
+│   │   └── widgets/
+│   │       ├── filter_bottom_sheet.dart
+│   │       └── transaction_list.dart  # Infinite scroll-load-more pagination
+│   ├── settings/
+│   │   ├── manage_categories_page.dart
+│   │   └── settings_page.dart
+│   ├── split/
+│   │   ├── add_split_page.dart    # 6 split modes, Who Paid selector, live previews; user identity via SplitViewModel
+│   │   ├── split_page.dart
+│   │   └── user_split_detail_page.dart
+│   └── transaction/
+│       └── add_transaction_page.dart
+├── widgets/
+│   └── app_dropdown.dart     # AppDropdown<T> and AppDropdownButton<T>
+└── utils/
+    ├── date_formatter.dart   # Relative date labels (Today/Yesterday)
+    ├── exceptions.dart       # AppException hierarchy (Data/Auth/Network/Unauthenticated)
+    └── haptics.dart          # AppHaptics: conditional haptic helpers
 ```
 
 ---

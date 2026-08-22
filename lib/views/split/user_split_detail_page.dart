@@ -190,6 +190,11 @@ class UserSplitDetailPage extends StatelessWidget {
                                 onPressed: (!isSettledUp)
                                     ? () async {
                                         AppHaptics.mediumImpact(context);
+                                        final txVM =
+                                            Provider.of<TransactionViewModel>(
+                                          context,
+                                          listen: false,
+                                        );
                                         final confirm = await showDialog<bool>(
                                           context: context,
                                           builder: (dialogCtx) => AlertDialog(
@@ -246,13 +251,9 @@ class UserSplitDetailPage extends StatelessWidget {
                                         if (confirm == true) {
                                           await splitVM.settleUpWithPartner(
                                             partner.id,
+                                            partnerName: partner.displayName,
+                                            transactionVM: txVM,
                                           );
-                                          if (context.mounted) {
-                                            Provider.of<TransactionViewModel>(
-                                              context,
-                                              listen: false,
-                                            ).loadTransactions();
-                                          }
                                         }
                                       }
                                     : null,

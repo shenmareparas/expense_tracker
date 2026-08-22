@@ -23,6 +23,19 @@ class AppDropdown<T> extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Ensure if value is non-null and not present in items, it is dynamically prepended so DropdownButton never crashes
+    final hasValue = value == null || items.any((item) => item.value == value);
+    final effectiveItems = List<DropdownMenuItem<T>>.from(items);
+    if (!hasValue && value != null) {
+      effectiveItems.insert(
+        0,
+        DropdownMenuItem<T>(
+          value: value,
+          child: Text(value.toString()),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -67,7 +80,7 @@ class AppDropdown<T> extends StatelessWidget {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<T>(
                     value: value,
-                    items: items,
+                    items: effectiveItems,
                     onChanged: onChanged,
                     hint: hint != null ? Text(hint!) : null,
                     isExpanded: true,
@@ -113,22 +126,42 @@ class AppDropdownButton<T> extends StatelessWidget {
     final theme = Theme.of(context);
     final borderRadius = BorderRadius.circular(12);
 
+    final hasValue = items.any((item) => item.value == value);
+    final effectiveItems = items.map((item) {
+      return DropdownMenuItem<T>(
+        value: item.value,
+        child: DefaultTextStyle.merge(
+          style: TextStyle(
+            color: theme.colorScheme.onSurface,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          child: item.child,
+        ),
+      );
+    }).toList();
+
+    if (!hasValue) {
+      effectiveItems.insert(
+        0,
+        DropdownMenuItem<T>(
+          value: value,
+          child: DefaultTextStyle.merge(
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+            child: Text(value.toString()),
+          ),
+        ),
+      );
+    }
+
     return DropdownButtonHideUnderline(
       child: DropdownButton<T>(
         value: value,
-        items: items.map((item) {
-          return DropdownMenuItem<T>(
-            value: item.value,
-            child: DefaultTextStyle.merge(
-              style: TextStyle(
-                color: theme.colorScheme.onSurface,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              child: item.child,
-            ),
-          );
-        }).toList(),
+        items: effectiveItems,
         onChanged: onChanged,
         icon: Icon(
           Icons.keyboard_arrow_down_rounded,

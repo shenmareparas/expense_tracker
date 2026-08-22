@@ -9,13 +9,24 @@ Welcome to the **Expense Tracker** project! This file serves as the workspace-le
 This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Service** architecture in Flutter, backed by **Supabase** and powered by the **Provider** package for state management.
 
 ### Key Directory Structure:
-- `lib/app/`: Application bootstrap, routing, and configurations.
-- `lib/models/`: Domain data models (immutable with `fromJson`, `toJson`, and `copyWith`).
-- `lib/services/`: Core business services interfacing with remote APIs/DB.
-- `lib/viewmodels/`: ViewModels implementing `ChangeNotifier` for state control.
-- `lib/views/`: UI Layer (Screens & Page-specific layouts including Auth, Home, Transaction, Analytics, Split, Settings).
-- `lib/widgets/`: Reusable UI components & Design tokens.
-- `lib/utils/`: Helper utilities (formatting, exception classes, haptic utilities).
+- `lib/app/`: Application bootstrap (`MyApp`, `MultiProvider`), routing, and `SupabaseConfig` initialization.
+- `lib/models/`: Immutable domain data models with `fromJson`, `toJson`, `copyWith`, `==`, and `hashCode`.
+- `lib/services/`: Singleton data/auth services (`AuthService`, `DatabaseService`) that are the **only** layer allowed to import `supabase_flutter` or make network calls.
+- `lib/viewmodels/`: ViewModels implementing `ChangeNotifier`. **All business logic lives here.** Consume services; expose state + actions to the UI.
+- `lib/views/`: UI Layer (Screens & Page-specific layouts). May only access ViewModels via `Provider`/`Consumer`. **Must never import `supabase_flutter`, `DatabaseService`, or `AuthService` directly.**
+- `lib/widgets/`: Reusable, pure-UI components (no ViewModel dependencies).
+- `lib/utils/`: Pure helpers — formatting (`DateFormatter`), typed exceptions (`AppException` hierarchy), haptics (`AppHaptics`).
+
+---
+
+## ⚙️ MVVM Compliance Rules (CRITICAL — enforce on every change)
+
+1. **Views → ViewModels only**: Views read state via `Consumer<T>` or `context.watch<T>()` and trigger actions via `context.read<T>()`. Views must **never** call `DatabaseService`, `AuthService`, or any Supabase SDK directly.
+2. **ViewModels → Services only**: ViewModels call `DatabaseService.instance` and `AuthService.instance`. They must not import `supabase_flutter` directly. Auth identity reads (current user id, name, email) must go through `AuthService.instance.currentUser`.
+3. **Services → SDK only**: Services encapsulate all PostgREST queries, Auth calls, error mapping, and caching. They return typed domain models or throw typed `AppException` subclasses.
+4. **Models are pure Dart**: No Flutter imports, no service calls, no state. Display-only computed getters (e.g., `displayName`) that derive from model fields are acceptable.
+
+> ✅ **Fully enforced as of 2026-08-23**: `split_viewmodel.dart` previously held a direct `SupabaseClient` reference; it now routes all current-user identity reads through `AuthService.instance`. `add_split_page.dart` previously called `Supabase.instance.client.auth.currentUser` directly in two bottom sheet methods; it now uses `SplitViewModel.currentUserDisplayName` instead. No View or ViewModel imports `supabase_flutter` anymore.
 
 ---
 
@@ -30,7 +41,8 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - Persisted locally via `SharedPreferences` (`hidden_friend_ids`).
   - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
   - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
-- **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With Users dropdown + chips, Who Paid toggle). Saving is disabled until all required fields are valid.
+- **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With, Who Paid, Split Mode). Saving is disabled until all required fields are valid.
+- **Split Modes**: `AddSplitPage` supports `equally`, `youOweFull`, `partnerOwesFull`, `exactAmounts`, `percentages`, and `shares` via the `SplitMode` enum.
 - **Transactions & Analytics Integration**: Creating a split expense automatically records the user's out-of-pocket share into `transactions` table, instantly updating personal ledger, Home screen feeds, and Analytics category charts.
 
 ---
@@ -39,8 +51,9 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 
 - **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`).
 - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
-- **Invalidation**: All mutation operations (add, edit, delete, reorder) must explicitly invalidate the relevant cache to guarantee immediate data updates in the UI.
+- **Invalidation**: All mutation operations (add, edit, delete, reorder) must explicitly call `_invalidateTransactionCache()` / `_invalidateCategoryCache()` to guarantee immediate data updates in the UI.
 - **Request Deduplication**: A concurrency guard using `_ongoingTransactionFetch` (via the `Completer` pattern) prevents concurrent callers from spawning duplicate identical network requests for full transaction loads.
+- **`clearCache()`**: Called on sign-out via `AuthViewModel.signOut()` to prevent cross-user data leakage.
 
 ---
 
@@ -56,6 +69,7 @@ To prevent leaking raw database and HTTP network errors directly to the UI, the 
 **Rules:**
 1. **Service Error Mapping**: `DatabaseService` wraps operations inside a `_execute` helper, utilizing `_mapError` to map exceptions. `AuthService` maps errors using `_throwMappedError` (remapping invalid credential/email messages for sign-in vs invalid verification codes for OTP/recovery flows).
 2. **Auth Retries**: The `AuthService` automatically retries operations up to `3` times (`_maxAttempts`) using exponential back-off delays when detecting network-level connectivity failures.
+3. **ViewModel Error Display**: ViewModels expose `String? errorMessage`. Views display this via `ScaffoldMessenger` snackbars or inline error widgets. Never display raw exception objects.
 
 ---
 
@@ -105,11 +119,12 @@ All data columns map strictly between remote database fields and Flutter immutab
 ## 🎨 UI & UX Principles
 
 1. **Material 3 Design**: Utilize Material 3 widgets and design patterns.
-2. **Dynamic Theming**: Support light/dark mode seamlessly via `ThemeViewModel` and custom dark colors (`#000000` base with `#0A0A0A` surface colors).
-3. **Typography**: High-contrast text using the **Inter** Google Font family (packaged locally inside `google_fonts/` to prevent runtime fetching and styling delays).
-4. **Scroll-to-Top Gesture**: Double-tapping the active navigation item or the AppBar title smoothly scrolls scrollable lists back to the top.
+2. **Dynamic Theming**: Support light/dark mode seamlessly via `ThemeViewModel`. Dark mode uses `#000000` scaffold background and `#0A0A0A` surface/card colors. Light mode uses `Color(0xFF4F46E5)` as the seed color; dark mode uses `Color(0xFF818CF8)`.
+3. **Typography**: High-contrast text using the **Inter** Google Font family (packaged locally inside `google_fonts/` to prevent runtime fetching and styling delays). `GoogleFonts.config.allowRuntimeFetching = false` is set in `main.dart`.
+4. **Scroll-to-Top Gesture**: Tapping the active navigation item or the `AppBar` title smoothly scrolls scrollable lists back to the top (`ScrollController.animateTo(0)`).
 5. **Tactile Haptic Feedback**: Use `AppHaptics` in `lib/utils/haptics.dart` rather than calling standard `HapticFeedback` directly. Verify `ThemeViewModel.hapticEnabled` before executing haptic events.
 6. **Card Clipping & Rounded Highlights**: Always set `clipBehavior: Clip.antiAlias` on `Card` and matching `shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(...))` on `ListTile` so press/hold highlights conform perfectly to card rounded corners.
+7. **AnimatedSwitcher Navigation**: `HomePage` uses `AnimatedSwitcher` with a fade + vertical slide transition between tabs.
 
 ---
 
@@ -118,9 +133,14 @@ All data columns map strictly between remote database fields and Flutter immutab
 1. **State Management & Optimistic Updates**:
    - Always expose business logic and UI states through `ChangeNotifier` in `viewmodels/`.
    - Use `Consumer<T>` or `context.watch<T>()` in the UI to react to changes. Use `context.read<T>()` inside callbacks to trigger actions without rebuilding.
-   - Use **Optimistic UI Updates** to update lists immediately when a transaction or split is added, updated, or deleted, recalculating aggregates and sync in the background.
+   - Use **Optimistic UI Updates** to update lists immediately when a transaction or split is added, updated, or deleted, recalculating aggregates and syncing in the background.
+   - On failure, always **roll back** the optimistic change and set `_errorMessage`.
 2. **Imports**: Use relative imports (e.g. `import '../../models/transaction.dart'`) for internal packages within the project.
 3. **Lint Rules**: Follow all rules defined in `analysis_options.yaml`.
+4. **Singleton Services**: Access `DatabaseService` and `AuthService` via `.instance` — never construct them directly.
+5. **Analytics Memoization**: `AnalyticsPage` maintains its own memoized derived state (totals, daily data) to prevent full re-aggregation on chart touch interactions. This is intentional.
+6. **`SplitViewModel` cross-VM calls**: `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Always pass the live `TransactionViewModel` from the build context when calling these.
+7. **`SplitViewModel` current user getters**: Use `SplitViewModel.currentUserId`, `SplitViewModel.currentUserDisplayName`, and `SplitViewModel.currentUserEmail` to get the signed-in user's identity in split-related Views. Do not call `AuthService` or `Supabase` SDK from the View layer.
 
 ---
 

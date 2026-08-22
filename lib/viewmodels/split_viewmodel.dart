@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 import '../models/split_expense.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';
+import 'transaction_viewmodel.dart';
 
 /// ViewModel managing Split Expenses and user profiles.
 class SplitViewModel extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService.instance;
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final AuthService _authService = AuthService.instance;
 
   List<ProfileModel> _profiles = [];
   List<ProfileModel> get profiles => _profiles;
@@ -31,7 +32,19 @@ class SplitViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  String? get currentUserId => _supabase.auth.currentUser?.id;
+  String? get currentUserId => _authService.currentUser?.id;
+
+  /// Display name of the currently signed-in user (name from metadata, or email prefix, or 'You').
+  String get currentUserDisplayName {
+    final user = _authService.currentUser;
+    final name = user?.userMetadata?['name'] as String?;
+    if (name != null && name.trim().isNotEmpty) return name;
+    final email = user?.email ?? '';
+    return email.isNotEmpty ? email.split('@').first : 'You';
+  }
+
+  /// Email of the currently signed-in user, or empty string.
+  String get currentUserEmail => _authService.currentUser?.email ?? '';
 
   // ── Computed Balances ───────────────────────────────────────────────
 
@@ -162,7 +175,10 @@ class SplitViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> toggleSettled(SplitExpenseModel split) async {
+  Future<void> toggleSettled(
+    SplitExpenseModel split, {
+    TransactionViewModel? transactionVM,
+  }) async {
     final uid = currentUserId;
     if (uid == null) return;
     if (split.payerId != uid && split.borrowerId != uid) return;
@@ -184,16 +200,29 @@ class SplitViewModel extends ChangeNotifier {
       if (newStatus == 'settled') {
         final isPayer = split.payerId == uid;
         final partnerName = isPayer ? split.displayBorrower : split.displayPayer;
-        await _databaseService.addTransaction(
-          amount: split.amount,
-          type: isPayer ? 'income' : 'expense',
-          category: 'General',
-          description: isPayer
-              ? 'Settlement from $partnerName for ${split.description}'
-              : 'Settlement to $partnerName for ${split.description}',
-          paymentMethod: 'upi',
-          transactionDate: DateTime.now(),
-        );
+        final description = isPayer
+            ? 'Settlement from $partnerName for ${split.description}'
+            : 'Settlement to $partnerName for ${split.description}';
+
+        if (transactionVM != null) {
+          await transactionVM.addTransaction(
+            amount: split.amount,
+            type: isPayer ? 'income' : 'expense',
+            category: 'Other',
+            description: description,
+            paymentMethod: 'upi',
+            transactionDate: DateTime.now(),
+          );
+        } else {
+          await _databaseService.addTransaction(
+            amount: split.amount,
+            type: isPayer ? 'income' : 'expense',
+            category: 'Other',
+            description: description,
+            paymentMethod: 'upi',
+            transactionDate: DateTime.now(),
+          );
+        }
       }
     } catch (e) {
       _splitExpenses[index] = backup;
@@ -219,7 +248,11 @@ class SplitViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> settleUpWithPartner(String partnerId) async {
+  Future<void> settleUpWithPartner(
+    String partnerId, {
+    String? partnerName,
+    TransactionViewModel? transactionVM,
+  }) async {
     final uid = currentUserId;
     if (uid == null) return;
 
@@ -229,8 +262,70 @@ class SplitViewModel extends ChangeNotifier {
            (s.borrowerId == uid && s.payerId == partnerId));
     }).toList();
 
+    if (pendingSplits.isEmpty) return;
+
+    // Calculate net balance
+    double sumOwedToUser = 0.0;
+    double sumUserOwes = 0.0;
     for (final s in pendingSplits) {
-      await toggleSettled(s);
+      if (s.payerId == uid) {
+        sumOwedToUser += s.amount;
+      } else if (s.borrowerId == uid) {
+        sumUserOwes += s.amount;
+      }
+    }
+    final netBalance = sumOwedToUser - sumUserOwes;
+
+    // Optimistically update status
+    for (final s in pendingSplits) {
+      final index = _splitExpenses.indexWhere((item) => item.id == s.id);
+      if (index != -1) {
+        _splitExpenses[index] = s.copyWith(status: 'settled');
+      }
+    }
+    notifyListeners();
+
+    try {
+      for (final s in pendingSplits) {
+        await _databaseService.updateSplitExpenseStatus(
+          id: s.id,
+          status: 'settled',
+        );
+      }
+
+      // Record a single consolidated personal settlement transaction
+      if (netBalance != 0) {
+        final isIncome = netBalance > 0;
+        final amount = netBalance.abs();
+        final name = partnerName ?? 'Friend';
+        final description = isIncome
+            ? 'Settlement from $name'
+            : 'Settlement to $name';
+
+        if (transactionVM != null) {
+          await transactionVM.addTransaction(
+            amount: amount,
+            type: isIncome ? 'income' : 'expense',
+            category: 'Other',
+            description: description,
+            paymentMethod: 'upi',
+            transactionDate: DateTime.now(),
+          );
+        } else {
+          await _databaseService.addTransaction(
+            amount: amount,
+            type: isIncome ? 'income' : 'expense',
+            category: 'Other',
+            description: description,
+            paymentMethod: 'upi',
+            transactionDate: DateTime.now(),
+          );
+        }
+      }
+    } catch (e) {
+      _errorMessage = _mapError(e);
+      await loadSplitExpenses();
+      notifyListeners();
     }
   }
 

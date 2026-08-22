@@ -15,6 +15,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ListView(
       controller: scrollController,
       padding: const EdgeInsets.all(24.0),
@@ -317,6 +318,32 @@ class SettingsPage extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 32),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Made with ',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Icon(
+              Icons.favorite_rounded,
+              color: Colors.redAccent,
+              size: 16,
+            ),
+            Text(
+              ' by Paras Shenmare',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }

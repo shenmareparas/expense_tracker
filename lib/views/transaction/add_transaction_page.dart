@@ -376,11 +376,17 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
                                   _buildSectionTitle('Category'),
                                   AppDropdown<String>(
-                                    key: ValueKey('category_dropdown_$_type'),
+                                    key: ValueKey(
+                                      'category_dropdown_${_type}_$_category',
+                                    ),
                                     value: _category,
                                     hint: 'Select Category',
                                     prefixIcon: Icons.category,
-                                    items: categories.map((String category) {
+                                    items: (_category != null &&
+                                            !categories.contains(_category)
+                                        ? [_category!, ...categories]
+                                        : categories)
+                                        .map((String category) {
                                       return DropdownMenuItem(
                                         value: category,
                                         child: Text(category),
