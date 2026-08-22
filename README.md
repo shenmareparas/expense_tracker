@@ -1,19 +1,25 @@
 # <img src="screenshots/ic_launcher-playstore.png" width="48" height="48" align="center"> Expense Tracker
 
-A modern, highly-polished, and feature-rich **Expense Tracker** application built with Flutter, backed by **Supabase** backend, and managed using the **Provider** state management pattern.
+A modern, highly-polished, and feature-rich **Expense Tracker** application built with Flutter, backed by a **Supabase** backend, and managed using the **Provider** state management pattern.
 
 ---
 
 ## 🚀 Key Features
 
 - **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, Password Reset, in-app OTP recovery verification, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
-- **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges.
-- **🤝 Split Expenses**: Seamlessly split bills and debts with other registered app users. Choose who paid ("You Paid" or "They Paid"), track per-person shares, view net balances, and mark debts as pending or settled.
+- **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges, automatically synchronized with split expenses and personal transactions.
+- **🤝 Shared Split Expenses**:
+  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`) and overall position banner.
+  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, and unified Settle Up confirmation modal.
+  - **Settle Up Payments**: Support Settle Up for both lenders and debtors, logging income settlement transactions when receiving money and expense settlement transactions when paying back.
+  - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split dropdown, and accessible via a low-profile expand/collapse toggle.
+  - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
+  - **Transaction & Analytics Integration**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
 - **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. Filter transactions by multiple categories (multi-select), payment method (UPI / Cash), transaction type, or date range.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, concurrent request deduplication, and optimistic state updates in ViewModels to minimize network overhead and ensure instant screen transitions.
-- **⚙️ Customizable Settings & Tab Ordering**: Personalize the analytics experience by configuring a default landing tab and reordering analytics tabs to your preference, saved persistently via `SharedPreferences`.
-- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, premium animations, conditional haptic feedback (tactile interaction clicks/vibrations), custom monochrome app assets, and tap-to-scroll-to-top gestures.
+- **⚙️ Customizable Settings & Preferences**: Personalize the experience by configuring default landing tabs, analytics tab orders, and hidden friends saved persistently via `SharedPreferences`.
+- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, rounded press highlights (`Clip.antiAlias`), conditional haptic feedback, custom app assets, and tap-to-scroll-to-top gestures.
 
 ---
 
@@ -63,7 +69,7 @@ lib/
 ├── viewmodels/               # ViewModels implementing ChangeNotifier for state control
 │   ├── auth_viewmodel.dart   # Auth state (loading, error, session management)
 │   ├── category_viewmodel.dart # Category CRUD & ordering states
-│   ├── split_viewmodel.dart  # Split expense feed, user profiles, and debt status management
+│   ├── split_viewmodel.dart  # Split expense feed, user profiles, hidden friends, and debt status management
 │   ├── theme_viewmodel.dart  # Custom dynamic theme states (theme mode, haptics enablement)
 │   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
 ├── views/                    # UI Layer (Screens & Page-specific layouts)
@@ -71,12 +77,11 @@ lib/
 │   ├── auth/                 # Login, signup, password reset (OTP), update password, and authentication gates
 │   ├── home/                 # Primary feed and navigation skeleton (scroll-to-top)
 │   ├── settings/             # User profile and styling settings
-│   ├── split/                # Split expenses feed & Add/Split form interface
+│   ├── split/                # Split Page, UserSplitDetailPage, and AddSplitPage
 │   └── transaction/          # Add/edit transactions & filter interfaces
 ├── widgets/                  # Reusable UI components & Design tokens
 └── utils/                    # Helper utilities (formatting, exceptions, haptics, helpers)
 ```
-
 
 ---
 

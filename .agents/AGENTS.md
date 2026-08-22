@@ -19,6 +19,22 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 
 ---
 
+## 🤝 Shared Expenses & Integration Architecture
+
+- **Friends Feed**: Main Split screen (`SplitPage`) displays overall net balance banner and user-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
+- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, net friend balance summary, and a unified **Settle Up** confirmation modal.
+- **Settle Up Logic**: Both lenders (payers) and debtors (borrowers) can settle up. Settling up resolves all pending split shares between friends:
+  - Lender receives money: logs `income` settlement transaction ("Settlement from Friend").
+  - Debtor pays back: logs `expense` settlement transaction ("Settlement to Friend").
+- **Hide / Unhide Friends**: Hide friends via the top-right `AppBar` action on the friend detail screen.
+  - Persisted locally via `SharedPreferences` (`hidden_friend_ids`).
+  - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
+  - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
+- **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With Users dropdown + chips, Who Paid toggle). Saving is disabled until all required fields are valid.
+- **Transactions & Analytics Integration**: Creating a split expense automatically records the user's out-of-pocket share into `transactions` table, instantly updating personal ledger, Home screen feeds, and Analytics category charts.
+
+---
+
 ## 💾 Caching & Concurrency Strategy (`DatabaseService`)
 
 - **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`).
@@ -93,6 +109,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 3. **Typography**: High-contrast text using the **Inter** Google Font family (packaged locally inside `google_fonts/` to prevent runtime fetching and styling delays).
 4. **Scroll-to-Top Gesture**: Double-tapping the active navigation item or the AppBar title smoothly scrolls scrollable lists back to the top.
 5. **Tactile Haptic Feedback**: Use `AppHaptics` in `lib/utils/haptics.dart` rather than calling standard `HapticFeedback` directly. Verify `ThemeViewModel.hapticEnabled` before executing haptic events.
+6. **Card Clipping & Rounded Highlights**: Always set `clipBehavior: Clip.antiAlias` on `Card` and matching `shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(...))` on `ListTile` so press/hold highlights conform perfectly to card rounded corners.
 
 ---
 
@@ -101,7 +118,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 1. **State Management & Optimistic Updates**:
    - Always expose business logic and UI states through `ChangeNotifier` in `viewmodels/`.
    - Use `Consumer<T>` or `context.watch<T>()` in the UI to react to changes. Use `context.read<T>()` inside callbacks to trigger actions without rebuilding.
-   - Use **Optimistic UI Updates** to update lists immediately when a transaction is added, updated, or deleted, recalculating aggregates and sync in the background.
+   - Use **Optimistic UI Updates** to update lists immediately when a transaction or split is added, updated, or deleted, recalculating aggregates and sync in the background.
 2. **Imports**: Use relative imports (e.g. `import '../../models/transaction.dart'`) for internal packages within the project.
 3. **Lint Rules**: Follow all rules defined in `analysis_options.yaml`.
 

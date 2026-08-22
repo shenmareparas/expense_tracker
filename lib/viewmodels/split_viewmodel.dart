@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 import '../models/split_expense.dart';
@@ -15,6 +16,11 @@ class SplitViewModel extends ChangeNotifier {
 
   List<SplitExpenseModel> _splitExpenses = [];
   List<SplitExpenseModel> get splitExpenses => _splitExpenses;
+
+  Set<String> _hiddenFriendIds = {};
+  Set<String> get hiddenFriendIds => _hiddenFriendIds;
+
+  bool isFriendHidden(String friendId) => _hiddenFriendIds.contains(friendId);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -127,6 +133,7 @@ class SplitViewModel extends ChangeNotifier {
     String category = 'General',
     required DateTime expenseDate,
     bool isPayer = true,
+    String? payerId,
   }) async {
     _isSaving = true;
     _errorMessage = null;
@@ -141,6 +148,7 @@ class SplitViewModel extends ChangeNotifier {
         category: category,
         expenseDate: expenseDate,
         isPayer: isPayer,
+        payerId: payerId,
       );
 
       _splitExpenses.insertAll(0, newSplits);
@@ -155,6 +163,10 @@ class SplitViewModel extends ChangeNotifier {
   }
 
   Future<void> toggleSettled(SplitExpenseModel split) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+    if (split.payerId != uid && split.borrowerId != uid) return;
+
     final newStatus = split.status == 'pending' ? 'settled' : 'pending';
     final index = _splitExpenses.indexWhere((s) => s.id == split.id);
     if (index == -1) return;
@@ -168,11 +180,81 @@ class SplitViewModel extends ChangeNotifier {
         id: split.id,
         status: newStatus,
       );
+
+      if (newStatus == 'settled') {
+        final isPayer = split.payerId == uid;
+        final partnerName = isPayer ? split.displayBorrower : split.displayPayer;
+        await _databaseService.addTransaction(
+          amount: split.amount,
+          type: isPayer ? 'income' : 'expense',
+          category: 'General',
+          description: isPayer
+              ? 'Settlement from $partnerName for ${split.description}'
+              : 'Settlement to $partnerName for ${split.description}',
+          paymentMethod: 'upi',
+          transactionDate: DateTime.now(),
+        );
+      }
     } catch (e) {
       _splitExpenses[index] = backup;
       _errorMessage = _mapError(e);
       notifyListeners();
     }
+  }
+
+  Future<void> deleteSplitExpense(String id) async {
+    final index = _splitExpenses.indexWhere((s) => s.id == id);
+    if (index == -1) return;
+
+    final backup = _splitExpenses[index];
+    _splitExpenses.removeAt(index);
+    notifyListeners();
+
+    try {
+      await _databaseService.deleteSplitExpense(id);
+    } catch (e) {
+      _splitExpenses.insert(index, backup);
+      _errorMessage = _mapError(e);
+      notifyListeners();
+    }
+  }
+
+  Future<void> settleUpWithPartner(String partnerId) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+
+    final pendingSplits = _splitExpenses.where((s) {
+      return s.status == 'pending' &&
+          ((s.payerId == uid && s.borrowerId == partnerId) ||
+           (s.borrowerId == uid && s.payerId == partnerId));
+    }).toList();
+
+    for (final s in pendingSplits) {
+      await toggleSettled(s);
+    }
+  }
+
+  Future<void> loadHiddenFriends() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('hidden_friend_ids') ?? [];
+      _hiddenFriendIds = list.toSet();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> toggleHideFriend(String friendId) async {
+    if (_hiddenFriendIds.contains(friendId)) {
+      _hiddenFriendIds.remove(friendId);
+    } else {
+      _hiddenFriendIds.add(friendId);
+    }
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('hidden_friend_ids', _hiddenFriendIds.toList());
+    } catch (_) {}
   }
 
   String _mapError(Object error) {

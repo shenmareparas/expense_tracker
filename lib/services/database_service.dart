@@ -25,9 +25,7 @@ class DatabaseService {
       );
     }
     if (error is PostgrestException) {
-      return DataException(
-        'Database error: ${error.message}',
-      );
+      return DataException('Database error: ${error.message}');
     }
     if (error is AuthException) {
       return const AppAuthException('Session expired. Please sign in again.');
@@ -524,18 +522,22 @@ class DatabaseService {
     String category = 'General',
     required DateTime expenseDate,
     bool isPayer = true,
+    String? payerId,
   }) async {
     return _execute(() async {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
+      final actualPayerId = isPayer
+          ? currentUserId
+          : (payerId ?? currentUserId);
+
       final rows = <Map<String, dynamic>>[];
       for (final bId in borrowerIds) {
-        final payerId = isPayer ? currentUserId : bId;
-        final borrowerId = isPayer ? bId : currentUserId;
+        if (bId == actualPayerId) continue;
         rows.add({
-          'payer_id': payerId,
-          'borrower_id': borrowerId,
+          'payer_id': actualPayerId,
+          'borrower_id': bId,
           'amount': perPersonAmount,
           'total_amount': totalAmount,
           'description': description,
@@ -544,6 +546,8 @@ class DatabaseService {
           'expense_date': expenseDate.toUtc().toIso8601String(),
         });
       }
+
+      if (rows.isEmpty) return [];
 
       final response = await _supabase
           .from('split_expenses')
@@ -569,7 +573,28 @@ class DatabaseService {
       await _supabase
           .from('split_expenses')
           .update({'status': status})
-          .eq('id', id);
+          .eq('id', id)
+          .or('payer_id.eq.$userId,borrower_id.eq.$userId');
+    });
+  }
+
+  Future<void> deleteSplitExpense(String id) async {
+    return _execute(() async {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw const UnauthenticatedException();
+
+      final response = await _supabase
+          .from('split_expenses')
+          .delete()
+          .eq('id', id)
+          .or('payer_id.eq.$userId,borrower_id.eq.$userId')
+          .select();
+
+      if ((response as List).isEmpty) {
+        throw const DataException(
+          'Failed to delete split expense: record not found or permission denied.',
+        );
+      }
     });
   }
 }

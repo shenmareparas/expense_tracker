@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/split_expense.dart';
-import '../../utils/date_formatter.dart';
+import '../../models/profile.dart';
 import '../../utils/haptics.dart';
 import '../../viewmodels/split_viewmodel.dart';
+import 'user_split_detail_page.dart';
 
-/// Overview tab for managing Split Expenses between users.
+/// Overview tab displaying a Friends list grouped by user.
 class SplitPage extends StatefulWidget {
   final ScrollController? scrollController;
   const SplitPage({super.key, this.scrollController});
@@ -16,6 +16,7 @@ class SplitPage extends StatefulWidget {
 
 class _SplitPageState extends State<SplitPage> {
   late final ScrollController _scrollController;
+  bool _showHiddenFriends = false;
 
   @override
   void initState() {
@@ -25,6 +26,7 @@ class _SplitPageState extends State<SplitPage> {
       final splitVM = Provider.of<SplitViewModel>(context, listen: false);
       splitVM.loadSplitExpenses();
       splitVM.loadProfiles();
+      splitVM.loadHiddenFriends();
     });
   }
 
@@ -44,14 +46,31 @@ class _SplitPageState extends State<SplitPage> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        final currentUserId = splitVM.currentUserId;
+        // Filter out current user from profiles list
+        final partnerProfiles = splitVM.profiles
+            .where((p) => p.id != currentUserId)
+            .toList();
+
+        final visiblePartners = partnerProfiles
+            .where((p) => !splitVM.isFriendHidden(p.id))
+            .toList();
+        final hiddenPartners = partnerProfiles
+            .where((p) => splitVM.isFriendHidden(p.id))
+            .toList();
+
         return RefreshIndicator(
-          onRefresh: () => splitVM.loadSplitExpenses(),
+          onRefresh: () async {
+            await splitVM.loadSplitExpenses();
+            await splitVM.loadProfiles();
+            await splitVM.loadHiddenFriends();
+          },
           child: ListView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16.0),
             children: [
-              // Summary Card (Net Balance)
+              // Overall Summary Card
               _buildSummaryCard(context, splitVM),
               const SizedBox(height: 24),
 
@@ -60,13 +79,13 @@ class _SplitPageState extends State<SplitPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Split Expenses',
+                    'Friends',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   Text(
-                    '${splitVM.splitExpenses.length} records',
+                    '${visiblePartners.length} visible',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context)
@@ -79,13 +98,91 @@ class _SplitPageState extends State<SplitPage> {
               ),
               const SizedBox(height: 12),
 
-              // List of Splits
-              if (splitVM.splitExpenses.isEmpty)
+              // List of Visible Friends / Partners
+              if (visiblePartners.isEmpty && hiddenPartners.isEmpty)
                 _buildEmptyState(context)
+              else if (visiblePartners.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24.0),
+                  child: Center(
+                    child: Text(
+                      'All friends are hidden',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                )
               else
-                ...splitVM.splitExpenses.map((split) {
-                  return _buildSplitTile(context, split, splitVM);
+                ...visiblePartners.map((partner) {
+                  return _buildPartnerTile(context, partner, splitVM);
                 }),
+
+              // ── Show / Collapse Hidden Friends Section ─────────────────────
+              if (hiddenPartners.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Center(
+                  child: InkWell(
+                    onTap: () {
+                      AppHaptics.selectionClick(context);
+                      setState(() {
+                        _showHiddenFriends = !_showHiddenFriends;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _showHiddenFriends
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _showHiddenFriends
+                                ? 'Hide hidden friends (${hiddenPartners.length})'
+                                : 'Show hidden friends (${hiddenPartners.length})',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (_showHiddenFriends) ...[
+                  const SizedBox(height: 8),
+                  ...hiddenPartners.map((partner) {
+                    return _buildPartnerTile(
+                      context,
+                      partner,
+                      splitVM,
+                      isHidden: true,
+                    );
+                  }),
+                ],
+              ],
 
               const SizedBox(height: 80), // Padding for FAB
             ],
@@ -99,7 +196,8 @@ class _SplitPageState extends State<SplitPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final net = splitVM.netBalance;
-    final isOwed = net >= 0;
+    final isOwed = net > 0;
+    final isSettledUp = net == 0;
 
     return Card(
       elevation: 0,
@@ -121,7 +219,7 @@ class _SplitPageState extends State<SplitPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Net Balance',
+                      'Overall Balance',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -130,34 +228,51 @@ class _SplitPageState extends State<SplitPage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '${isOwed ? '+' : '-'}₹${net.abs().toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: isOwed ? Colors.green.shade600 : Colors.red.shade600,
+                    if (isSettledUp)
+                      const Text(
+                        'You are all settled up!',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      )
+                    else ...[
+                      Text(
+                        '${isOwed ? '+' : '-'}₹${net.abs().toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: isOwed ? Colors.green.shade600 : Colors.red.shade600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      isOwed ? 'You are overall owed' : 'You overall owe',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isOwed ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.w600,
+                      Text(
+                        isOwed ? 'Overall, you are owed' : 'Overall, you owe',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isOwed ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (isOwed ? Colors.green : Colors.red)
-                        .withValues(alpha: 0.1),
+                    color: isSettledUp
+                        ? Colors.grey.withValues(alpha: 0.1)
+                        : (isOwed ? Colors.green : Colors.red)
+                            .withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isOwed ? Icons.call_received : Icons.call_made,
-                    color: isOwed ? Colors.green : Colors.red,
+                    isSettledUp
+                        ? Icons.check_circle_outline
+                        : (isOwed ? Icons.call_received : Icons.call_made),
+                    color: isSettledUp
+                        ? Colors.grey
+                        : (isOwed ? Colors.green : Colors.red),
                     size: 28,
                   ),
                 ),
@@ -169,13 +284,13 @@ class _SplitPageState extends State<SplitPage> {
                 Expanded(
                   child: Row(
                     children: [
-                      Icon(Icons.arrow_downward, size: 16, color: Colors.green),
+                      const Icon(Icons.arrow_downward, size: 16, color: Colors.green),
                       const SizedBox(width: 6),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Owed to you',
+                            'You are owed',
                             style: TextStyle(fontSize: 11, color: Colors.grey),
                           ),
                           Text(
@@ -194,7 +309,7 @@ class _SplitPageState extends State<SplitPage> {
                 Expanded(
                   child: Row(
                     children: [
-                      Icon(Icons.arrow_upward, size: 16, color: Colors.red),
+                      const Icon(Icons.arrow_upward, size: 16, color: Colors.red),
                       const SizedBox(width: 6),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +346,7 @@ class _SplitPageState extends State<SplitPage> {
         child: Column(
           children: [
             Icon(
-              Icons.call_split_rounded,
+              Icons.group_off_outlined,
               size: 64,
               color: Theme.of(context)
                   .colorScheme
@@ -240,7 +355,7 @@ class _SplitPageState extends State<SplitPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'No split expenses yet',
+              'No friends registered yet',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -252,7 +367,7 @@ class _SplitPageState extends State<SplitPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap + to split a bill with registered Supabase users.',
+              'When other users register in the app, they will appear here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -268,113 +383,155 @@ class _SplitPageState extends State<SplitPage> {
     );
   }
 
-  Widget _buildSplitTile(
+  Widget _buildPartnerTile(
     BuildContext context,
-    SplitExpenseModel split,
-    SplitViewModel splitVM,
-  ) {
+    ProfileModel partner,
+    SplitViewModel splitVM, {
+    bool isHidden = false,
+  }) {
     final theme = Theme.of(context);
-    final isPayer = split.payerId == splitVM.currentUserId;
-    final partnerName = isPayer
-        ? split.displayBorrower
-        : split.displayPayer;
-    final isSettled = split.status == 'settled';
+    final currentUserId = splitVM.currentUserId;
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.1),
-        ),
-      ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: isSettled
-                ? Colors.grey.withValues(alpha: 0.15)
-                : (isPayer
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.red.withValues(alpha: 0.1)),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            isSettled
-                ? Icons.check_circle
-                : (isPayer ? Icons.arrow_downward : Icons.arrow_upward),
-            color: isSettled
-                ? Colors.grey
-                : (isPayer ? Colors.green : Colors.red),
-            size: 22,
-          ),
-        ),
-        title: Text(
-          split.description,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            decoration: isSettled ? TextDecoration.lineThrough : null,
+    // Filter splits involving this partner
+    final partnerSplits = splitVM.splitExpenses.where((s) {
+      return (s.payerId == partner.id && s.borrowerId == currentUserId) ||
+          (s.borrowerId == partner.id && s.payerId == currentUserId);
+    }).toList();
+
+    // Calculate net balance specifically with this partner
+    double sumOwedToUser = 0.0;
+    double sumUserOwes = 0.0;
+
+    for (final s in partnerSplits) {
+      if (s.status == 'pending') {
+        if (s.payerId == currentUserId) {
+          sumOwedToUser += s.amount;
+        } else if (s.borrowerId == currentUserId) {
+          sumUserOwes += s.amount;
+        }
+      }
+    }
+
+    final net = sumOwedToUser - sumUserOwes;
+    final isOwed = net > 0;
+    final isSettledUp = net == 0;
+
+    return Opacity(
+      opacity: isHidden ? 0.65 : 1.0,
+      child: Card(
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        clipBehavior: Clip.antiAlias,
+        color: theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isPayer ? 'You paid for $partnerName' : '$partnerName paid',
-              style: const TextStyle(fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              DateFormatter.formatDate(split.expenseDate.toLocal()),
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${isPayer ? '+' : '-'}₹${split.amount.toStringAsFixed(2)}',
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          onTap: () {
+            AppHaptics.selectionClick(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => UserSplitDetailPage(partner: partner),
+              ),
+            );
+          },
+          leading: CircleAvatar(
+            radius: 22,
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+            child: Text(
+              partner.displayName.isNotEmpty
+                  ? partner.displayName[0].toUpperCase()
+                  : '?',
               style: TextStyle(
-                fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: isSettled
-                    ? Colors.grey
-                    : (isPayer ? Colors.green.shade600 : Colors.red.shade600),
+                color: theme.colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () {
-                AppHaptics.selectionClick(context);
-                splitVM.toggleSettled(split);
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isSettled
-                      ? Colors.grey.withValues(alpha: 0.15)
-                      : Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Flexible(
                 child: Text(
-                  isSettled ? 'Settled' : 'Mark Settled',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isSettled ? Colors.grey : Colors.orange.shade800,
-                  ),
+                  partner.displayName,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (isHidden) ...[
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.visibility_off_outlined,
+                  size: 16,
+                  color: Colors.orange,
+                ),
+              ],
+            ],
+          ),
+          subtitle: Text(
+            partnerSplits.isEmpty
+                ? 'No shared expenses'
+                : '${partnerSplits.length} shared ${partnerSplits.length == 1 ? 'expense' : 'expenses'}',
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
-          ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (isSettledUp)
+                    const Text(
+                      'settled up',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    )
+                  else ...[
+                    Text(
+                      isOwed ? 'owes you' : 'you owe',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      '₹${net.abs().toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isOwed
+                            ? Colors.green.shade600
+                            : Colors.red.shade600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
         ),
       ),
     );
