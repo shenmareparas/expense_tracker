@@ -562,6 +562,112 @@ class DatabaseService {
     });
   }
 
+  Future<List<SplitExpenseModel>> addCustomMultipleSplitExpenses({
+    required List<Map<String, dynamic>> borrowerSplits, // [{ 'borrower_id': '...', 'amount': 123.45 }]
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true,
+    String? payerId,
+  }) async {
+    return _execute(() async {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw const UnauthenticatedException();
+
+      final actualPayerId = isPayer
+          ? currentUserId
+          : (payerId ?? currentUserId);
+
+      final rows = <Map<String, dynamic>>[];
+      for (final split in borrowerSplits) {
+        final bId = split['borrower_id'] as String;
+        final amount = (split['amount'] as num).toDouble();
+        if (bId == actualPayerId || amount <= 0) continue;
+        rows.add({
+          'payer_id': actualPayerId,
+          'borrower_id': bId,
+          'amount': amount,
+          'total_amount': totalAmount,
+          'description': description,
+          'category': category,
+          'status': 'pending',
+          'expense_date': expenseDate.toUtc().toIso8601String(),
+        });
+      }
+
+      if (rows.isEmpty) return [];
+
+      final response = await _supabase
+          .from('split_expenses')
+          .insert(rows)
+          .select();
+
+      final list = (response as List<dynamic>)
+          .map((e) => SplitExpenseModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      return list;
+    });
+  }
+
+  Future<SplitExpenseModel> updateSplitExpense({
+    required String id,
+    required String borrowerId,
+    required double amount,
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true,
+    String? payerId,
+  }) async {
+    return _execute(() async {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw const UnauthenticatedException();
+
+      final actualPayerId = isPayer
+          ? currentUserId
+          : (payerId ?? currentUserId);
+      final actualBorrowerId = isPayer ? borrowerId : currentUserId;
+
+      final response = await _supabase
+          .from('split_expenses')
+          .update({
+            'payer_id': actualPayerId,
+            'borrower_id': actualBorrowerId,
+            'amount': amount,
+            'total_amount': totalAmount,
+            'description': description,
+            'category': category,
+            'expense_date': expenseDate.toUtc().toIso8601String(),
+          })
+          .eq('id', id)
+          .or('payer_id.eq.$currentUserId,borrower_id.eq.$currentUserId')
+          .select()
+          .single();
+
+      final profilesResponse = await _supabase.from('profiles').select();
+      final profilesMap = <String, Map<String, dynamic>>{};
+      for (final p in (profilesResponse as List<dynamic>)) {
+        final pMap = p as Map<String, dynamic>;
+        profilesMap[pMap['id'] as String] = pMap;
+      }
+
+      final map = Map<String, dynamic>.from(response);
+      final pId = map['payer_id'] as String?;
+      final bId = map['borrower_id'] as String?;
+      if (pId != null && profilesMap.containsKey(pId)) {
+        map['payer_profile'] = profilesMap[pId];
+      }
+      if (bId != null && profilesMap.containsKey(bId)) {
+        map['borrower_profile'] = profilesMap[bId];
+      }
+
+      return SplitExpenseModel.fromJson(map);
+    });
+  }
+
   Future<void> updateSplitExpenseStatus({
     required String id,
     required String status,
@@ -598,3 +704,4 @@ class DatabaseService {
     });
   }
 }
+

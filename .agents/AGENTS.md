@@ -33,7 +33,13 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 ## 🤝 Shared Expenses & Integration Architecture
 
 - **Friends Feed**: Main Split screen (`SplitPage`) displays overall net balance banner and user-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
-- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, net friend balance summary, and a unified **Settle Up** confirmation modal.
+- **Custom Friends Support**: Users can add unregistered friends via "Add new person" modal on `SplitPage` and `AddSplitPage`.
+  - Custom friends are assigned client-generated UUIDs and persisted locally in `SharedPreferences` (`custom_friends`).
+  - Merged seamlessly into `SplitViewModel.profiles` alongside remote Supabase profiles.
+  - Can be deleted directly from `UserSplitDetailPage` via the top-right delete action.
+  - Foreign key constraints on `split_expenses.borrower_id` and `payer_id` to `auth.users(id)` were dropped on Supabase to allow custom friend UUIDs.
+- **Edit Split Expense**: `AddSplitPage` supports editing existing splits (`widget.splitExpense != null`), pre-filling all previous parameters and updating the database via `SplitViewModel.updateSplitExpense`.
+- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, net friend balance summary, custom friend deletion, and a unified **Settle Up** confirmation modal.
 - **Settle Up Logic**: Both lenders (payers) and debtors (borrowers) can settle up. Settling up resolves all pending split shares between friends:
   - Lender receives money: logs `income` settlement transaction ("Settlement from Friend").
   - Debtor pays back: logs `expense` settlement transaction ("Settlement to Friend").
@@ -42,7 +48,13 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
   - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
 - **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With, Who Paid, Split Mode). Saving is disabled until all required fields are valid.
-- **Split Modes**: `AddSplitPage` supports `equally`, `youOweFull`, `partnerOwesFull`, `exactAmounts`, `percentages`, and `shares` via the `SplitMode` enum.
+- **Six Split Modes**:
+  - `equally` (`=`): Member checkboxes with equal fraction calculation.
+  - `youOweFull`: Partner paid full bill; user owes entire amount.
+  - `partnerOwesFull`: User paid full bill; partner owes entire amount.
+  - `exactAmounts` (`1.23`): Persistent numeric text fields per member with real-time remaining/over allocation pill (`₹XX left`).
+  - `percentages` (`%`): Persistent percentage text fields per member with computed monetary preview and remaining percentage pill (`XX% left`).
+  - `shares` (`===`): Tactile `+` and `−` integer steppers with dynamic ratio fraction calculation.
 - **Inline Math Operations**: Amount fields in both `AddTransactionPage` and `AddSplitPage` support math expressions (`+`, `−`, `×`, `÷`) evaluated via `MathEvaluator`. An animated `MathOperationsBar` appears on focus with operator chips (`+`, `−`, `×`, `÷`, `C`) and a live computation preview pill (`= ₹XX`). `TapRegion(groupId: EditableText)` prevents unwanted focus loss during toolbar interactions, and expressions are auto-calculated and formatted upon exiting the field or submitting.
 - **Transactions & Analytics Integration**: Creating a split expense automatically records the user's out-of-pocket share into `transactions` table, instantly updating personal ledger, Home screen feeds, and Analytics category charts.
 

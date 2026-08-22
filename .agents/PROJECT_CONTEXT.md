@@ -12,11 +12,13 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
 - **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (type, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview).
 - **Split Expenses**:
   - User-wise grouped Friends list with overall balance banner ("Overall, you are owed...", "You are all settled up!").
-  - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, and unified Settle Up confirmation modal.
+  - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, unified Settle Up confirmation modal, and custom friend deletion.
   - Settle Up functionality for both lenders and debtors, automatically recording settlement transactions in personal ledger.
+  - Add and delete custom (unregistered) friends stored locally via `SharedPreferences`, which seamlessly participate in all split operations without foreign key conflicts.
   - Hide / Unhide friend option with `SharedPreferences` persistence and low-profile expand/collapse toggle at the bottom of the split list.
   - Excludes hidden friends from the `AddSplitPage` partner selection.
-  - Six split modes: `equally`, `youOweFull`, `partnerOwesFull`, `exactAmounts`, `percentages`, `shares`.
+  - Six split modes with live calculation & validation pills: `equally` (`=`), `youOweFull`, `partnerOwesFull`, `exactAmounts` (`1.23`), `percentages` (`%`), and `shares` (`===`).
+  - Edit existing split expenses with live form pre-filling.
   - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation and inline math evaluation in the amount field.
   - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, settlements logged as income/expense).
 - **Categories**: Dynamic category management including custom names/types and drag-and-drop reordering. Protects built-in "Other" category from rename/delete/reorder.

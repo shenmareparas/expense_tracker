@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/profile.dart';
@@ -12,8 +14,19 @@ class SplitViewModel extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService.instance;
   final AuthService _authService = AuthService.instance;
 
-  List<ProfileModel> _profiles = [];
-  List<ProfileModel> get profiles => _profiles;
+  List<ProfileModel> _remoteProfiles = [];
+  List<ProfileModel> _customProfiles = [];
+
+  List<ProfileModel> get profiles {
+    // Combine remote and custom profiles without duplicates
+    final combined = <ProfileModel>[..._remoteProfiles];
+    for (final custom in _customProfiles) {
+      if (!combined.any((p) => p.id == custom.id)) {
+        combined.add(custom);
+      }
+    }
+    return combined;
+  }
 
   List<SplitExpenseModel> _splitExpenses = [];
   List<SplitExpenseModel> get splitExpenses => _splitExpenses;
@@ -22,6 +35,7 @@ class SplitViewModel extends ChangeNotifier {
   Set<String> get hiddenFriendIds => _hiddenFriendIds;
 
   bool isFriendHidden(String friendId) => _hiddenFriendIds.contains(friendId);
+  bool isCustomFriend(String friendId) => _customProfiles.any((p) => p.id == friendId);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -81,11 +95,70 @@ class SplitViewModel extends ChangeNotifier {
 
   Future<void> loadProfiles() async {
     try {
-      _profiles = await _databaseService.getProfiles();
-      notifyListeners();
+      _remoteProfiles = await _databaseService.getProfiles();
     } catch (e) {
       _errorMessage = _mapError(e);
     }
+    await loadCustomProfiles();
+    notifyListeners();
+  }
+
+  Future<void> loadCustomProfiles() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('custom_friend_profiles') ?? [];
+      _customProfiles = list.map((item) {
+        final jsonMap = jsonDecode(item) as Map<String, dynamic>;
+        return ProfileModel.fromJson(jsonMap);
+      }).toList();
+    } catch (_) {}
+  }
+
+  String _generateLocalUuid() {
+    final random = Random();
+    String hex(int length) => List.generate(
+      length,
+      (_) => random.nextInt(16).toRadixString(16),
+    ).join();
+    return '${hex(8)}-${hex(4)}-4${hex(3)}-${(random.nextInt(4) + 8).toRadixString(16)}${hex(3)}-${hex(12)}';
+  }
+
+  Future<ProfileModel> addCustomProfile({
+    required String name,
+    String? email,
+  }) async {
+    final trimmedName = name.trim();
+    final trimmedEmail = (email != null && email.trim().isNotEmpty)
+        ? email.trim()
+        : '${trimmedName.toLowerCase().replaceAll(RegExp(r'\s+'), '')}@friend.local';
+
+    final newProfile = ProfileModel(
+      id: _generateLocalUuid(),
+      name: trimmedName,
+      email: trimmedEmail,
+    );
+
+    _customProfiles.add(newProfile);
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encodedList = _customProfiles.map((p) => jsonEncode(p.toJson())).toList();
+      await prefs.setStringList('custom_friend_profiles', encodedList);
+    } catch (_) {}
+
+    return newProfile;
+  }
+
+  Future<void> deleteCustomProfile(String profileId) async {
+    _customProfiles.removeWhere((p) => p.id == profileId);
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encodedList = _customProfiles.map((p) => jsonEncode(p.toJson())).toList();
+      await prefs.setStringList('custom_friend_profiles', encodedList);
+    } catch (_) {}
   }
 
   Future<void> loadSplitExpenses() async {
@@ -167,6 +240,108 @@ class SplitViewModel extends ChangeNotifier {
       _splitExpenses.insertAll(0, newSplits);
       return true;
     } catch (e) {
+      _errorMessage = _mapError(e);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> addCustomMultipleSplitExpenses({
+    required List<Map<String, dynamic>> borrowerSplits,
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true,
+    String? payerId,
+  }) async {
+    _isSaving = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final newSplits = await _databaseService.addCustomMultipleSplitExpenses(
+        borrowerSplits: borrowerSplits,
+        totalAmount: totalAmount,
+        description: description,
+        category: category,
+        expenseDate: expenseDate,
+        isPayer: isPayer,
+        payerId: payerId,
+      );
+
+      _splitExpenses.insertAll(0, newSplits);
+      return true;
+    } catch (e) {
+      _errorMessage = _mapError(e);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateSplitExpense({
+    required String id,
+    required String borrowerId,
+    required double amount,
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true,
+    String? payerId,
+  }) async {
+    _isSaving = true;
+    _errorMessage = null;
+
+    final index = _splitExpenses.indexWhere((s) => s.id == id);
+    SplitExpenseModel? backup;
+    if (index != -1) {
+      backup = _splitExpenses[index];
+      final currentUserId = this.currentUserId;
+      final actualPayerId = isPayer
+          ? (currentUserId ?? backup.payerId)
+          : (payerId ?? currentUserId ?? backup.payerId);
+      final actualBorrowerId = isPayer
+          ? borrowerId
+          : (currentUserId ?? backup.borrowerId);
+
+      _splitExpenses[index] = backup.copyWith(
+        payerId: actualPayerId,
+        borrowerId: actualBorrowerId,
+        amount: amount,
+        totalAmount: totalAmount,
+        description: description,
+        category: category,
+        expenseDate: expenseDate,
+      );
+    }
+    notifyListeners();
+
+    try {
+      final updatedSplit = await _databaseService.updateSplitExpense(
+        id: id,
+        borrowerId: borrowerId,
+        amount: amount,
+        totalAmount: totalAmount,
+        description: description,
+        category: category,
+        expenseDate: expenseDate,
+        isPayer: isPayer,
+        payerId: payerId,
+      );
+
+      if (index != -1) {
+        _splitExpenses[index] = updatedSplit;
+      }
+      return true;
+    } catch (e) {
+      if (index != -1 && backup != null) {
+        _splitExpenses[index] = backup;
+      }
       _errorMessage = _mapError(e);
       return false;
     } finally {

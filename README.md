@@ -10,10 +10,18 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges, automatically synchronized with split expenses and personal transactions.
 - **🤝 Shared Split Expenses**:
   - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`) and overall position banner.
-  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, and unified Settle Up confirmation modal.
+  - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` dropdown. Custom friends are persisted locally, can be deleted anytime, and seamlessly participate in all split modes.
+  - **Edit Split Expense**: Full editing support for existing split entries (payer, borrower, amount, description, category, and date).
+  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, and unified Settle Up confirmation modal. Supports deleting custom friends.
   - **Settle Up Payments**: Support Settle Up for both lenders and debtors, logging income settlement transactions when receiving money and expense settlement transactions when paying back.
   - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split dropdown, and accessible via a low-profile expand/collapse toggle.
-  - **Six Split Modes**: `AddSplitPage` supports splitting `equally`, `youOweFull`, `partnerOwesFull`, by `exactAmounts`, by `percentages`, or by `shares` — with live calculation previews.
+  - **Six Fully-Functional Split Modes**:
+    - **Split Equally (`=`)**: Toggle member inclusion with live per-person recalculation.
+    - **You Owe Partner Full**: Full bill amount assigned as debt to the partner.
+    - **Partner Owes You Full**: Full bill amount assigned as receivable.
+    - **Split by Exact Amounts (`1.23`)**: Individual numerical amount inputs with live balance remaining/over allocation pill indicator (`₹XX.XX left`).
+    - **Split by Percentages (`%`)**: Individual percentage inputs with computed monetary values (`₹XX.XX`) and live percentage balance pill (`XX% left`).
+    - **Split by Shares (`===`)**: Stepper buttons (`+` / `−`) with real-time ratio calculation.
   - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
   - **Transaction & Analytics Integration**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
@@ -154,8 +162,8 @@ ViewModels catch these exceptions and display user-friendly error bars without e
 
 ### 3. `split_expenses`
 - `id` (UUID, Primary Key) - Auto-generated
-- `payer_id` (UUID, Foreign Key) - References `profiles(id)`
-- `borrower_id` (UUID, Foreign Key) - References `profiles(id)`
+- `payer_id` (UUID) - References payer (Supabase Auth user ID or custom friend UUID)
+- `borrower_id` (UUID) - References borrower (Supabase Auth user ID or custom friend UUID)
 - `amount` (Numeric) - Per-person debt share
 - `total_amount` (Numeric) - Total bill amount
 - `description` (Text) - Description/memo for the split expense

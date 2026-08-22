@@ -83,6 +83,72 @@ class UserSplitDetailPage extends StatelessWidget {
                   }
                 },
               ),
+              if (splitVM.isCustomFriend(partner.id))
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                  tooltip: 'Delete Friend',
+                  onPressed: () async {
+                    AppHaptics.mediumImpact(context);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogCtx) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        icon: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.person_remove_rounded,
+                            color: Colors.red,
+                            size: 32,
+                          ),
+                        ),
+                        title: Text(
+                          'Delete ${partner.displayName}',
+                          style: Theme.of(dialogCtx).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        content: Text(
+                          'Are you sure you want to remove ${partner.displayName} from your friends list?',
+                          textAlign: TextAlign.center,
+                        ),
+                        actionsAlignment: MainAxisAlignment.spaceEvenly,
+                        actions: [
+                          OutlinedButton(
+                            onPressed: () => Navigator.pop(dialogCtx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(dialogCtx, true),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await splitVM.deleteCustomProfile(partner.id);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${partner.displayName} removed from friends'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
             ],
           ),
           extendBodyBehindAppBar: true,
@@ -505,6 +571,25 @@ class UserSplitDetailPage extends StatelessWidget {
             horizontal: 16,
             vertical: 8,
           ),
+          onTap: () async {
+            AppHaptics.lightImpact(context);
+            final res = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddSplitPage(
+                  initialPartner: partner,
+                  splitExpense: split,
+                ),
+              ),
+            );
+            if (res == true && context.mounted) {
+              splitVM.loadSplitExpenses();
+              Provider.of<TransactionViewModel>(
+                context,
+                listen: false,
+              ).loadTransactions();
+            }
+          },
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
