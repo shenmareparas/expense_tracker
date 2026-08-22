@@ -9,7 +9,7 @@ This document provides a high-level overview of the **Expense Tracker** Flutter 
 The Expense Tracker is a Flutter mobile application designed for personal finance tracking. It supports:
 
 - **Authentication**: Email/Password signup, login, password resetting (request link / 6-digit OTP code verification), and secure updates powered by Supabase Auth. Auth state persistence is handled via stream subscription in `AuthViewModel`.
-- **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), and multi-filter support (type, categories, payment method, date range).
+- **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (type, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview).
 - **Split Expenses**:
   - User-wise grouped Friends list with overall balance banner ("Overall, you are owed...", "You are all settled up!").
   - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, and unified Settle Up confirmation modal.
@@ -17,7 +17,7 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
   - Hide / Unhide friend option with `SharedPreferences` persistence and low-profile expand/collapse toggle at the bottom of the split list.
   - Excludes hidden friends from the `AddSplitPage` partner selection.
   - Six split modes: `equally`, `youOweFull`, `partnerOwesFull`, `exactAmounts`, `percentages`, `shares`.
-  - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation.
+  - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation and inline math evaluation in the amount field.
   - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, settlements logged as income/expense).
 - **Categories**: Dynamic category management including custom names/types and drag-and-drop reordering. Protects built-in "Other" category from rename/delete/reorder.
 - **Analytics & Insights**: Interactive FL Chart dashboards (pie breakdown + daily trend bar chart), date-range filtering (`7days`, `30days`, `month`, `year`, `custom`), category filtering, and per-tab income/expense/net selection. Automatically synchronized with split expenses and personal transactions.
@@ -96,13 +96,15 @@ lib/
 │   │   ├── split_page.dart        # Friends overview with balance indicators
 │   │   └── user_split_detail_page.dart  # Per-friend expense timeline + Settle Up
 │   └── transaction/
-│       └── add_transaction_page.dart  # Add/edit transaction form
+│       └── add_transaction_page.dart  # Add/edit transaction form with math input & operations bar
 ├── widgets/
-│   └── app_dropdown.dart     # AppDropdown<T> and AppDropdownButton<T> styled wrappers
+│   ├── app_dropdown.dart          # AppDropdown<T> and AppDropdownButton<T> styled wrappers
+│   └── math_operations_bar.dart   # Interactive math toolbar (+, −, ×, ÷, C) + live calculation preview pill
 └── utils/
     ├── date_formatter.dart   # DateFormatter: relative dates (Today/Yesterday) + time
     ├── exceptions.dart       # Typed exception hierarchy: AppException → Data/Auth/Network/Unauth
-    └── haptics.dart          # AppHaptics: conditional haptic helpers via ThemeViewModel
+    ├── haptics.dart          # AppHaptics: conditional haptic helpers via ThemeViewModel
+    └── math_evaluator.dart   # Pure Dart arithmetic evaluator supporting operators, precedence & formatting
 ```
 
 ---

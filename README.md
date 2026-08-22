@@ -17,7 +17,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
   - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
   - **Transaction & Analytics Integration**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
-- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type, or date range.
+- **💸 Transaction Ledger & Math Inputs**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type, or date range. **Inline Math Operations**: Enter mathematical calculations (`+`, `−`, `×`, `÷`) directly into amount fields with an interactive operations toolbar (`MathOperationsBar`), live computation preview badge, and automatic evaluation upon exiting the field or saving.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, compound filter keys, concurrent request deduplication via `Completer`, and optimistic state updates with rollback in ViewModels to minimize network overhead and ensure instant screen transitions.
 - **📈 Analytics Snapshot**: A dedicated `loadAnalyticsSnapshot()` mechanism in `TransactionViewModel` fetches a separate date-filtered dataset for analytics without clobbering the main transaction feed or filters.
 - **⚙️ Customizable Settings & Preferences**: Personalize the experience by configuring theme (system/light/dark), haptic feedback, default analytics tab, analytics tab order, and hidden friends — all saved persistently via `SharedPreferences`.
@@ -95,13 +95,15 @@ lib/
 │   │   ├── split_page.dart
 │   │   └── user_split_detail_page.dart
 │   └── transaction/
-│       └── add_transaction_page.dart
+│       └── add_transaction_page.dart  # Add/edit transaction form with math input & operations bar
 ├── widgets/
-│   └── app_dropdown.dart     # AppDropdown<T> and AppDropdownButton<T>
+│   ├── app_dropdown.dart          # AppDropdown<T> and AppDropdownButton<T>
+│   └── math_operations_bar.dart   # Interactive math toolbar (+, −, ×, ÷, C) + live calculation preview pill
 └── utils/
     ├── date_formatter.dart   # Relative date labels (Today/Yesterday)
     ├── exceptions.dart       # AppException hierarchy (Data/Auth/Network/Unauthenticated)
-    └── haptics.dart          # AppHaptics: conditional haptic helpers
+    ├── haptics.dart          # AppHaptics: conditional haptic helpers
+    └── math_evaluator.dart   # Pure Dart arithmetic evaluator supporting operators, precedence & formatting
 ```
 
 ---

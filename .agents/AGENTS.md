@@ -14,8 +14,8 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 - `lib/services/`: Singleton data/auth services (`AuthService`, `DatabaseService`) that are the **only** layer allowed to import `supabase_flutter` or make network calls.
 - `lib/viewmodels/`: ViewModels implementing `ChangeNotifier`. **All business logic lives here.** Consume services; expose state + actions to the UI.
 - `lib/views/`: UI Layer (Screens & Page-specific layouts). May only access ViewModels via `Provider`/`Consumer`. **Must never import `supabase_flutter`, `DatabaseService`, or `AuthService` directly.**
-- `lib/widgets/`: Reusable, pure-UI components (no ViewModel dependencies).
-- `lib/utils/`: Pure helpers — formatting (`DateFormatter`), typed exceptions (`AppException` hierarchy), haptics (`AppHaptics`).
+- `lib/widgets/`: Reusable, pure-UI components (e.g. `AppDropdown`, `MathOperationsBar`).
+- `lib/utils/`: Pure helpers — formatting (`DateFormatter`), math parsing (`MathEvaluator`), typed exceptions (`AppException` hierarchy), haptics (`AppHaptics`).
 
 ---
 
@@ -43,6 +43,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
 - **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With, Who Paid, Split Mode). Saving is disabled until all required fields are valid.
 - **Split Modes**: `AddSplitPage` supports `equally`, `youOweFull`, `partnerOwesFull`, `exactAmounts`, `percentages`, and `shares` via the `SplitMode` enum.
+- **Inline Math Operations**: Amount fields in both `AddTransactionPage` and `AddSplitPage` support math expressions (`+`, `−`, `×`, `÷`) evaluated via `MathEvaluator`. An animated `MathOperationsBar` appears on focus with operator chips (`+`, `−`, `×`, `÷`, `C`) and a live computation preview pill (`= ₹XX`). `TapRegion(groupId: EditableText)` prevents unwanted focus loss during toolbar interactions, and expressions are auto-calculated and formatted upon exiting the field or submitting.
 - **Transactions & Analytics Integration**: Creating a split expense automatically records the user's out-of-pocket share into `transactions` table, instantly updating personal ledger, Home screen feeds, and Analytics category charts.
 
 ---
@@ -141,6 +142,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 5. **Analytics Memoization**: `AnalyticsPage` maintains its own memoized derived state (totals, daily data) to prevent full re-aggregation on chart touch interactions. This is intentional.
 6. **`SplitViewModel` cross-VM calls**: `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Always pass the live `TransactionViewModel` from the build context when calling these.
 7. **`SplitViewModel` current user getters**: Use `SplitViewModel.currentUserId`, `SplitViewModel.currentUserDisplayName`, and `SplitViewModel.currentUserEmail` to get the signed-in user's identity in split-related Views. Do not call `AuthService` or `Supabase` SDK from the View layer.
+8. **Amount Input & Math Operations**: Always route mathematical evaluations through `MathEvaluator.evaluate` and format calculated results with `MathEvaluator.format`. Attach `MathOperationsBar` to amount fields and maintain `_amountFocusNode` listeners to auto-calculate expressions upon field unfocus and before submission.
 
 ---
 

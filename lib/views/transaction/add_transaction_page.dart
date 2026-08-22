@@ -6,7 +6,9 @@ import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../models/transaction.dart';
 import '../../widgets/app_dropdown.dart';
+import '../../widgets/math_operations_bar.dart';
 import '../../utils/date_formatter.dart';
+import '../../utils/math_evaluator.dart';
 
 class AddTransactionPage extends StatefulWidget {
   final TransactionModel? transaction;
@@ -20,6 +22,7 @@ class AddTransactionPage extends StatefulWidget {
 class _AddTransactionPageState extends State<AddTransactionPage> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _amountFocusNode = FocusNode();
 
   String _type = 'expense';
   String _paymentMethod = 'upi';
@@ -30,6 +33,13 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   @override
   void initState() {
     super.initState();
+
+    _amountFocusNode.addListener(() {
+      if (!_amountFocusNode.hasFocus) {
+        _evaluateAmount();
+      }
+      if (mounted) setState(() {});
+    });
 
     if (widget.transaction != null) {
       _amountController.text = widget.transaction!.amount.toString();
@@ -124,7 +134,25 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
     }
   }
 
+  void _evaluateAmount() {
+    final text = _amountController.text.trim();
+    if (text.isEmpty) return;
+    final result = MathEvaluator.evaluate(text);
+    if (result != null && result > 0) {
+      final formatted = MathEvaluator.format(result);
+      if (_amountController.text != formatted) {
+        _amountController.text = formatted;
+        _amountController.selection = TextSelection.fromPosition(
+          TextPosition(offset: formatted.length),
+        );
+        if (mounted) setState(() {});
+      }
+    }
+  }
+
   Future<void> _saveTransaction() async {
+    _evaluateAmount();
+
     if (_amountController.text.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -210,6 +238,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
 
   @override
   void dispose() {
+    _amountFocusNode.dispose();
     _amountController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -331,6 +360,14 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                   _buildSectionTitle('Amount'),
                                   TextField(
                                     controller: _amountController,
+                                    focusNode: _amountFocusNode,
+                                    textInputAction: TextInputAction.done,
+                                    onSubmitted: (_) => _evaluateAmount(),
+                                    onTapOutside: (_) {
+                                      _evaluateAmount();
+                                      FocusScope.of(context).unfocus();
+                                    },
+                                    onChanged: (_) => setState(() {}),
                                     style: const TextStyle(
                                       fontSize: 32,
                                       fontWeight: FontWeight.bold,
@@ -347,15 +384,25 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                                 vertical: 24,
                                               ),
                                         ),
-                                    keyboardType:
-                                        const TextInputType.numberWithOptions(
-                                          decimal: true,
-                                        ),
+                                    keyboardType: TextInputType.text,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.allow(
-                                        RegExp(r'^\d*\.?\d*'),
+                                        RegExp(r'[0-9+\-*/÷×−().\s]'),
                                       ),
                                     ],
+                                  ),
+                                  AnimatedSize(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeInOut,
+                                    child: _amountFocusNode.hasFocus
+                                        ? MathOperationsBar(
+                                            controller: _amountController,
+                                            focusNode: _amountFocusNode,
+                                            onOperationApplied: () {
+                                              if (mounted) setState(() {});
+                                            },
+                                          )
+                                        : const SizedBox.shrink(),
                                   ),
                                   const SizedBox(height: 24),
 

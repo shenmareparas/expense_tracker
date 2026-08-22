@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 import '../../models/profile.dart';
 import '../../utils/date_formatter.dart';
 import '../../utils/haptics.dart';
+import '../../utils/math_evaluator.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../viewmodels/split_viewmodel.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../widgets/app_dropdown.dart';
+import '../../widgets/math_operations_bar.dart';
 
 enum SplitMode {
   equally,
@@ -30,6 +32,7 @@ class AddSplitPage extends StatefulWidget {
 class _AddSplitPageState extends State<AddSplitPage> {
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _amountFocusNode = FocusNode();
 
   String? _category;
   String _paymentMethod = 'upi';
@@ -48,6 +51,14 @@ class _AddSplitPageState extends State<AddSplitPage> {
   @override
   void initState() {
     super.initState();
+
+    _amountFocusNode.addListener(() {
+      if (!_amountFocusNode.hasFocus) {
+        _evaluateAmount();
+      }
+      if (mounted) setState(() {});
+    });
+
     if (widget.initialPartner != null) {
       _selectedPartners.add(widget.initialPartner!);
       _payerPartner = widget.initialPartner;
@@ -75,14 +86,34 @@ class _AddSplitPageState extends State<AddSplitPage> {
     });
   }
 
+  void _evaluateAmount() {
+    final text = _amountController.text.trim();
+    if (text.isEmpty) return;
+    final result = MathEvaluator.evaluate(text);
+    if (result != null && result > 0) {
+      final formatted = MathEvaluator.format(result);
+      if (_amountController.text != formatted) {
+        _amountController.text = formatted;
+        _amountController.selection = TextSelection.fromPosition(
+          TextPosition(offset: formatted.length),
+        );
+        if (mounted) setState(() {});
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _amountFocusNode.dispose();
     _amountController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
-  double get _totalAmount => double.tryParse(_amountController.text) ?? 0.0;
+  double get _totalAmount =>
+      MathEvaluator.evaluate(_amountController.text) ??
+      double.tryParse(_amountController.text) ??
+      0.0;
 
   int get _includedMembersCount {
     int count = _includeMeInSplit ? 1 : 0;
@@ -988,6 +1019,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
   // ── Save Logic ──────────────────────────────────────────────────────────
 
   Future<void> _saveEntry() async {
+    _evaluateAmount();
     if (!_isFormValid) return;
 
     AppHaptics.mediumImpact(context);
@@ -1321,6 +1353,13 @@ class _AddSplitPageState extends State<AddSplitPage> {
                         _buildSectionTitle('Amount'),
                         TextField(
                           controller: _amountController,
+                          focusNode: _amountFocusNode,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _evaluateAmount(),
+                          onTapOutside: (_) {
+                            _evaluateAmount();
+                            FocusScope.of(context).unfocus();
+                          },
                           onChanged: (_) => setState(() {}),
                           style: const TextStyle(
                             fontSize: 32,
@@ -1337,14 +1376,25 @@ class _AddSplitPageState extends State<AddSplitPage> {
                                   vertical: 20,
                                 ),
                               ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
+                          keyboardType: TextInputType.text,
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d*'),
+                              RegExp(r'[0-9+\-*/÷×−().\s]'),
                             ),
                           ],
+                        ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 200),
+                          curve: Curves.easeInOut,
+                          child: _amountFocusNode.hasFocus
+                              ? MathOperationsBar(
+                                  controller: _amountController,
+                                  focusNode: _amountFocusNode,
+                                  onOperationApplied: () {
+                                    if (mounted) setState(() {});
+                                  },
+                                )
+                              : const SizedBox.shrink(),
                         ),
                         const SizedBox(height: 20),
 
