@@ -6,6 +6,7 @@ import '../viewmodels/theme_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/transaction_viewmodel.dart';
 import '../viewmodels/category_viewmodel.dart';
+import '../viewmodels/split_viewmodel.dart';
 import '../views/auth/auth_gate.dart';
 
 /// Root application widget with providers and theme configuration.
@@ -20,6 +21,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionViewModel()),
         ChangeNotifierProvider(create: (_) => CategoryViewModel()),
         ChangeNotifierProvider(create: (_) => ThemeViewModel()),
+        ChangeNotifierProvider(create: (_) => SplitViewModel()),
       ],
       child: Consumer<ThemeViewModel>(
         builder: (context, themeService, _) {

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
+import '../../viewmodels/split_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../views/transaction/add_transaction_page.dart';
 import '../../views/analytics/analytics_page.dart';
 import '../../views/settings/settings_page.dart';
+import '../../views/split/split_page.dart';
+import '../../views/split/add_split_page.dart';
 import 'widgets/transaction_list.dart';
 import 'widgets/filter_bottom_sheet.dart';
 
@@ -22,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _transactionScrollController = ScrollController();
+  final ScrollController _splitScrollController = ScrollController();
   final ScrollController _analyticsScrollController = ScrollController();
   final ScrollController _settingsScrollController = ScrollController();
 
@@ -48,6 +52,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _searchController.dispose();
     _transactionScrollController.dispose();
+    _splitScrollController.dispose();
     _analyticsScrollController.dispose();
     _settingsScrollController.dispose();
     super.dispose();
@@ -60,9 +65,12 @@ class _HomePageState extends State<HomePage> {
         controller = _transactionScrollController;
         break;
       case 1:
-        controller = _analyticsScrollController;
+        controller = _splitScrollController;
         break;
       case 2:
+        controller = _analyticsScrollController;
+        break;
+      case 3:
         controller = _settingsScrollController;
         break;
     }
@@ -92,8 +100,10 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return 'Transactions';
       case 1:
-        return 'Analytics';
+        return 'Split Expenses';
       case 2:
+        return 'Analytics';
+      case 3:
         return 'Settings';
       default:
         return 'Expense Tracker';
@@ -212,6 +222,7 @@ class _HomePageState extends State<HomePage> {
           key: ValueKey(_selectedIndex),
           child: [
             TransactionListView(scrollController: _transactionScrollController),
+            SplitPage(scrollController: _splitScrollController),
             AnalyticsPage(scrollController: _analyticsScrollController),
             SettingsPage(scrollController: _settingsScrollController),
           ][_selectedIndex],
@@ -225,6 +236,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.receipt_long_outlined),
             selectedIcon: Icon(Icons.receipt_long),
             label: 'Transactions',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.call_split_outlined),
+            selectedIcon: Icon(Icons.call_split),
+            label: 'Split',
           ),
           NavigationDestination(
             icon: Icon(Icons.pie_chart_outline),
@@ -265,7 +281,31 @@ class _HomePageState extends State<HomePage> {
                 },
                 child: const Icon(Icons.add),
               )
-            : const SizedBox.shrink(key: ValueKey('empty_fab')),
+            : (_selectedIndex == 1
+                ? FloatingActionButton(
+                    key: const ValueKey('add_split_fab'),
+                    onPressed: () async {
+                      AppHaptics.lightImpact(context);
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddSplitPage(),
+                        ),
+                      );
+                      if (result == true && context.mounted) {
+                        Provider.of<SplitViewModel>(
+                          context,
+                          listen: false,
+                        ).loadSplitExpenses();
+                        Provider.of<TransactionViewModel>(
+                          context,
+                          listen: false,
+                        ).loadTransactions();
+                      }
+                    },
+                    child: const Icon(Icons.group_add),
+                  )
+                : const SizedBox.shrink(key: ValueKey('empty_fab'))),
       ),
     );
   }

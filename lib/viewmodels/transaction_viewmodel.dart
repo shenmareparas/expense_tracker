@@ -39,6 +39,9 @@ class TransactionViewModel extends ChangeNotifier {
   List<String> _filterCategories = [];
   List<String> get filterCategories => _filterCategories;
 
+  String? _filterPaymentMethod;
+  String? get filterPaymentMethod => _filterPaymentMethod;
+
   DateTime? _filterStartDate;
   DateTime? get filterStartDate => _filterStartDate;
 
@@ -54,11 +57,13 @@ class TransactionViewModel extends ChangeNotifier {
   void setFilters({
     String? type,
     List<String>? categories,
+    String? paymentMethod,
     DateTime? startDate,
     DateTime? endDate,
   }) {
     _filterType = type;
     _filterCategories = categories ?? [];
+    _filterPaymentMethod = paymentMethod;
     _filterStartDate = startDate;
     _filterEndDate = endDate;
     _hasAnalyticsSnapshot = false;
@@ -77,6 +82,7 @@ class TransactionViewModel extends ChangeNotifier {
   void clearFilters() {
     _filterType = null;
     _filterCategories = [];
+    _filterPaymentMethod = null;
     _filterStartDate = null;
     _filterEndDate = null;
     _searchQuery = '';
@@ -173,6 +179,7 @@ class TransactionViewModel extends ChangeNotifier {
         offset: 0,
         type: _filterType,
         categories: _filterCategories,
+        paymentMethod: _filterPaymentMethod,
         startDate: _filterStartDate,
         endDate: _filterEndDate,
       );
@@ -204,6 +211,7 @@ class TransactionViewModel extends ChangeNotifier {
         offset: _currentOffset,
         type: _filterType,
         categories: _filterCategories,
+        paymentMethod: _filterPaymentMethod,
         startDate: _filterStartDate,
         endDate: _filterEndDate,
       );
@@ -227,6 +235,7 @@ class TransactionViewModel extends ChangeNotifier {
     required String type,
     required String category,
     String? description,
+    String paymentMethod = 'upi',
     required DateTime transactionDate,
   }) async {
     _isSaving = true;
@@ -239,6 +248,7 @@ class TransactionViewModel extends ChangeNotifier {
         type: type,
         category: category,
         description: description,
+        paymentMethod: paymentMethod,
         transactionDate: transactionDate,
       );
 
@@ -290,6 +300,7 @@ class TransactionViewModel extends ChangeNotifier {
     required String type,
     required String category,
     String? description,
+    String paymentMethod = 'upi',
     required DateTime transactionDate,
   }) async {
     _isSaving = true;
@@ -306,6 +317,7 @@ class TransactionViewModel extends ChangeNotifier {
         type: type,
         category: category,
         description: description,
+        paymentMethod: paymentMethod,
         transactionDate: transactionDate,
       );
       _transactions[index] = updated;
@@ -320,6 +332,7 @@ class TransactionViewModel extends ChangeNotifier {
         type: type,
         category: category,
         description: description,
+        paymentMethod: paymentMethod,
         transactionDate: transactionDate,
       );
       // Optimistic update already applied above — no need for a full reload.

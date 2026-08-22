@@ -8,8 +8,9 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 
 - **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, Password Reset, in-app OTP recovery verification, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
 - **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges.
+- **🤝 Split Expenses**: Seamlessly split bills and debts with other registered app users. Choose who paid ("You Paid" or "They Paid"), track per-person shares, view net balances, and mark debts as pending or settled.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
-- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, and descriptions. Filter transactions by multiple categories (multi-select), transaction type, or date range.
+- **💸 Transaction Ledger**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. Filter transactions by multiple categories (multi-select), payment method (UPI / Cash), transaction type, or date range.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, concurrent request deduplication, and optimistic state updates in ViewModels to minimize network overhead and ensure instant screen transitions.
 - **⚙️ Customizable Settings & Tab Ordering**: Personalize the analytics experience by configuring a default landing tab and reordering analytics tabs to your preference, saved persistently via `SharedPreferences`.
 - **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes, custom Inter typography (packaged locally to avoid network delays), glassmorphism styling, premium animations, conditional haptic feedback (tactile interaction clicks/vibrations), custom monochrome app assets, and tap-to-scroll-to-top gestures.
@@ -53,6 +54,8 @@ lib/
 │   └── supabase_config.dart  # Supabase client and initialization logic
 ├── models/                   # Domain data models (data serialization/deserialization)
 │   ├── category.dart         # CategoryModel defining structure and copyWith / serialization methods
+│   ├── profile.dart          # ProfileModel representing registered app user profiles
+│   ├── split_expense.dart    # SplitExpenseModel tracking split debt shares & status
 │   └── transaction.dart      # TransactionModel defining structure and copyWith / serialization methods
 ├── services/                 # Core business services interfacing with remote APIs/DB
 │   ├── auth_service.dart     # Authentication layer with Supabase Auth & retry policies
@@ -60,6 +63,7 @@ lib/
 ├── viewmodels/               # ViewModels implementing ChangeNotifier for state control
 │   ├── auth_viewmodel.dart   # Auth state (loading, error, session management)
 │   ├── category_viewmodel.dart # Category CRUD & ordering states
+│   ├── split_viewmodel.dart  # Split expense feed, user profiles, and debt status management
 │   ├── theme_viewmodel.dart  # Custom dynamic theme states (theme mode, haptics enablement)
 │   └── transaction_viewmodel.dart # Transaction feed, optimistic updates, filters, and analytics snapshots
 ├── views/                    # UI Layer (Screens & Page-specific layouts)
@@ -67,6 +71,7 @@ lib/
 │   ├── auth/                 # Login, signup, password reset (OTP), update password, and authentication gates
 │   ├── home/                 # Primary feed and navigation skeleton (scroll-to-top)
 │   ├── settings/             # User profile and styling settings
+│   ├── split/                # Split expenses feed & Add/Split form interface
 │   └── transaction/          # Add/edit transactions & filter interfaces
 ├── widgets/                  # Reusable UI components & Design tokens
 └── utils/                    # Helper utilities (formatting, exceptions, haptics, helpers)
@@ -79,10 +84,10 @@ lib/
 
 The `DatabaseService` uses an **in-memory cache** combined with query safeguards to prevent unnecessary PostgREST calls and ensure fluid navigation:
 - **TTL (Time to Live)**: Cache is valid for `30 seconds`.
-- **Compound Cache Key**: The cache uses a composite key generated from active filters (`type`, `categories` list, `startDate`, `endDate`).
+- **Compound Cache Key**: The cache uses a composite key generated from active filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`).
 - **Cache Invalidation**: Any database mutation (insert, update, delete, reordering) invalidates the cache immediately to force a sync.
 - **Request Deduplication**: A concurrency guard prevents concurrent identical network requests.
-- **Optimistic UI**: Transactions are inserted, updated, and deleted locally first, recalculating stats immediately, avoiding blocking spinners.
+- **Optimistic UI**: Transactions and split expense statuses are updated locally first, recalculating stats immediately, avoiding blocking spinners.
 
 ---
 
@@ -107,6 +112,7 @@ ViewModels catch these exceptions and display user-friendly error bars without e
 - `type` (Text) - `'expense'` or `'income'`
 - `category` (Text) - Associated category name
 - `description` (Text, Optional) - Optional memo/note
+- `payment_method` (Text) - `'upi'` or `'cash'` (default `'upi'`)
 - `transaction_date` (Timestamptz) - Date when transaction occurred
 - `created_at` (Timestamptz) - Server-side creation timestamp
 
@@ -116,6 +122,24 @@ ViewModels catch these exceptions and display user-friendly error bars without e
 - `name` (Text) - Display label of the category
 - `type` (Text) - `'expense'` or `'income'`
 - `order_index` (Integer) - Order ranking for reorderable list views
+- `created_at` (Timestamptz) - Server-side creation timestamp
+
+### 3. `split_expenses`
+- `id` (UUID, Primary Key) - Auto-generated
+- `payer_id` (UUID, Foreign Key) - References `profiles(id)`
+- `borrower_id` (UUID, Foreign Key) - References `profiles(id)`
+- `amount` (Numeric) - Per-person debt share
+- `total_amount` (Numeric) - Total bill amount
+- `description` (Text) - Description/memo for the split expense
+- `category` (Text) - Associated category (default `'General'`)
+- `status` (Text) - `'pending'` or `'settled'`
+- `expense_date` (Timestamptz) - Date when the split expense occurred
+- `created_at` (Timestamptz) - Server-side creation timestamp
+
+### 4. `profiles`
+- `id` (UUID, Primary Key) - Maps to Supabase Auth User ID
+- `email` (Text) - User email address
+- `name` (Text, Optional) - User display name
 - `created_at` (Timestamptz) - Server-side creation timestamp
 
 ---

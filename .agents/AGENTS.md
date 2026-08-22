@@ -13,7 +13,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 - `lib/models/`: Domain data models (immutable with `fromJson`, `toJson`, and `copyWith`).
 - `lib/services/`: Core business services interfacing with remote APIs/DB.
 - `lib/viewmodels/`: ViewModels implementing `ChangeNotifier` for state control.
-- `lib/views/`: UI Layer (Screens & Page-specific layouts).
+- `lib/views/`: UI Layer (Screens & Page-specific layouts including Auth, Home, Transaction, Analytics, Split, Settings).
 - `lib/widgets/`: Reusable UI components & Design tokens.
 - `lib/utils/`: Helper utilities (formatting, exception classes, haptic utilities).
 
@@ -22,7 +22,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 ## 💾 Caching & Concurrency Strategy (`DatabaseService`)
 
 - **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`).
-- **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
+- **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
 - **Invalidation**: All mutation operations (add, edit, delete, reorder) must explicitly invalidate the relevant cache to guarantee immediate data updates in the UI.
 - **Request Deduplication**: A concurrency guard using `_ongoingTransactionFetch` (via the `Completer` pattern) prevents concurrent callers from spawning duplicate identical network requests for full transaction loads.
 
@@ -54,6 +54,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 - `type`: Text (`'expense'` or `'income'`)
 - `category`: Text (Associated category name)
 - `description`: Text (Optional)
+- `payment_method`: Text (`'upi'` or `'cash'`, default `'upi'`)
 - `transaction_date`: Timestamptz (Customized date/time when transaction occurred)
 - `created_at`: Timestamptz (Server-side record creation timestamp)
 
@@ -63,6 +64,24 @@ All data columns map strictly between remote database fields and Flutter immutab
 - `name`: Text (Display label of the category)
 - `type`: Text (`'expense'` or `'income'`)
 - `order_index`: Integer (Order ranking for reorderable list views)
+- `created_at`: Timestamptz
+
+### 3. `split_expenses` Table
+- `id`: UUID (Primary Key)
+- `payer_id`: UUID (Foreign Key to `profiles.id`)
+- `borrower_id`: UUID (Foreign Key to `profiles.id`)
+- `amount`: Numeric (Per-person share amount)
+- `total_amount`: Numeric (Total bill amount)
+- `description`: Text
+- `category`: Text (Default `'General'`)
+- `status`: Text (`'pending'` or `'settled'`)
+- `expense_date`: Timestamptz
+- `created_at`: Timestamptz
+
+### 4. `profiles` Table
+- `id`: UUID (Primary Key - maps to Supabase Auth User ID)
+- `email`: Text
+- `name`: Text (Optional display name)
 - `created_at`: Timestamptz
 
 ---
@@ -100,4 +119,3 @@ To release a new version of the app on GitHub:
    bun scripts/recreate_release.js
    ```
    *Note: The script automatically handles deleting the old release, creating the new release, and uploading the newly generated APK. The git tag `v1.0.0` should be recreated/pushed to match the latest release commit before running.*
-

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
+import '../models/profile.dart';
+import '../models/split_expense.dart';
 import '../utils/exceptions.dart';
 
 /// Singleton database service with in-memory caching.
@@ -23,8 +25,8 @@ class DatabaseService {
       );
     }
     if (error is PostgrestException) {
-      return const DataException(
-        'A database error occurred. Please try again.',
+      return DataException(
+        'Database error: ${error.message}',
       );
     }
     if (error is AuthException) {
@@ -77,7 +79,7 @@ class DatabaseService {
   // ── Column selections ───────────────────────────────────────────────
 
   static const _transactionColumns =
-      'id, user_id, amount, type, category, description, transaction_date, created_at';
+      'id, user_id, amount, type, category, description, payment_method, transaction_date, created_at';
 
   static const _categoryColumns =
       'id, user_id, name, type, order_index, created_at';
@@ -89,11 +91,12 @@ class DatabaseService {
   String _buildFilterKey({
     String? type,
     List<String>? categories,
+    String? paymentMethod,
     DateTime? startDate,
     DateTime? endDate,
   }) {
     final categoriesStr = categories != null ? categories.join(',') : '';
-    return '${type ?? ''}_${categoriesStr}_${startDate?.toIso8601String() ?? ''}_${endDate?.toIso8601String() ?? ''}';
+    return '${type ?? ''}_${categoriesStr}_${paymentMethod ?? ''}_${startDate?.toIso8601String() ?? ''}_${endDate?.toIso8601String() ?? ''}';
   }
 
   Future<List<TransactionModel>> getTransactions({
@@ -102,12 +105,14 @@ class DatabaseService {
     int offset = 0,
     String? type,
     List<String>? categories,
+    String? paymentMethod,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final filterKey = _buildFilterKey(
       type: type,
       categories: categories,
+      paymentMethod: paymentMethod,
       startDate: startDate,
       endDate: endDate,
     );
@@ -144,6 +149,9 @@ class DatabaseService {
       }
       if (categories != null && categories.isNotEmpty) {
         query = query.inFilter('category', categories);
+      }
+      if (paymentMethod != null) {
+        query = query.eq('payment_method', paymentMethod);
       }
       if (startDate != null) {
         query = query.gte(
@@ -197,6 +205,7 @@ class DatabaseService {
     required String type,
     required String category,
     String? description,
+    String paymentMethod = 'upi',
     required DateTime transactionDate,
   }) async {
     return _execute(() async {
@@ -213,6 +222,7 @@ class DatabaseService {
             'type': type,
             'category': category,
             'description': description,
+            'payment_method': paymentMethod,
             'transaction_date': transactionDate.toUtc().toIso8601String(),
           })
           .select(_transactionColumns)
@@ -245,6 +255,7 @@ class DatabaseService {
     required String type,
     required String category,
     String? description,
+    String paymentMethod = 'upi',
     required DateTime transactionDate,
   }) async {
     return _execute(() async {
@@ -257,6 +268,7 @@ class DatabaseService {
             'type': type,
             'category': category,
             'description': description,
+            'payment_method': paymentMethod,
             'transaction_date': transactionDate.toUtc().toIso8601String(),
           })
           .eq('id', id)
@@ -413,5 +425,151 @@ class DatabaseService {
   void _invalidateCategoryCache() {
     _cachedCategories = null;
     _categoriesFetchedAt = null;
+  }
+
+  // ── Profiles & Split Expenses ───────────────────────────────────────
+
+  Future<List<ProfileModel>> getProfiles() async {
+    return _execute(() async {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      final response = await _supabase
+          .from('profiles')
+          .select('id, email, name')
+          .order('name', ascending: true);
+
+      final list = (response as List<dynamic>)
+          .map((e) => ProfileModel.fromJson(e as Map<String, dynamic>))
+          .where((p) => p.id != currentUserId) // Exclude current logged in user
+          .toList();
+
+      return list;
+    });
+  }
+
+  Future<List<SplitExpenseModel>> getSplitExpenses() async {
+    return _execute(() async {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw const UnauthenticatedException();
+
+      final response = await _supabase
+          .from('split_expenses')
+          .select()
+          .or('payer_id.eq.$userId,borrower_id.eq.$userId')
+          .order('expense_date', ascending: false);
+
+      final profilesResponse = await _supabase.from('profiles').select();
+      final profilesMap = <String, Map<String, dynamic>>{};
+      for (final p in (profilesResponse as List<dynamic>)) {
+        final pMap = p as Map<String, dynamic>;
+        profilesMap[pMap['id'] as String] = pMap;
+      }
+
+      final splits = (response as List<dynamic>).map((e) {
+        final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
+        final payerId = map['payer_id'] as String?;
+        final borrowerId = map['borrower_id'] as String?;
+        if (payerId != null && profilesMap.containsKey(payerId)) {
+          map['payer_profile'] = profilesMap[payerId];
+        }
+        if (borrowerId != null && profilesMap.containsKey(borrowerId)) {
+          map['borrower_profile'] = profilesMap[borrowerId];
+        }
+        return SplitExpenseModel.fromJson(map);
+      }).toList();
+
+      return splits;
+    });
+  }
+
+  Future<SplitExpenseModel> addSplitExpense({
+    required String borrowerId,
+    required double amount,
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true, // If true, current user paid; if false, borrower paid.
+  }) async {
+    return _execute(() async {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw const UnauthenticatedException();
+
+      final payerId = isPayer ? currentUserId : borrowerId;
+      final actualBorrowerId = isPayer ? borrowerId : currentUserId;
+
+      final response = await _supabase
+          .from('split_expenses')
+          .insert({
+            'payer_id': payerId,
+            'borrower_id': actualBorrowerId,
+            'amount': amount,
+            'total_amount': totalAmount,
+            'description': description,
+            'category': category,
+            'status': 'pending',
+            'expense_date': expenseDate.toUtc().toIso8601String(),
+          })
+          .select()
+          .single();
+
+      return SplitExpenseModel.fromJson(response);
+    });
+  }
+
+  Future<List<SplitExpenseModel>> addMultipleSplitExpenses({
+    required List<String> borrowerIds,
+    required double perPersonAmount,
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true,
+  }) async {
+    return _execute(() async {
+      final currentUserId = _supabase.auth.currentUser?.id;
+      if (currentUserId == null) throw const UnauthenticatedException();
+
+      final rows = <Map<String, dynamic>>[];
+      for (final bId in borrowerIds) {
+        final payerId = isPayer ? currentUserId : bId;
+        final borrowerId = isPayer ? bId : currentUserId;
+        rows.add({
+          'payer_id': payerId,
+          'borrower_id': borrowerId,
+          'amount': perPersonAmount,
+          'total_amount': totalAmount,
+          'description': description,
+          'category': category,
+          'status': 'pending',
+          'expense_date': expenseDate.toUtc().toIso8601String(),
+        });
+      }
+
+      final response = await _supabase
+          .from('split_expenses')
+          .insert(rows)
+          .select();
+
+      final list = (response as List<dynamic>)
+          .map((e) => SplitExpenseModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+      return list;
+    });
+  }
+
+  Future<void> updateSplitExpenseStatus({
+    required String id,
+    required String status,
+  }) async {
+    return _execute(() async {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw const UnauthenticatedException();
+
+      await _supabase
+          .from('split_expenses')
+          .update({'status': status})
+          .eq('id', id);
+    });
   }
 }

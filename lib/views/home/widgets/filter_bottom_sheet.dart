@@ -18,6 +18,7 @@ void showFilterBottomSheet(
     ),
     builder: (context) {
       String? selectedType = viewModel.filterType;
+      String? selectedPaymentMethod = viewModel.filterPaymentMethod;
       List<String> selectedCategories = List.from(viewModel.filterCategories);
       DateTime? selectedStartDate = viewModel.filterStartDate;
       DateTime? selectedEndDate = viewModel.filterEndDate;
@@ -161,6 +162,65 @@ void showFilterBottomSheet(
                       ),
                     ],
                   ),
+                  const SizedBox(height: 20),
+
+                  // Payment Method Filter
+                  Text(
+                    'Payment Method',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _buildTypeChip(
+                        context: context,
+                        label: 'All',
+                        isSelected: selectedPaymentMethod == null,
+                        selectedColor: theme.colorScheme.primary.withValues(
+                          alpha: 0.15,
+                        ),
+                        textColor: theme.colorScheme.primary,
+                        borderColor: theme.colorScheme.primary.withValues(
+                          alpha: 0.5,
+                        ),
+                        onTap: () {
+                          setState(() {
+                            selectedPaymentMethod = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTypeChip(
+                        context: context,
+                        label: 'UPI',
+                        isSelected: selectedPaymentMethod == 'upi',
+                        selectedColor: Colors.blue.withValues(alpha: 0.15),
+                        textColor: Colors.blue.shade700,
+                        borderColor: Colors.blue.withValues(alpha: 0.5),
+                        onTap: () {
+                          setState(() {
+                            selectedPaymentMethod = 'upi';
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _buildTypeChip(
+                        context: context,
+                        label: 'Cash',
+                        isSelected: selectedPaymentMethod == 'cash',
+                        selectedColor: Colors.amber.withValues(alpha: 0.15),
+                        textColor: Colors.amber.shade800,
+                        borderColor: Colors.amber.withValues(alpha: 0.5),
+                        onTap: () {
+                          setState(() {
+                            selectedPaymentMethod = 'cash';
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
 
                   // Category Filter (Always Visible)
@@ -205,7 +265,9 @@ void showFilterBottomSheet(
                           ),
                         ),
                         ...displayCategories.map((category) {
-                          final isSelected = selectedCategories.contains(category);
+                          final isSelected = selectedCategories.contains(
+                            category,
+                          );
                           return Padding(
                             padding: const EdgeInsets.only(right: 8.0),
                             child: ChoiceChip(
@@ -396,6 +458,7 @@ void showFilterBottomSheet(
                             AppHaptics.selectionClick(context);
                             setState(() {
                               selectedType = null;
+                              selectedPaymentMethod = null;
                               selectedCategories.clear();
                               selectedStartDate = null;
                               selectedEndDate = null;
@@ -429,6 +492,7 @@ void showFilterBottomSheet(
                             viewModel.setFilters(
                               type: selectedType,
                               categories: selectedCategories,
+                              paymentMethod: selectedPaymentMethod,
                               startDate: selectedStartDate,
                               endDate: selectedEndDate,
                             );

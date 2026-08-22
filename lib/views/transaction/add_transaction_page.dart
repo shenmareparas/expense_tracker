@@ -22,6 +22,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
   final _descriptionController = TextEditingController();
 
   String _type = 'expense';
+  String _paymentMethod = 'upi';
   String? _category;
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
@@ -34,6 +35,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
       _amountController.text = widget.transaction!.amount.toString();
       _descriptionController.text = widget.transaction!.description ?? '';
       _type = widget.transaction!.type;
+      _paymentMethod = widget.transaction!.paymentMethod;
       _category = widget.transaction!.category;
       _selectedDate = widget.transaction!.transactionDate.toLocal();
       _selectedTime = TimeOfDay.fromDateTime(
@@ -179,6 +181,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               type: _type,
               category: _category!,
               description: _descriptionController.text.trim(),
+              paymentMethod: _paymentMethod,
               transactionDate: transactionDateTime,
             )
           : await viewModel.updateTransaction(
@@ -189,6 +192,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               description: _descriptionController.text.trim().isEmpty
                   ? null
                   : _descriptionController.text.trim(),
+              paymentMethod: _paymentMethod,
               transactionDate: transactionDateTime,
             );
 
@@ -347,6 +351,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                        RegExp(r'^\d*\.?\d*'),
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 24),
 
@@ -385,6 +394,46 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                         });
                                       }
                                     },
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  _buildSectionTitle('Payment Method'),
+                                  SegmentedButton<String>(
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: 'upi',
+                                        label: Text('UPI'),
+                                        icon: Icon(Icons.qr_code_2),
+                                      ),
+                                      ButtonSegment(
+                                        value: 'cash',
+                                        label: Text('Cash'),
+                                        icon: Icon(Icons.payments_outlined),
+                                      ),
+                                    ],
+                                    selected: {_paymentMethod},
+                                    onSelectionChanged: (Set<String> newSelection) {
+                                      AppHaptics.selectionClick(context);
+                                      setState(() {
+                                        _paymentMethod = newSelection.first;
+                                      });
+                                    },
+                                    style: SegmentedButton.styleFrom(
+                                      backgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.surface.withValues(alpha: 0.5),
+                                      selectedBackgroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.primary.withValues(alpha: 0.15),
+                                      selectedForegroundColor: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                      side: BorderSide(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.outline.withValues(alpha: 0.1),
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(height: 24),
 

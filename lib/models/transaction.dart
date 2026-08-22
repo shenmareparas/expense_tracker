@@ -5,6 +5,7 @@ class TransactionModel {
   final String type; // 'income' or 'expense'
   final String category;
   final String? description;
+  final String paymentMethod; // 'upi' or 'cash'
   final DateTime transactionDate;
   final DateTime createdAt;
 
@@ -15,6 +16,7 @@ class TransactionModel {
     required this.type,
     required this.category,
     this.description,
+    this.paymentMethod = 'upi',
     required this.transactionDate,
     required this.createdAt,
   });
@@ -27,6 +29,7 @@ class TransactionModel {
       type: json['type'] as String,
       category: json['category'] as String,
       description: json['description'] as String?,
+      paymentMethod: (json['payment_method'] as String?) ?? 'upi',
       transactionDate: DateTime.parse(json['transaction_date'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -40,6 +43,7 @@ class TransactionModel {
       'type': type,
       'category': category,
       'description': description,
+      'payment_method': paymentMethod,
       'transaction_date': transactionDate.toUtc().toIso8601String(),
       'created_at': createdAt.toUtc().toIso8601String(),
     };
@@ -52,6 +56,7 @@ class TransactionModel {
     String? type,
     String? category,
     String? description,
+    String? paymentMethod,
     DateTime? transactionDate,
     DateTime? createdAt,
   }) {
@@ -62,6 +67,7 @@ class TransactionModel {
       type: type ?? this.type,
       category: category ?? this.category,
       description: description ?? this.description,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       transactionDate: transactionDate ?? this.transactionDate,
       createdAt: createdAt ?? this.createdAt,
     );
