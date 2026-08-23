@@ -366,9 +366,8 @@ class TransactionViewModel extends ChangeNotifier {
         paymentMethod: paymentMethod,
         transactionDate: transactionDate,
       );
-      // Optimistic update already applied above — no need for a full reload.
-      // Invalidate cache so the next filter change or manual refresh is fresh.
-      _databaseService.clearCache();
+      // Optimistic update already applied above. DatabaseService.updateTransaction()
+      // already calls _invalidateTransactionCache() internally — no extra action needed.
       return true;
     } catch (e) {
       if (backup != null) {

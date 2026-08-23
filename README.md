@@ -121,13 +121,20 @@ lib/
 ## 💾 Caching & Sync Strategy
 
 The `DatabaseService` uses an **in-memory cache** combined with query safeguards to prevent unnecessary PostgREST calls and ensure fluid navigation:
-- **TTL (Time to Live)**: Caches remain valid for `30 seconds` across personal transactions, categories, split expenses, and registered profiles.
+- **Differentiated TTLs**: Each data type gets a TTL sized to how often it actually changes:
+  - `transactions` & `split_expenses` — **2 minutes** (mutated frequently)
+  - `profiles` — **10 minutes** (rarely changes)
+  - `categories` — **15 minutes** (almost never changes)
 - **Compound Cache Key**: The transaction cache uses a composite key generated from active filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`).
 - **Cache Invalidation**: Any database mutation (insert, update, delete, reordering, settle up) invalidates the respective cache immediately to force a fresh sync.
 - **Request Deduplication**: Concurrency guards (`Completer` pattern) prevent duplicate identical in-flight network requests for transactions, splits, and profiles.
+- **Profiles Cache Reuse**: `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to enrich split records with display names, eliminating a hidden second round-trip on every split load.
+- **Batch API Calls**: `settleUpWithPartner()` uses `updateSplitExpenseStatusBatch()` (single `inFilter` update) instead of N sequential calls. `updateSplitExpenseGroup()` uses `deleteSplitExpenses()` (single `inFilter` delete) instead of N sequential calls.
 - **Pull-to-Refresh Bypass**: Pulling down to refresh on home, split, or friend detail feeds passes `forceRefresh: true` to bypass the TTL cache and pull fresh data directly from Supabase.
 - **Optimistic UI**: Transactions and split expense statuses are updated locally first, recalculating stats immediately and avoiding blocking spinners.
 - **Sign-Out Purge**: `clearCache()` clears all caches on sign-out to prevent cross-account leakage.
+- **Connectivity Pre-Check**: All write operations call `_executeMutation()` which runs a `ConnectivityChecker.isConnected()` guard before touching the network. If the device is offline, a `NetworkException` is thrown immediately instead of waiting for a ~30 s TCP timeout. The existing `SocketException → NetworkException` mapping in `_mapError` remains as an authoritative fallback for false positives.
+- **SharedPreferences Caching**: `SplitViewModel` caches the `SharedPreferences` instance in a `_prefs` field (resolved once via `_getPrefs()`) rather than calling `getInstance()` on every custom-friend or hidden-friend operation.
 
 ---
 

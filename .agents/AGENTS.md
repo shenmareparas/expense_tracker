@@ -26,7 +26,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 3. **Services → SDK only**: Services encapsulate all PostgREST queries, Auth calls, error mapping, and caching. They return typed domain models or throw typed `AppException` subclasses.
 4. **Models are pure Dart**: No Flutter imports, no service calls, no state. Display-only computed getters (e.g., `displayName`) that derive from model fields are acceptable.
 
-> ✅ **Fully enforced as of 2026-08-23**: `split_viewmodel.dart` previously held a direct `SupabaseClient` reference; it now routes all current-user identity reads through `AuthService.instance`. `add_split_page.dart` previously called `Supabase.instance.client.auth.currentUser` directly in two bottom sheet methods; it now uses `SplitViewModel.currentUserDisplayName` instead. No View or ViewModel imports `supabase_flutter` anymore.
+> ✅ **Fully enforced as of 2026-08-23**: `split_viewmodel.dart` previously held a direct `SupabaseClient` reference; it now routes all current-user identity reads through `AuthService.instance`. `add_split_page.dart` previously called `Supabase.instance.client.auth.currentUser` directly in two bottom sheet methods; it now uses `SplitViewModel.currentUserDisplayName` instead. No View or ViewModel imports `supabase_flutter` anymore. `database_service.dart` previously fired a raw `SELECT *` on the profiles table inside `getSplitExpenses()` and `updateSplitExpense()` on every call; it now reuses the profiles cache via `getProfiles(forceRefresh: false)`. `transaction_viewmodel.dart` previously called `clearCache()` (nuking all caches) inside `updateTransaction()`; it now relies on the service's internal `_invalidateTransactionCache()` only.
 
 ---
 
@@ -70,12 +70,22 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 
 ## 💾 Caching & Concurrency Strategy (`DatabaseService`)
 
-- **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`) across personal transactions, categories, split expenses, and registered profiles.
+- **Differentiated TTL Configuration**: Each cache type uses a TTL sized to how often it changes:
+  - `_transactionCacheTtl = Duration(minutes: 2)` — transactions mutate frequently
+  - `_splitCacheTtl = Duration(minutes: 2)` — splits change with settle-ups
+  - `_profilesCacheTtl = Duration(minutes: 10)` — profiles rarely change
+  - `_categoryCacheTtl = Duration(minutes: 15)` — categories almost never change
 - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
 - **Invalidation**: All mutation operations (add, edit, delete, reorder, settle up) explicitly call `_invalidateTransactionCache()`, `_invalidateCategoryCache()`, or `_invalidateSplitCache()` to guarantee immediate data updates in the UI.
+- **Profiles Cache Reuse**: `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to enrich split records, eliminating the hidden second `SELECT *` round-trip that previously fired on every split load.
+- **Batch API Calls**: Two new methods reduce N sequential round-trips to a single `inFilter` call:
+  - `updateSplitExpenseStatusBatch(ids, status)` — used by `settleUpWithPartner()` to settle all pending splits in one shot.
+  - `deleteSplitExpenses(ids)` — used by `updateSplitExpenseGroup()` to delete old split records in one shot.
 - **Request Deduplication**: Concurrency guards using `_ongoingTransactionFetch`, `_ongoingSplitFetch`, and `_ongoingProfilesFetch` (via the `Completer` pattern) prevent concurrent callers from spawning duplicate identical network requests.
 - **Pull-to-Refresh Force Bypass**: Pulling down to refresh on the home feed, split feed (`SplitPage`), or friend detail page (`UserSplitDetailPage`) passes `forceRefresh: true` to bypass TTL caches and pull fresh data from Supabase.
+- **Connectivity Pre-Check on Writes**: All write operations in `DatabaseService` call `_executeMutation()` instead of `_execute()`. `_executeMutation` first calls `ConnectivityChecker.isConnected()` (via `connectivity_plus`) and throws `NetworkException` immediately if no interface is active. Read operations use `_execute()` directly since the in-memory cache usually satisfies them without hitting the network.
 - **`clearCache()`**: Called on sign-out via `AuthViewModel.signOut()` to clear transactions, categories, split expenses, and profile caches, preventing cross-user data leakage.
+- **SharedPreferences Caching in `SplitViewModel`**: A `_prefs` field is resolved once via `_getPrefs()` (lazy `??=`) and reused across all `SharedPreferences` operations (custom friends, hidden friends), mirroring the pattern already used in `ThemeViewModel`.
 
 ---
 
@@ -164,6 +174,9 @@ All data columns map strictly between remote database fields and Flutter immutab
 6. **`SplitViewModel` cross-VM calls**: `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Always pass the live `TransactionViewModel` from the build context when calling these.
 7. **`SplitViewModel` current user getters**: Use `SplitViewModel.currentUserId`, `SplitViewModel.currentUserDisplayName`, and `SplitViewModel.currentUserEmail` to get the signed-in user's identity in split-related Views. Do not call `AuthService` or `Supabase` SDK from the View layer.
 8. **Amount Input & Math Operations**: Always route mathematical evaluations through `MathEvaluator.evaluate` and format calculated results with `MathEvaluator.format`. Attach `MathOperationsBar` to amount fields and maintain `_amountFocusNode` listeners to auto-calculate expressions upon field unfocus and before submission.
+9. **Batch DB Operations**: When settling up or editing a split group, always use `DatabaseService.updateSplitExpenseStatusBatch()` and `DatabaseService.deleteSplitExpenses()` respectively. Never loop over individual `updateSplitExpenseStatus()` or `deleteSplitExpense()` calls for bulk operations.
+10. **SharedPreferences**: Always cache the `SharedPreferences` instance in a private field (e.g. `_prefs`) resolved lazily via `??=`. Never call `SharedPreferences.getInstance()` on every method invocation — see `ThemeViewModel` and `SplitViewModel` as reference implementations.
+11. **Write operations**: Always use `_executeMutation()` in `DatabaseService` for any method that modifies data (INSERT, UPDATE, DELETE). Reserve `_execute()` for read-only operations. This ensures offline users get an immediate `NetworkException` instead of a TCP timeout.
 
 ---
 

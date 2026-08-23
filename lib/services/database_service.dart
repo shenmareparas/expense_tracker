@@ -6,12 +6,16 @@ import '../models/transaction.dart';
 import '../models/category.dart';
 import '../models/profile.dart';
 import '../models/split_expense.dart';
+import '../utils/connectivity_checker.dart';
 import '../utils/exceptions.dart';
 
 /// Singleton database service with in-memory caching.
 ///
-/// Caches fetched data for [_cacheTtl] to avoid redundant Supabase
-/// round-trips on tab switches and widget rebuilds.
+/// All **read** methods use a differentiated TTL cache to avoid redundant
+/// Supabase round-trips on tab switches and widget rebuilds.
+/// All **write** methods use [_executeMutation], which performs a pre-flight
+/// connectivity check so a [NetworkException] is surfaced immediately when
+/// the device is offline instead of waiting for a TCP timeout (~30 s).
 class DatabaseService {
   DatabaseService._();
   static final DatabaseService instance = DatabaseService._();
@@ -36,6 +40,7 @@ class DatabaseService {
     return const DataException('Something went wrong. Please try again.');
   }
 
+  /// Executes [action] and maps any thrown exception to a typed [AppException].
   Future<T> _execute<T>(Future<T> Function() action) async {
     try {
       return await action();
@@ -44,9 +49,32 @@ class DatabaseService {
     }
   }
 
+  /// Like [_execute] but performs a pre-flight connectivity check first.
+  ///
+  /// Used for all write operations so a [NetworkException] is thrown
+  /// immediately when the device is offline, without waiting for a TCP timeout.
+  Future<T> _executeMutation<T>(Future<T> Function() action) async {
+    if (!await ConnectivityChecker.isConnected()) {
+      throw const NetworkException(
+        'No internet connection. Please check your connection and try again.',
+      );
+    }
+    return _execute(action);
+  }
+
   // ── Cache Configuration ──────────────────────────────────────────────
 
-  static const _cacheTtl = Duration(seconds: 30);
+  /// Transactions and split expenses change frequently; use a short TTL.
+  static const _transactionCacheTtl = Duration(minutes: 2);
+
+  /// Categories rarely change; a longer TTL avoids redundant fetches.
+  static const _categoryCacheTtl = Duration(minutes: 15);
+
+  /// Profiles almost never change; a long TTL is safe.
+  static const _profilesCacheTtl = Duration(minutes: 10);
+
+  /// Split expenses can change via settle-up; keep TTL moderate.
+  static const _splitCacheTtl = Duration(minutes: 2);
 
   List<TransactionModel>? _cachedTransactions;
   DateTime? _transactionsFetchedAt;
@@ -67,112 +95,83 @@ class DatabaseService {
   DateTime? _profilesFetchedAt;
   Completer<List<ProfileModel>>? _ongoingProfilesFetch;
 
-  bool _isCacheValid(DateTime? fetchedAt) {
+  bool _isCacheValid(DateTime? fetchedAt, Duration ttl) {
     if (fetchedAt == null) return false;
-    return DateTime.now().difference(fetchedAt) < _cacheTtl;
+    return DateTime.now().difference(fetchedAt) < ttl;
   }
 
-  /// Invalidate split cache on mutation
   void _invalidateSplitCache() {
     _cachedSplitExpenses = null;
     _splitExpensesFetchedAt = null;
-    _ongoingSplitFetch = null;
   }
 
-  /// Invalidate profile cache on mutation or manual refresh
-  void invalidateProfileCache() {
-    _cachedProfiles = null;
-    _profilesFetchedAt = null;
-    _ongoingProfilesFetch = null;
-  }
+  // ── Transactions ─────────────────────────────────────────────────────
 
-  /// Clears all cached data. Useful on sign-out.
+  static const _transactionColumns =
+      'id, user_id, amount, type, category, description, payment_method, transaction_date, created_at';
+
+  /// Clears all in-memory caches. Call on sign-out to prevent cross-user leakage.
   void clearCache() {
     _cachedTransactions = null;
     _transactionsFetchedAt = null;
     _cachedFilterKey = null;
     _cachedCategories = null;
     _categoriesFetchedAt = null;
-    _ongoingTransactionFetch = null; // cancel any in-flight deduplication
     _cachedSplitExpenses = null;
     _splitExpensesFetchedAt = null;
-    _ongoingSplitFetch = null;
     _cachedProfiles = null;
     _profilesFetchedAt = null;
-    _ongoingProfilesFetch = null;
-  }
-
-  // ── Column selections ───────────────────────────────────────────────
-
-  static const _transactionColumns =
-      'id, user_id, amount, type, category, description, payment_method, transaction_date, created_at';
-
-  static const _categoryColumns =
-      'id, user_id, name, type, order_index, created_at';
-
-  // ── Transactions ─────────────────────────────────────────────────────
-
-  /// Builds a cache key from filter parameters so we invalidate on
-  /// filter changes.
-  String _buildFilterKey({
-    String? type,
-    List<String>? categories,
-    String? paymentMethod,
-    DateTime? startDate,
-    DateTime? endDate,
-  }) {
-    final categoriesStr = categories != null ? categories.join(',') : '';
-    return '${type ?? ''}_${categoriesStr}_${paymentMethod ?? ''}_${startDate?.toIso8601String() ?? ''}_${endDate?.toIso8601String() ?? ''}';
   }
 
   Future<List<TransactionModel>> getTransactions({
     bool forceRefresh = false,
-    int? limit,
-    int offset = 0,
     String? type,
     List<String>? categories,
     String? paymentMethod,
     DateTime? startDate,
     DateTime? endDate,
+    int? limit,
+    int? offset,
   }) async {
-    final filterKey = _buildFilterKey(
-      type: type,
-      categories: categories,
-      paymentMethod: paymentMethod,
-      startDate: startDate,
-      endDate: endDate,
-    );
+    final filterKey = [
+      type ?? '',
+      (categories ?? []).join(','),
+      paymentMethod ?? '',
+      startDate?.toIso8601String() ?? '',
+      endDate?.toIso8601String() ?? '',
+    ].join('|');
 
     final canUseCache =
         !forceRefresh &&
         _cachedTransactions != null &&
-        _isCacheValid(_transactionsFetchedAt) &&
+        _isCacheValid(_transactionsFetchedAt, _transactionCacheTtl) &&
         _cachedFilterKey == filterKey;
 
     if (canUseCache) {
-      if (limit == null) return List.unmodifiable(_cachedTransactions!);
-      return _cachedTransactions!.skip(offset).take(limit).toList();
+      return List.unmodifiable(_cachedTransactions!);
     }
 
-    // ── Concurrency guard ────────────────────────────────────────────────
-    // If a full (non-paginated) fetch is already in progress, attach to it
-    // instead of firing a second identical request.
-    if (limit == null && _ongoingTransactionFetch != null) {
+    Completer<List<TransactionModel>>? completer;
+
+    if (_ongoingTransactionFetch != null && !forceRefresh) {
       return _ongoingTransactionFetch!.future;
     }
 
-    final completer = limit == null
-        ? Completer<List<TransactionModel>>()
-        : null;
-    if (completer != null) _ongoingTransactionFetch = completer;
+    if (!forceRefresh) {
+      completer = Completer<List<TransactionModel>>();
+      _ongoingTransactionFetch = completer;
+    }
 
     try {
-      var query = _supabase.from('transactions').select(_transactionColumns);
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw const UnauthenticatedException();
 
-      // Server-side filtering
-      if (type != null) {
-        query = query.eq('type', type);
-      }
+      var query = _supabase
+          .from('transactions')
+          .select(_transactionColumns)
+          .eq('user_id', userId);
+
+      if (type != null) query = query.eq('type', type);
       if (categories != null && categories.isNotEmpty) {
         query = query.inFilter('category', categories);
       }
@@ -186,18 +185,15 @@ class DatabaseService {
         );
       }
       if (endDate != null) {
-        // Include the entire end date day
-        final endOfDay = endDate.add(const Duration(days: 1));
-        query = query.lt(
+        query = query.lte(
           'transaction_date',
-          endOfDay.toUtc().toIso8601String(),
+          endDate.toUtc().toIso8601String(),
         );
       }
 
       var orderedQuery = query.order('transaction_date', ascending: false);
-      if (limit != null) {
-        orderedQuery = orderedQuery.range(offset, offset + limit - 1);
-      }
+      if (limit != null) orderedQuery = orderedQuery.limit(limit);
+      if (offset != null) orderedQuery = orderedQuery.range(offset, offset + (limit ?? 50) - 1);
 
       final response = await orderedQuery;
 
@@ -205,8 +201,7 @@ class DatabaseService {
           .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      if (limit == null) {
-        // Cache full filtered dataset only.
+      if (!forceRefresh) {
         _cachedTransactions = transactions;
         _transactionsFetchedAt = DateTime.now();
         _cachedFilterKey = filterKey;
@@ -234,11 +229,9 @@ class DatabaseService {
     String paymentMethod = 'upi',
     required DateTime transactionDate,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final user = _supabase.auth.currentUser;
-      if (user == null) {
-        throw const UnauthenticatedException();
-      }
+      if (user == null) throw const UnauthenticatedException();
 
       final response = await _supabase
           .from('transactions')
@@ -260,17 +253,14 @@ class DatabaseService {
   }
 
   Future<void> deleteTransaction(String id) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw const UnauthenticatedException();
       await _supabase
           .from('transactions')
           .delete()
           .eq('id', id)
-          .eq(
-            'user_id',
-            userId,
-          ); // defense-in-depth: ensures user owns this row
+          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
       _invalidateTransactionCache();
     });
   }
@@ -284,7 +274,7 @@ class DatabaseService {
     String paymentMethod = 'upi',
     required DateTime transactionDate,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw const UnauthenticatedException();
       await _supabase
@@ -298,10 +288,7 @@ class DatabaseService {
             'transaction_date': transactionDate.toUtc().toIso8601String(),
           })
           .eq('id', id)
-          .eq(
-            'user_id',
-            userId,
-          ); // defense-in-depth: ensures user owns this row
+          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
 
       _invalidateTransactionCache();
     });
@@ -315,11 +302,13 @@ class DatabaseService {
 
   // ── Categories ───────────────────────────────────────────────────────
 
+  static const _categoryColumns = 'id, user_id, name, type, order_index, created_at';
+
   Future<List<CategoryModel>> getCategories({bool forceRefresh = false}) async {
     return _execute(() async {
       if (!forceRefresh &&
           _cachedCategories != null &&
-          _isCacheValid(_categoriesFetchedAt)) {
+          _isCacheValid(_categoriesFetchedAt, _categoryCacheTtl)) {
         return List.unmodifiable(_cachedCategories!);
       }
 
@@ -342,11 +331,9 @@ class DatabaseService {
     required String type,
     int orderIndex = 0,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final user = _supabase.auth.currentUser;
-      if (user == null) {
-        throw const UnauthenticatedException();
-      }
+      if (user == null) throw const UnauthenticatedException();
 
       await _supabase.from('categories').insert({
         'user_id': user.id,
@@ -361,11 +348,9 @@ class DatabaseService {
 
   /// Batch-inserts multiple categories in a single round-trip.
   Future<void> addCategories(List<Map<String, dynamic>> categories) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final user = _supabase.auth.currentUser;
-      if (user == null) {
-        throw const UnauthenticatedException();
-      }
+      if (user == null) throw const UnauthenticatedException();
 
       final rows = categories
           .map((cat) => {'user_id': user.id, ...cat})
@@ -383,7 +368,7 @@ class DatabaseService {
     int? orderIndex,
     String? oldName,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw const UnauthenticatedException();
       final Map<String, dynamic> data = {'name': name, 'type': type};
@@ -394,10 +379,7 @@ class DatabaseService {
           .from('categories')
           .update(data)
           .eq('id', id)
-          .eq(
-            'user_id',
-            userId,
-          ); // defense-in-depth: ensures user owns this row
+          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
 
       if (oldName != null && oldName != name) {
         await _supabase
@@ -415,17 +397,14 @@ class DatabaseService {
   }
 
   /// Batch-updates [order_index] for the given categories in a single upsert.
-  /// Only sends the minimum required fields ({id, order_index}) to avoid
+  /// Sends only {id, order_index} — the minimum required fields — to avoid
   /// accidentally overwriting other columns.
   Future<void> reorderCategories(List<CategoryModel> categories) async {
-    return _execute(() async {
-      final updates = <Map<String, dynamic>>[];
-      for (int i = 0; i < categories.length; i++) {
-        final json = categories[i].toJson();
-        json['order_index'] = i;
-        json.remove('created_at'); // Do not touch creation timestamp
-        updates.add(json);
-      }
+    return _executeMutation(() async {
+      final updates = <Map<String, dynamic>>[
+        for (int i = 0; i < categories.length; i++)
+          {'id': categories[i].id, 'order_index': i},
+      ];
 
       await _supabase.from('categories').upsert(updates, onConflict: 'id');
       _invalidateCategoryCache();
@@ -433,17 +412,14 @@ class DatabaseService {
   }
 
   Future<void> deleteCategory(String id) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw const UnauthenticatedException();
       await _supabase
           .from('categories')
           .delete()
           .eq('id', id)
-          .eq(
-            'user_id',
-            userId,
-          ); // defense-in-depth: ensures user owns this row
+          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
       _invalidateCategoryCache();
     });
   }
@@ -459,7 +435,7 @@ class DatabaseService {
     final canUseCache =
         !forceRefresh &&
         _cachedProfiles != null &&
-        _isCacheValid(_profilesFetchedAt);
+        _isCacheValid(_profilesFetchedAt, _profilesCacheTtl);
 
     if (canUseCache) {
       return List.unmodifiable(_cachedProfiles!);
@@ -506,7 +482,7 @@ class DatabaseService {
     final canUseCache =
         !forceRefresh &&
         _cachedSplitExpenses != null &&
-        _isCacheValid(_splitExpensesFetchedAt);
+        _isCacheValid(_splitExpensesFetchedAt, _splitCacheTtl);
 
     if (canUseCache) {
       return List.unmodifiable(_cachedSplitExpenses!);
@@ -530,12 +506,12 @@ class DatabaseService {
             .or('payer_id.eq.$userId,borrower_id.eq.$userId')
             .order('expense_date', ascending: false);
 
-        final profilesResponse = await _supabase.from('profiles').select();
-        final profilesMap = <String, Map<String, dynamic>>{};
-        for (final p in (profilesResponse as List<dynamic>)) {
-          final pMap = p as Map<String, dynamic>;
-          profilesMap[pMap['id'] as String] = pMap;
-        }
+        // Reuse the cached profiles list to avoid a redundant round-trip.
+        // getProfiles() will return the in-memory cache if still valid.
+        final profileList = await getProfiles(forceRefresh: false);
+        final profilesMap = {
+          for (final p in profileList) p.id: p.toJson(),
+        };
 
         final result = (response as List<dynamic>).map((e) {
           final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
@@ -574,7 +550,7 @@ class DatabaseService {
     required DateTime expenseDate,
     bool isPayer = true, // If true, current user paid; if false, borrower paid.
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
@@ -611,13 +587,11 @@ class DatabaseService {
     bool isPayer = true,
     String? payerId,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
-      final actualPayerId = isPayer
-          ? currentUserId
-          : (payerId ?? currentUserId);
+      final actualPayerId = isPayer ? currentUserId : (payerId ?? currentUserId);
 
       final rows = <Map<String, dynamic>>[];
       for (final bId in borrowerIds) {
@@ -659,13 +633,11 @@ class DatabaseService {
     bool isPayer = true,
     String? payerId,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
-      final actualPayerId = isPayer
-          ? currentUserId
-          : (payerId ?? currentUserId);
+      final actualPayerId = isPayer ? currentUserId : (payerId ?? currentUserId);
 
       final rows = <Map<String, dynamic>>[];
       for (final split in borrowerSplits) {
@@ -711,7 +683,7 @@ class DatabaseService {
     bool isPayer = true,
     String? payerId,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
@@ -736,12 +708,11 @@ class DatabaseService {
           .select()
           .single();
 
-      final profilesResponse = await _supabase.from('profiles').select();
-      final profilesMap = <String, Map<String, dynamic>>{};
-      for (final p in (profilesResponse as List<dynamic>)) {
-        final pMap = p as Map<String, dynamic>;
-        profilesMap[pMap['id'] as String] = pMap;
-      }
+      // Reuse the cached profiles list to avoid a redundant round-trip.
+      final profileList = await getProfiles(forceRefresh: false);
+      final profilesMap = {
+        for (final p in profileList) p.id: p.toJson(),
+      };
 
       final map = Map<String, dynamic>.from(response);
       final pId = map['payer_id'] as String?;
@@ -762,7 +733,7 @@ class DatabaseService {
     required String id,
     required String status,
   }) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw const UnauthenticatedException();
 
@@ -777,7 +748,7 @@ class DatabaseService {
   }
 
   Future<void> deleteSplitExpense(String id) async {
-    return _execute(() async {
+    return _executeMutation(() async {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw const UnauthenticatedException();
 
@@ -797,5 +768,43 @@ class DatabaseService {
       _invalidateSplitCache();
     });
   }
-}
 
+  /// Batch-deletes multiple split expenses in a single round-trip.
+  /// Used when editing a split group to replace old records atomically.
+  Future<void> deleteSplitExpenses(List<String> ids) async {
+    if (ids.isEmpty) return;
+    return _executeMutation(() async {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw const UnauthenticatedException();
+
+      await _supabase
+          .from('split_expenses')
+          .delete()
+          .inFilter('id', ids)
+          .or('payer_id.eq.$userId,borrower_id.eq.$userId');
+
+      _invalidateSplitCache();
+    });
+  }
+
+  /// Batch-updates the status of multiple split expenses in a single round-trip.
+  /// Used by settle-up flows to avoid N sequential API calls.
+  Future<void> updateSplitExpenseStatusBatch({
+    required List<String> ids,
+    required String status,
+  }) async {
+    if (ids.isEmpty) return;
+    return _executeMutation(() async {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw const UnauthenticatedException();
+
+      await _supabase
+          .from('split_expenses')
+          .update({'status': status})
+          .inFilter('id', ids)
+          .or('payer_id.eq.$userId,borrower_id.eq.$userId');
+
+      _invalidateSplitCache();
+    });
+  }
+}

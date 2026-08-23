@@ -15,6 +15,14 @@ class SplitViewModel extends ChangeNotifier {
   final DatabaseService _databaseService = DatabaseService.instance;
   final AuthService _authService = AuthService.instance;
 
+  /// Cached SharedPreferences instance — avoids repeated `getInstance()` calls.
+  SharedPreferences? _prefs;
+
+  Future<SharedPreferences> _getPrefs() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+
   List<ProfileModel> _remoteProfiles = [];
   List<ProfileModel> _customProfiles = [];
 
@@ -118,7 +126,8 @@ class SplitViewModel extends ChangeNotifier {
   }
 
   String _generateLocalUuid() {
-    final random = Random();
+    // Use Random.secure() to ensure cryptographically random UUIDs.
+    final random = Random.secure();
     String hex(int length) => List.generate(
       length,
       (_) => random.nextInt(16).toRadixString(16),
@@ -145,7 +154,7 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       final encodedList = _customProfiles.map((p) => jsonEncode(p.toJson())).toList();
       await prefs.setStringList('custom_friend_profiles', encodedList);
     } catch (_) {}
@@ -158,7 +167,7 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       final encodedList = _customProfiles.map((p) => jsonEncode(p.toJson())).toList();
       await prefs.setStringList('custom_friend_profiles', encodedList);
     } catch (_) {}
@@ -321,12 +330,8 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      for (final oldId in oldSplitIds) {
-        try {
-          await _databaseService.deleteSplitExpense(oldId);
-        } catch (_) {}
-      }
-
+      // Batch-delete all old splits in a single round-trip instead of N sequential calls.
+      await _databaseService.deleteSplitExpenses(oldSplitIds);
       _splitExpenses.removeWhere((s) => oldSplitIds.contains(s.id));
 
       final newSplits = await _databaseService.addCustomMultipleSplitExpenses(
@@ -631,12 +636,11 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      for (final s in pendingSplits) {
-        await _databaseService.updateSplitExpenseStatus(
-          id: s.id,
-          status: 'settled',
-        );
-      }
+      // Batch-update all pending splits in a single round-trip instead of N sequential calls.
+      await _databaseService.updateSplitExpenseStatusBatch(
+        ids: pendingSplits.map((s) => s.id).toList(),
+        status: 'settled',
+      );
 
       // Record a single consolidated personal settlement transaction
       if (netBalance != 0) {
@@ -676,7 +680,7 @@ class SplitViewModel extends ChangeNotifier {
 
   Future<void> loadHiddenFriends() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       final list = prefs.getStringList('hidden_friend_ids') ?? [];
       _hiddenFriendIds = list.toSet();
       notifyListeners();
@@ -692,7 +696,7 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setStringList('hidden_friend_ids', _hiddenFriendIds.toList());
     } catch (_) {}
   }

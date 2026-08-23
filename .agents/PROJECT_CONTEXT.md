@@ -123,8 +123,10 @@ lib/
 | Backend Database | Supabase (PostgREST API via `supabase_flutter`) |
 | Authentication | Supabase Auth (stream-based session detection in `AuthViewModel`) |
 | State Management | `Provider` package (`ChangeNotifier` + `Consumer<T>`) |
-| Local Persistence | `SharedPreferences` (settings, analytics tab order, hidden friend IDs) |
-| In-Memory Caching | 30-second TTL cache in `DatabaseService` (transactions, categories, split expenses, profiles) |
+| Local Persistence | `SharedPreferences` (settings, analytics tab order, hidden friend IDs, custom friend profiles) |
+| In-Memory Caching | Differentiated TTL cache in `DatabaseService`: transactions & splits 2min, profiles 10min, categories 15min |
+| Batch API | `updateSplitExpenseStatusBatch` and `deleteSplitExpenses` replace N sequential calls with a single `inFilter` query |
+| Connectivity Guard | `connectivity_plus` + `ConnectivityChecker` — pre-flight check in `_executeMutation()` for all write ops |
 | Concurrency Guard | `Completer`-based deduplication for concurrent transaction, split, and profile fetches |
 | Font Loading | Local Inter font in `google_fonts/` (runtime fetching disabled) |
 | Charts | `fl_chart` package (pie charts + bar charts in `AnalyticsPage`) |
@@ -139,3 +141,8 @@ lib/
 3. **Analytics snapshot pattern** — `TransactionViewModel.loadAnalyticsSnapshot()` loads a separate, date-filtered transaction list without clobbering the main transaction feed.
 4. **`SplitViewModel` cross-VM delegation** — `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Fallback to `DatabaseService` directly if ViewModel is unavailable.
 5. **Defense-in-depth security** — all DB mutations include `.eq('user_id', userId)` guards even though Supabase RLS handles server-side enforcement.
+6. **Differentiated TTL caching** — `transactions` and `split_expenses` use a 2-minute TTL, `profiles` 10 minutes, and `categories` 15 minutes. Each type's TTL is sized to how frequently it changes, reducing unnecessary Supabase round-trips on the free tier.
+7. **Profiles cache reuse** — `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to build profile display maps, eliminating a hidden second `SELECT *` that previously fired on every split load.
+8. **Batch split operations** — `updateSplitExpenseStatusBatch(ids, status)` and `deleteSplitExpenses(ids)` replace N sequential awaited calls with a single `inFilter` PostgREST call, critical for settle-up and group-edit flows.
+9. **SharedPreferences singleton** — `SplitViewModel` caches the `SharedPreferences` instance in `_prefs` (lazy `??=` via `_getPrefs()`), avoiding repeated `getInstance()` overhead on every custom-friend or hidden-friend write.
+10. **Connectivity pre-check on mutations** — `DatabaseService._executeMutation()` wraps `_execute()` with a `ConnectivityChecker.isConnected()` call before any INSERT/UPDATE/DELETE. If offline, `NetworkException` is thrown immediately. Read methods stay on `_execute()` since the TTL cache usually satisfies them without touching the network.
