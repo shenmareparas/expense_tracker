@@ -471,6 +471,25 @@ class SplitViewModel extends ChangeNotifier {
             transactionDate: DateTime.now(),
           );
         }
+      } else if (newStatus == 'pending' && transactionVM != null) {
+        // If split is reverted back to pending, look for and clean up any single settlement transaction
+        final isPayer = split.payerId == uid;
+        final partnerName = isPayer ? split.displayBorrower : split.displayPayer;
+        final descToMatch = isPayer
+            ? 'settlement from $partnerName for ${split.description}'.toLowerCase()
+            : 'settlement to $partnerName for ${split.description}'.toLowerCase();
+
+        final matchingTx = transactionVM.transactions.cast<TransactionModel?>().firstWhere(
+          (t) =>
+              t != null &&
+              (t.description?.toLowerCase() == descToMatch) &&
+              (t.amount - split.amount).abs() < 0.05,
+          orElse: () => null,
+        );
+
+        if (matchingTx != null) {
+          await transactionVM.deleteTransaction(matchingTx.id);
+        }
       }
     } catch (e) {
       _splitExpenses[index] = backup;
@@ -598,6 +617,12 @@ class SplitViewModel extends ChangeNotifier {
     }
   }
 
+  /// Tracks the most recent settlement batch per partner so we can undo specifically those expenses.
+  final Map<String, _LastSettlementRecord> _lastSettlementByPartner = {};
+
+  bool canUndoSettleUp(String partnerId) =>
+      _lastSettlementByPartner.containsKey(partnerId);
+
   Future<void> settleUpWithPartner(
     String partnerId, {
     String? partnerName,
@@ -613,6 +638,8 @@ class SplitViewModel extends ChangeNotifier {
     }).toList();
 
     if (pendingSplits.isEmpty) return;
+
+    final pendingSplitIds = pendingSplits.map((s) => s.id).toList();
 
     // Calculate net balance
     double sumOwedToUser = 0.0;
@@ -638,10 +665,11 @@ class SplitViewModel extends ChangeNotifier {
     try {
       // Batch-update all pending splits in a single round-trip instead of N sequential calls.
       await _databaseService.updateSplitExpenseStatusBatch(
-        ids: pendingSplits.map((s) => s.id).toList(),
+        ids: pendingSplitIds,
         status: 'settled',
       );
 
+      String? createdTxId;
       // Record a single consolidated personal settlement transaction
       if (netBalance != 0) {
         final isIncome = netBalance > 0;
@@ -651,26 +679,70 @@ class SplitViewModel extends ChangeNotifier {
             ? 'Settlement from $name'
             : 'Settlement to $name';
 
+        final newTx = await _databaseService.addTransaction(
+          amount: amount,
+          type: isIncome ? 'income' : 'expense',
+          category: 'Other',
+          description: description,
+          paymentMethod: 'upi',
+          transactionDate: DateTime.now(),
+        );
+        createdTxId = newTx.id;
+
         if (transactionVM != null) {
-          await transactionVM.addTransaction(
-            amount: amount,
-            type: isIncome ? 'income' : 'expense',
-            category: 'Other',
-            description: description,
-            paymentMethod: 'upi',
-            transactionDate: DateTime.now(),
-          );
-        } else {
-          await _databaseService.addTransaction(
-            amount: amount,
-            type: isIncome ? 'income' : 'expense',
-            category: 'Other',
-            description: description,
-            paymentMethod: 'upi',
-            transactionDate: DateTime.now(),
-          );
+          transactionVM.loadTransactions();
         }
       }
+
+      // Store record to allow targeted undo of only these settled expenses
+      _lastSettlementByPartner[partnerId] = _LastSettlementRecord(
+        partnerId: partnerId,
+        settledSplitIds: pendingSplitIds,
+        createdTransactionId: createdTxId,
+        timestamp: DateTime.now(),
+      );
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = _mapError(e);
+      await loadSplitExpenses();
+      notifyListeners();
+    }
+  }
+
+  Future<void> undoLastSettleUp(
+    String partnerId, {
+    TransactionViewModel? transactionVM,
+  }) async {
+    final record = _lastSettlementByPartner[partnerId];
+    if (record == null || record.settledSplitIds.isEmpty) return;
+
+    final targetIds = record.settledSplitIds.toSet();
+
+    // Optimistically revert only the split expenses from this specific settlement
+    for (var i = 0; i < _splitExpenses.length; i++) {
+      if (targetIds.contains(_splitExpenses[i].id)) {
+        _splitExpenses[i] = _splitExpenses[i].copyWith(status: 'pending');
+      }
+    }
+    notifyListeners();
+
+    try {
+      await _databaseService.updateSplitExpenseStatusBatch(
+        ids: record.settledSplitIds,
+        status: 'pending',
+      );
+
+      // Clean up the created personal settlement transaction
+      if (record.createdTransactionId != null) {
+        if (transactionVM != null) {
+          await transactionVM.deleteTransaction(record.createdTransactionId!);
+        } else {
+          await _databaseService.deleteTransaction(record.createdTransactionId!);
+        }
+      }
+
+      _lastSettlementByPartner.remove(partnerId);
+      notifyListeners();
     } catch (e) {
       _errorMessage = _mapError(e);
       await loadSplitExpenses();
@@ -708,3 +780,19 @@ class SplitViewModel extends ChangeNotifier {
     return 'Error: $error';
   }
 }
+
+/// Internal helper model to track the most recent settlement for a partner to enable targeted undo.
+class _LastSettlementRecord {
+  final String partnerId;
+  final List<String> settledSplitIds;
+  final String? createdTransactionId;
+  final DateTime timestamp;
+
+  _LastSettlementRecord({
+    required this.partnerId,
+    required this.settledSplitIds,
+    this.createdTransactionId,
+    required this.timestamp,
+  });
+}
+

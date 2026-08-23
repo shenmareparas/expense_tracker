@@ -243,13 +243,13 @@ class UserSplitDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
 
-                        // Action Buttons Row (Settle Up & Add Expense)
+                        // Action Buttons Row (Settle Up / Undo Settle Up & Add Expense)
                         Row(
                           children: [
                             Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: (!isSettledUp)
-                                    ? () async {
+                              child: splitVM.canUndoSettleUp(partner.id)
+                                  ? OutlinedButton.icon(
+                                      onPressed: () async {
                                         AppHaptics.mediumImpact(context);
                                         final txVM =
                                             Provider.of<TransactionViewModel>(
@@ -262,26 +262,25 @@ class UserSplitDetailPage extends StatelessWidget {
                                             icon: Container(
                                               padding: const EdgeInsets.all(16),
                                               decoration: BoxDecoration(
-                                                color: theme.colorScheme.primary
+                                                color: Colors.orange
                                                     .withValues(alpha: 0.1),
                                                 shape: BoxShape.circle,
                                               ),
-                                              child: Icon(
-                                                Icons.payments_rounded,
-                                                color:
-                                                    theme.colorScheme.primary,
+                                              child: const Icon(
+                                                Icons.undo_rounded,
+                                                color: Colors.orange,
                                                 size: 32,
                                               ),
                                             ),
                                             title: Text(
-                                              'Settle Up with ${partner.displayName}',
+                                              'Undo Settle Up?',
                                               style: theme.textTheme.titleLarge
                                                   ?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                             content: Text(
-                                              'Record a settlement of ₹${netBalance.abs().toStringAsFixed(2)} with ${partner.displayName}? This will mark all pending split expenses as settled.',
+                                              'Undo the settlement with ${partner.displayName}? This will revert only the expenses settled in the last settle up back to pending and remove the settlement transaction.',
                                               textAlign: TextAlign.center,
                                             ),
                                             shape: RoundedRectangleBorder(
@@ -303,35 +302,157 @@ class UserSplitDetailPage extends StatelessWidget {
                                                   dialogCtx,
                                                   true,
                                                 ),
-                                                child: const Text('Settle Up'),
+                                                style: FilledButton.styleFrom(
+                                                  backgroundColor: Colors.orange,
+                                                  foregroundColor: Colors.white,
+                                                ),
+                                                child: const Text('Undo Settle'),
                                               ),
                                             ],
                                           ),
                                         );
 
-                                        if (confirm == true) {
-                                          await splitVM.settleUpWithPartner(
+                                        if (confirm == true && context.mounted) {
+                                          await splitVM.undoLastSettleUp(
                                             partner.id,
-                                            partnerName: partner.displayName,
                                             transactionVM: txVM,
                                           );
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Settlement undone for ${partner.displayName}',
+                                                ),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
                                         }
-                                      }
-                                    : null,
-                                icon: const Icon(
-                                  Icons.check_circle_outline,
-                                  size: 18,
-                                ),
-                                label: const Text('Settle Up'),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              ),
+                                      },
+                                      icon: const Icon(
+                                        Icons.undo_rounded,
+                                        size: 18,
+                                        color: Colors.orange,
+                                      ),
+                                      label: const Text(
+                                        'Undo Settle Up',
+                                        style: TextStyle(color: Colors.orange),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        side: const BorderSide(color: Colors.orange),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                    )
+                                  : OutlinedButton.icon(
+                                      onPressed: (!isSettledUp)
+                                          ? () async {
+                                              AppHaptics.mediumImpact(context);
+                                              final txVM =
+                                                  Provider.of<TransactionViewModel>(
+                                                context,
+                                                listen: false,
+                                              );
+                                              final confirm = await showDialog<bool>(
+                                                context: context,
+                                                builder: (dialogCtx) => AlertDialog(
+                                                  icon: Container(
+                                                    padding: const EdgeInsets.all(16),
+                                                    decoration: BoxDecoration(
+                                                      color: theme.colorScheme.primary
+                                                          .withValues(alpha: 0.1),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.payments_rounded,
+                                                      color:
+                                                          theme.colorScheme.primary,
+                                                      size: 32,
+                                                    ),
+                                                  ),
+                                                  title: Text(
+                                                    'Settle Up with ${partner.displayName}',
+                                                    style: theme.textTheme.titleLarge
+                                                        ?.copyWith(
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                  ),
+                                                  content: Text(
+                                                    'Record a settlement of ₹${netBalance.abs().toStringAsFixed(2)} with ${partner.displayName}? This will mark all pending split expenses as settled.',
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(28),
+                                                  ),
+                                                  actionsAlignment:
+                                                      MainAxisAlignment.spaceEvenly,
+                                                  actions: [
+                                                    OutlinedButton(
+                                                      onPressed: () => Navigator.pop(
+                                                        dialogCtx,
+                                                        false,
+                                                      ),
+                                                      child: const Text('Cancel'),
+                                                    ),
+                                                    FilledButton(
+                                                      onPressed: () => Navigator.pop(
+                                                        dialogCtx,
+                                                        true,
+                                                      ),
+                                                      child: const Text('Settle Up'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+
+                                              if (confirm == true && context.mounted) {
+                                                await splitVM.settleUpWithPartner(
+                                                  partner.id,
+                                                  partnerName: partner.displayName,
+                                                  transactionVM: txVM,
+                                                );
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Settled up with ${partner.displayName}',
+                                                      ),
+                                                      action: SnackBarAction(
+                                                        label: 'UNDO',
+                                                        textColor: Colors.amberAccent,
+                                                        onPressed: () {
+                                                          splitVM.undoLastSettleUp(
+                                                            partner.id,
+                                                            transactionVM: txVM,
+                                                          );
+                                                        },
+                                                      ),
+                                                      duration: const Duration(seconds: 6),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            }
+                                          : null,
+                                      icon: const Icon(
+                                        Icons.check_circle_outline,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Settle Up'),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                    ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -633,30 +754,91 @@ class UserSplitDetailPage extends StatelessWidget {
               ),
             ],
           ),
-          trailing: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                isSettled ? 'settled' : (isPayer ? 'you lent' : 'you borrowed'),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isSettled
-                      ? Colors.grey
-                      : (isPayer ? Colors.green.shade700 : Colors.red.shade700),
-                ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    isSettled ? 'settled' : (isPayer ? 'you lent' : 'you borrowed'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isSettled
+                          ? Colors.grey
+                          : (isPayer ? Colors.green.shade700 : Colors.red.shade700),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '₹${split.amount.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isSettled
+                          ? Colors.grey
+                          : (isPayer ? Colors.green.shade600 : Colors.red.shade600),
+                      decoration: isSettled ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                '₹${split.amount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: isSettled
-                      ? Colors.grey
-                      : (isPayer ? Colors.green.shade600 : Colors.red.shade600),
-                  decoration: isSettled ? TextDecoration.lineThrough : null,
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert_rounded,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                onSelected: (value) async {
+                  AppHaptics.selectionClick(context);
+                  final txVM = Provider.of<TransactionViewModel>(
+                    context,
+                    listen: false,
+                  );
+                  if (value == 'toggle_status') {
+                    await splitVM.toggleSettled(split, transactionVM: txVM);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isSettled
+                                ? 'Marked "${split.description}" as pending'
+                                : 'Marked "${split.description}" as settled',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: 'toggle_status',
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSettled
+                              ? Icons.undo_rounded
+                              : Icons.check_circle_outline_rounded,
+                          size: 18,
+                          color: isSettled ? Colors.orange : Colors.green,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          isSettled ? 'Mark as Pending' : 'Mark as Settled',
+                          style: TextStyle(
+                            color: isSettled ? Colors.orange : Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
