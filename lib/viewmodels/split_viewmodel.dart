@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/profile.dart';
 import '../models/split_expense.dart';
+import '../models/transaction.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';
@@ -93,9 +94,11 @@ class SplitViewModel extends ChangeNotifier {
 
   // ── Actions ─────────────────────────────────────────────────────────
 
-  Future<void> loadProfiles() async {
+  Future<void> loadProfiles({bool forceRefresh = false}) async {
     try {
-      _remoteProfiles = await _databaseService.getProfiles();
+      _remoteProfiles = await _databaseService.getProfiles(
+        forceRefresh: forceRefresh,
+      );
     } catch (e) {
       _errorMessage = _mapError(e);
     }
@@ -161,13 +164,15 @@ class SplitViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> loadSplitExpenses() async {
+  Future<void> loadSplitExpenses({bool forceRefresh = false}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _splitExpenses = await _databaseService.getSplitExpenses();
+      _splitExpenses = await _databaseService.getSplitExpenses(
+        forceRefresh: forceRefresh,
+      );
     } catch (e) {
       _errorMessage = _mapError(e);
     } finally {
@@ -276,6 +281,69 @@ class SplitViewModel extends ChangeNotifier {
       return true;
     } catch (e) {
       _errorMessage = _mapError(e);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  /// Returns all sister split expenses belonging to the same overall bill/event.
+  List<SplitExpenseModel> getSisterSplits(SplitExpenseModel split) {
+    final list = _splitExpenses.where((s) {
+      final samePayer = s.payerId == split.payerId;
+      final sameDesc = s.description.trim().toLowerCase() ==
+          split.description.trim().toLowerCase();
+      final sameTotal = (s.totalAmount - split.totalAmount).abs() < 0.05;
+      final sameDate =
+          s.expenseDate.difference(split.expenseDate).inMinutes.abs() < 5;
+      return samePayer && sameDesc && sameTotal && sameDate;
+    }).toList();
+
+    if (list.isEmpty || !list.any((s) => s.id == split.id)) {
+      return [split];
+    }
+    return list;
+  }
+
+  Future<bool> updateSplitExpenseGroup({
+    required List<String> oldSplitIds,
+    required List<Map<String, dynamic>> borrowerSplits,
+    required double totalAmount,
+    required String description,
+    String category = 'General',
+    required DateTime expenseDate,
+    bool isPayer = true,
+    String? payerId,
+  }) async {
+    _isSaving = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      for (final oldId in oldSplitIds) {
+        try {
+          await _databaseService.deleteSplitExpense(oldId);
+        } catch (_) {}
+      }
+
+      _splitExpenses.removeWhere((s) => oldSplitIds.contains(s.id));
+
+      final newSplits = await _databaseService.addCustomMultipleSplitExpenses(
+        borrowerSplits: borrowerSplits,
+        totalAmount: totalAmount,
+        description: description,
+        category: category,
+        expenseDate: expenseDate,
+        isPayer: isPayer,
+        payerId: payerId,
+      );
+
+      _splitExpenses.insertAll(0, newSplits);
+      return true;
+    } catch (e) {
+      _errorMessage = _mapError(e);
+      await loadSplitExpenses();
       return false;
     } finally {
       _isSaving = false;
@@ -406,7 +474,22 @@ class SplitViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteSplitExpense(String id) async {
+  static String extractSplitDescription(String txDesc) {
+    var desc = txDesc.trim();
+    if (desc.toLowerCase().startsWith('split:')) {
+      desc = desc.substring(6).trim();
+    }
+    final parenIndex = desc.lastIndexOf(' (');
+    if (parenIndex != -1 && desc.endsWith(')')) {
+      desc = desc.substring(0, parenIndex).trim();
+    }
+    return desc;
+  }
+
+  Future<void> deleteSplitExpense(
+    String id, {
+    TransactionViewModel? transactionVM,
+  }) async {
     final index = _splitExpenses.indexWhere((s) => s.id == id);
     if (index == -1) return;
 
@@ -416,10 +499,97 @@ class SplitViewModel extends ChangeNotifier {
 
     try {
       await _databaseService.deleteSplitExpense(id);
+
+      final uid = currentUserId;
+      if (uid != null && backup.payerId == uid && transactionVM != null) {
+        // Check if other splits with the same description and date still exist
+        final otherSplitsExist = _splitExpenses.any((s) =>
+            s.payerId == uid &&
+            s.description.toLowerCase() == backup.description.toLowerCase() &&
+            s.expenseDate.difference(backup.expenseDate).inMinutes.abs() < 5);
+
+        if (!otherSplitsExist) {
+          final txList = transactionVM.transactions;
+          final cleanDesc = backup.description.trim().toLowerCase();
+          final matchingTx = txList.cast<TransactionModel?>().firstWhere(
+            (t) =>
+                t != null &&
+                t.type == 'expense' &&
+                ((t.description?.trim().toLowerCase() == 'split: $cleanDesc') ||
+                 (t.description?.trim().toLowerCase().startsWith('split: $cleanDesc') ?? false) ||
+                 (t.description?.trim().toLowerCase() == cleanDesc)) &&
+                (t.transactionDate.difference(backup.expenseDate).inMinutes.abs() < 120 ||
+                 (t.amount - backup.totalAmount).abs() < 0.05),
+            orElse: () => null,
+          );
+
+          if (matchingTx != null) {
+            await transactionVM.deleteTransaction(matchingTx.id);
+          }
+        }
+      }
     } catch (e) {
       _splitExpenses.insert(index, backup);
       _errorMessage = _mapError(e);
       notifyListeners();
+    }
+  }
+
+  Future<void> deleteSplitsForTransaction(TransactionModel transaction) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+    final splitDesc = extractSplitDescription(transaction.description ?? '');
+    if (splitDesc.isEmpty) return;
+
+    final matchingSplits = _splitExpenses.where((s) {
+      final matchesUser = s.payerId == uid || s.borrowerId == uid;
+      final matchesDesc = s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
+          (transaction.description?.toLowerCase().contains(s.description.toLowerCase()) ?? false);
+      final matchesDate = s.expenseDate.difference(transaction.transactionDate).inMinutes.abs() < 120;
+      final matchesAmount = (s.totalAmount - transaction.amount).abs() < 0.05;
+      return matchesUser && matchesDesc && (matchesDate || matchesAmount);
+    }).toList();
+
+    for (final s in matchingSplits) {
+      await deleteSplitExpense(s.id);
+    }
+  }
+
+  Future<void> updateSplitsForTransaction(TransactionModel transaction) async {
+    final uid = currentUserId;
+    if (uid == null) return;
+    final splitDesc = extractSplitDescription(transaction.description ?? '');
+    if (splitDesc.isEmpty) return;
+
+    final matchingSplits = _splitExpenses.where((s) {
+      final matchesUser = s.payerId == uid;
+      final matchesDesc = s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
+          (transaction.description?.toLowerCase().contains(s.description.toLowerCase()) ?? false);
+      final matchesDate = s.expenseDate.difference(transaction.transactionDate).inMinutes.abs() < 120;
+      final matchesAmount = (s.totalAmount - transaction.amount).abs() < 0.05;
+      return matchesUser && matchesDesc && (matchesDate || matchesAmount);
+    }).toList();
+
+    for (final s in matchingSplits) {
+      final double newAmount;
+      if (s.totalAmount > 0 && s.amount > 0) {
+        final ratio = s.amount / s.totalAmount;
+        newAmount = double.parse((transaction.amount * ratio).toStringAsFixed(2));
+      } else {
+        newAmount = s.amount;
+      }
+
+      await updateSplitExpense(
+        id: s.id,
+        borrowerId: s.borrowerId,
+        amount: newAmount,
+        totalAmount: transaction.amount,
+        description: splitDesc,
+        category: transaction.category,
+        expenseDate: transaction.transactionDate,
+        isPayer: true,
+        payerId: s.payerId,
+      );
     }
   }
 

@@ -59,9 +59,31 @@ class DatabaseService {
   List<CategoryModel>? _cachedCategories;
   DateTime? _categoriesFetchedAt;
 
+  List<SplitExpenseModel>? _cachedSplitExpenses;
+  DateTime? _splitExpensesFetchedAt;
+  Completer<List<SplitExpenseModel>>? _ongoingSplitFetch;
+
+  List<ProfileModel>? _cachedProfiles;
+  DateTime? _profilesFetchedAt;
+  Completer<List<ProfileModel>>? _ongoingProfilesFetch;
+
   bool _isCacheValid(DateTime? fetchedAt) {
     if (fetchedAt == null) return false;
     return DateTime.now().difference(fetchedAt) < _cacheTtl;
+  }
+
+  /// Invalidate split cache on mutation
+  void _invalidateSplitCache() {
+    _cachedSplitExpenses = null;
+    _splitExpensesFetchedAt = null;
+    _ongoingSplitFetch = null;
+  }
+
+  /// Invalidate profile cache on mutation or manual refresh
+  void invalidateProfileCache() {
+    _cachedProfiles = null;
+    _profilesFetchedAt = null;
+    _ongoingProfilesFetch = null;
   }
 
   /// Clears all cached data. Useful on sign-out.
@@ -72,6 +94,12 @@ class DatabaseService {
     _cachedCategories = null;
     _categoriesFetchedAt = null;
     _ongoingTransactionFetch = null; // cancel any in-flight deduplication
+    _cachedSplitExpenses = null;
+    _splitExpensesFetchedAt = null;
+    _ongoingSplitFetch = null;
+    _cachedProfiles = null;
+    _profilesFetchedAt = null;
+    _ongoingProfilesFetch = null;
   }
 
   // ── Column selections ───────────────────────────────────────────────
@@ -427,56 +455,114 @@ class DatabaseService {
 
   // ── Profiles & Split Expenses ───────────────────────────────────────
 
-  Future<List<ProfileModel>> getProfiles() async {
-    return _execute(() async {
-      final currentUserId = _supabase.auth.currentUser?.id;
-      final response = await _supabase
-          .from('profiles')
-          .select('id, email, name')
-          .order('name', ascending: true);
+  Future<List<ProfileModel>> getProfiles({bool forceRefresh = false}) async {
+    final canUseCache =
+        !forceRefresh &&
+        _cachedProfiles != null &&
+        _isCacheValid(_profilesFetchedAt);
 
-      final list = (response as List<dynamic>)
-          .map((e) => ProfileModel.fromJson(e as Map<String, dynamic>))
-          .where((p) => p.id != currentUserId) // Exclude current logged in user
-          .toList();
+    if (canUseCache) {
+      return List.unmodifiable(_cachedProfiles!);
+    }
 
+    if (_ongoingProfilesFetch != null) {
+      return _ongoingProfilesFetch!.future;
+    }
+
+    final completer = Completer<List<ProfileModel>>();
+    _ongoingProfilesFetch = completer;
+
+    try {
+      final list = await _execute(() async {
+        final currentUserId = _supabase.auth.currentUser?.id;
+        final response = await _supabase
+            .from('profiles')
+            .select('id, email, name')
+            .order('name', ascending: true);
+
+        final parsed = (response as List<dynamic>)
+            .map((e) => ProfileModel.fromJson(e as Map<String, dynamic>))
+            .where((p) => p.id != currentUserId) // Exclude current logged in user
+            .toList();
+
+        return parsed;
+      });
+
+      _cachedProfiles = list;
+      _profilesFetchedAt = DateTime.now();
+      completer.complete(list);
       return list;
-    });
+    } catch (e) {
+      completer.completeError(e);
+      rethrow;
+    } finally {
+      _ongoingProfilesFetch = null;
+    }
   }
 
-  Future<List<SplitExpenseModel>> getSplitExpenses() async {
-    return _execute(() async {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) throw const UnauthenticatedException();
+  Future<List<SplitExpenseModel>> getSplitExpenses({
+    bool forceRefresh = false,
+  }) async {
+    final canUseCache =
+        !forceRefresh &&
+        _cachedSplitExpenses != null &&
+        _isCacheValid(_splitExpensesFetchedAt);
 
-      final response = await _supabase
-          .from('split_expenses')
-          .select()
-          .or('payer_id.eq.$userId,borrower_id.eq.$userId')
-          .order('expense_date', ascending: false);
+    if (canUseCache) {
+      return List.unmodifiable(_cachedSplitExpenses!);
+    }
 
-      final profilesResponse = await _supabase.from('profiles').select();
-      final profilesMap = <String, Map<String, dynamic>>{};
-      for (final p in (profilesResponse as List<dynamic>)) {
-        final pMap = p as Map<String, dynamic>;
-        profilesMap[pMap['id'] as String] = pMap;
-      }
+    if (_ongoingSplitFetch != null) {
+      return _ongoingSplitFetch!.future;
+    }
 
-      final splits = (response as List<dynamic>).map((e) {
-        final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
-        final payerId = map['payer_id'] as String?;
-        final borrowerId = map['borrower_id'] as String?;
-        if (payerId != null && profilesMap.containsKey(payerId)) {
-          map['payer_profile'] = profilesMap[payerId];
+    final completer = Completer<List<SplitExpenseModel>>();
+    _ongoingSplitFetch = completer;
+
+    try {
+      final splits = await _execute(() async {
+        final userId = _supabase.auth.currentUser?.id;
+        if (userId == null) throw const UnauthenticatedException();
+
+        final response = await _supabase
+            .from('split_expenses')
+            .select()
+            .or('payer_id.eq.$userId,borrower_id.eq.$userId')
+            .order('expense_date', ascending: false);
+
+        final profilesResponse = await _supabase.from('profiles').select();
+        final profilesMap = <String, Map<String, dynamic>>{};
+        for (final p in (profilesResponse as List<dynamic>)) {
+          final pMap = p as Map<String, dynamic>;
+          profilesMap[pMap['id'] as String] = pMap;
         }
-        if (borrowerId != null && profilesMap.containsKey(borrowerId)) {
-          map['borrower_profile'] = profilesMap[borrowerId];
-        }
-        return SplitExpenseModel.fromJson(map);
-      }).toList();
 
+        final result = (response as List<dynamic>).map((e) {
+          final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
+          final payerId = map['payer_id'] as String?;
+          final borrowerId = map['borrower_id'] as String?;
+          if (payerId != null && profilesMap.containsKey(payerId)) {
+            map['payer_profile'] = profilesMap[payerId];
+          }
+          if (borrowerId != null && profilesMap.containsKey(borrowerId)) {
+            map['borrower_profile'] = profilesMap[borrowerId];
+          }
+          return SplitExpenseModel.fromJson(map);
+        }).toList();
+
+        return result;
+      });
+
+      _cachedSplitExpenses = splits;
+      _splitExpensesFetchedAt = DateTime.now();
+      completer.complete(splits);
       return splits;
-    });
+    } catch (e) {
+      completer.completeError(e);
+      rethrow;
+    } finally {
+      _ongoingSplitFetch = null;
+    }
   }
 
   Future<SplitExpenseModel> addSplitExpense({
@@ -510,6 +596,7 @@ class DatabaseService {
           .select()
           .single();
 
+      _invalidateSplitCache();
       return SplitExpenseModel.fromJson(response);
     });
   }
@@ -558,6 +645,7 @@ class DatabaseService {
           .map((e) => SplitExpenseModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
+      _invalidateSplitCache();
       return list;
     });
   }
@@ -607,6 +695,7 @@ class DatabaseService {
           .map((e) => SplitExpenseModel.fromJson(e as Map<String, dynamic>))
           .toList();
 
+      _invalidateSplitCache();
       return list;
     });
   }
@@ -664,6 +753,7 @@ class DatabaseService {
         map['borrower_profile'] = profilesMap[bId];
       }
 
+      _invalidateSplitCache();
       return SplitExpenseModel.fromJson(map);
     });
   }
@@ -681,6 +771,8 @@ class DatabaseService {
           .update({'status': status})
           .eq('id', id)
           .or('payer_id.eq.$userId,borrower_id.eq.$userId');
+
+      _invalidateSplitCache();
     });
   }
 
@@ -701,6 +793,8 @@ class DatabaseService {
           'Failed to delete split expense: record not found or permission denied.',
         );
       }
+
+      _invalidateSplitCache();
     });
   }
 }

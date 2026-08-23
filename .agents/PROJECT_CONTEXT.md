@@ -11,16 +11,21 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
 - **Authentication**: Email/Password signup, login, password resetting (request link / 6-digit OTP code verification), and secure updates powered by Supabase Auth. Auth state persistence is handled via stream subscription in `AuthViewModel`.
 - **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (type, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview).
 - **Split Expenses**:
-  - User-wise grouped Friends list with overall balance banner ("Overall, you are owed...", "You are all settled up!").
-  - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, unified Settle Up confirmation modal, and custom friend deletion.
+  - **Overall Balance Hero Card**: Features the app's signature brand gradient (`Color(0xFF1E2038)` to `Color(0xFF0F101C)` in dark mode, primary indigo in light mode), rolling amount counter animation (`TweenAnimationBuilder`), dynamic visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
+  - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
+  - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, unified Settle Up confirmation modal, custom friend deletion, and pull-to-refresh.
   - Settle Up functionality for both lenders and debtors, automatically recording settlement transactions in personal ledger.
   - Add and delete custom (unregistered) friends stored locally via `SharedPreferences`, which seamlessly participate in all split operations without foreign key conflicts.
   - Hide / Unhide friend option with `SharedPreferences` persistence and low-profile expand/collapse toggle at the bottom of the split list.
   - Excludes hidden friends from the `AddSplitPage` partner selection.
+  - Interactive multi-select friend picker bottom sheet with search and batch checkmark toggles.
   - Six split modes with live calculation & validation pills: `equally` (`=`), `youOweFull`, `partnerOwesFull`, `exactAmounts` (`1.23`), `percentages` (`%`), and `shares` (`===`).
-  - Edit existing split expenses with live form pre-filling.
+  - Edit existing split expenses with full multi-person group resolution, pre-filling all sharing participants, exact amounts/percentages, and who paid.
   - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation and inline math evaluation in the amount field.
   - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, settlements logged as income/expense).
+  - Seamless bidirectional editing & deletion sync: updating or deleting a split expense automatically updates or deletes the corresponding personal transaction, and vice versa.
+  - Tapping a split transaction from the personal feed directly opens the full Split editor with partner and split mode pre-configured.
+  - Unified solid AppBar styling across all sub-screens (`AddTransactionPage`, `AddSplitPage`, `UserSplitDetailPage`).
 - **Categories**: Dynamic category management including custom names/types and drag-and-drop reordering. Protects built-in "Other" category from rename/delete/reorder.
 - **Analytics & Insights**: Interactive FL Chart dashboards (pie breakdown + daily trend bar chart), date-range filtering (`7days`, `30days`, `month`, `year`, `custom`), category filtering, and per-tab income/expense/net selection. Automatically synchronized with split expenses and personal transactions.
 - **Settings**: Theme (system/light/dark), haptic feedback toggle, default analytics tab, custom analytics tab order, manage categories, and clear cache. All persisted via `SharedPreferences`.
@@ -119,8 +124,8 @@ lib/
 | Authentication | Supabase Auth (stream-based session detection in `AuthViewModel`) |
 | State Management | `Provider` package (`ChangeNotifier` + `Consumer<T>`) |
 | Local Persistence | `SharedPreferences` (settings, analytics tab order, hidden friend IDs) |
-| In-Memory Caching | 30-second TTL cache in `DatabaseService` with compound filter key |
-| Concurrency Guard | `Completer`-based deduplication for concurrent transaction fetches |
+| In-Memory Caching | 30-second TTL cache in `DatabaseService` (transactions, categories, split expenses, profiles) |
+| Concurrency Guard | `Completer`-based deduplication for concurrent transaction, split, and profile fetches |
 | Font Loading | Local Inter font in `google_fonts/` (runtime fetching disabled) |
 | Charts | `fl_chart` package (pie charts + bar charts in `AnalyticsPage`) |
 | MVVM Compliance | 100% — no View or ViewModel imports `supabase_flutter` directly |

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
+import '../../viewmodels/split_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../models/transaction.dart';
 import '../../widgets/app_dropdown.dart';
@@ -224,6 +225,21 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
               transactionDate: transactionDateTime,
             );
 
+      if (success && widget.transaction != null && mounted) {
+        final splitVM = Provider.of<SplitViewModel>(context, listen: false);
+        final updatedTx = widget.transaction!.copyWith(
+          amount: amount,
+          type: _type,
+          category: _category!,
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          paymentMethod: _paymentMethod,
+          transactionDate: transactionDateTime,
+        );
+        await splitVM.updateSplitsForTransaction(updatedTx);
+      }
+
       if (success && mounted) {
         Navigator.pop(context, true);
       }
@@ -253,37 +269,84 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         ),
         elevation: 0,
         backgroundColor: Colors.transparent,
-      ),
-      extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: Theme.of(context).brightness == Brightness.dark
-                ? [Colors.black, Colors.black]
-                : [const Color(0xFFEEF2FF), Colors.white],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Consumer<CategoryViewModel>(
-          builder: (context, categoryViewModel, child) {
-            final categories = _type == 'income'
-                ? categoryViewModel.incomeCategories
-                : categoryViewModel.expenseCategories;
+        actions: [
+          if (widget.transaction != null)
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.redAccent,
+              ),
+              onPressed: () async {
+                AppHaptics.vibrate(context);
+                final viewModel = context.read<TransactionViewModel>();
+                final splitVM = context.read<SplitViewModel>();
+                final nav = Navigator.of(context);
 
-            // Use Selector so we only rebuild when isSaving/isLoading changes,
-            // not on every background transaction list update.
-            return Selector<
-              TransactionViewModel,
-              ({bool isSaving, bool isLoading})
-            >(
-              selector: (_, vm) =>
-                  (isSaving: vm.isSaving, isLoading: vm.isLoading),
-              builder: (context, state, _) {
-                return state.isLoading && !state.isSaving
-                    ? const Center(child: CircularProgressIndicator())
-                    : ListView(
-                        padding: const EdgeInsets.fromLTRB(24, 120, 24, 24),
+                final isSplit = widget.transaction!.description != null &&
+                    widget.transaction!.description!
+                        .toLowerCase()
+                        .startsWith('split:');
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete Transaction'),
+                    content: Text(
+                      isSplit
+                          ? 'Are you sure you want to delete this transaction? This will also remove the corresponding split expense.'
+                          : 'Are you sure you want to delete this transaction?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red.withValues(alpha: 0.1),
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && mounted) {
+                  await viewModel.deleteTransaction(
+                    widget.transaction!.id,
+                    splitVM: splitVM,
+                  );
+                  if (mounted) {
+                    nav.pop(true);
+                  }
+                }
+              },
+            ),
+        ],
+      ),
+      body: Consumer<CategoryViewModel>(
+        builder: (context, categoryViewModel, child) {
+          final categories = _type == 'income'
+              ? categoryViewModel.incomeCategories
+              : categoryViewModel.expenseCategories;
+
+          // Use Selector so we only rebuild when isSaving/isLoading changes,
+          // not on every background transaction list update.
+          return Selector<
+            TransactionViewModel,
+            ({bool isSaving, bool isLoading})
+          >(
+            selector: (_, vm) =>
+                (isSaving: vm.isSaving, isLoading: vm.isLoading),
+            builder: (context, state, _) {
+              return state.isLoading && !state.isSaving
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                         children: [
                           // Type Toggle
                           Center(
@@ -384,7 +447,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                                 vertical: 24,
                                               ),
                                         ),
-                                    keyboardType: TextInputType.text,
+                                    keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
                                     inputFormatters: [
                                       FilteringTextInputFormatter.allow(
                                         RegExp(r'[0-9+\-*/÷×−().\s]'),
@@ -677,7 +742,6 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
             );
           },
         ),
-      ),
     );
   }
 

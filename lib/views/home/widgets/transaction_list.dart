@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../utils/haptics.dart';
 import 'package:provider/provider.dart';
+import '../../../models/profile.dart';
+import '../../../models/split_expense.dart';
 import '../../../models/transaction.dart';
+import '../../../viewmodels/split_viewmodel.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
 import '../../../views/transaction/add_transaction_page.dart';
+import '../../split/add_split_page.dart';
 import '../../../utils/date_formatter.dart';
 
 /// Displays the list of transactions with scroll-to-load-more pagination.
@@ -250,7 +254,8 @@ class _TransactionListViewState extends State<TransactionListView> {
         );
       },
       onDismissed: (_) async {
-        await viewModel.deleteTransaction(t.id);
+        final splitVM = context.read<SplitViewModel>();
+        await viewModel.deleteTransaction(t.id, splitVM: splitVM);
       },
       child: Card(
         clipBehavior: Clip.hardEdge,
@@ -270,6 +275,73 @@ class _TransactionListViewState extends State<TransactionListView> {
           ),
           onTap: () async {
             AppHaptics.lightImpact(context);
+            final splitVM = context.read<SplitViewModel>();
+
+            if (t.description != null &&
+                t.description!.toLowerCase().startsWith('split:')) {
+              final splitDesc =
+                  SplitViewModel.extractSplitDescription(t.description!);
+              final matchingSplit = splitVM.splitExpenses
+                  .cast<SplitExpenseModel?>()
+                  .firstWhere(
+                    (s) =>
+                        s != null &&
+                        (s.description.trim().toLowerCase() ==
+                                splitDesc.toLowerCase() ||
+                            (t.description?.toLowerCase().contains(
+                                  s.description.toLowerCase(),
+                                ) ??
+                                false)) &&
+                        (s.expenseDate
+                                    .difference(t.transactionDate)
+                                    .inMinutes
+                                    .abs() <
+                                120 ||
+                            (s.totalAmount - t.amount).abs() < 0.05),
+                    orElse: () => null,
+                  );
+
+              if (matchingSplit != null) {
+                final isUserPayer =
+                    matchingSplit.payerId == splitVM.currentUserId;
+                final partnerId = isUserPayer
+                    ? matchingSplit.borrowerId
+                    : matchingSplit.payerId;
+                ProfileModel? partner;
+                try {
+                  partner =
+                      splitVM.profiles.firstWhere((p) => p.id == partnerId);
+                } catch (_) {
+                  partner = ProfileModel(
+                    id: partnerId,
+                    name: isUserPayer
+                        ? matchingSplit.borrowerName
+                        : matchingSplit.payerName,
+                    email: (isUserPayer
+                            ? matchingSplit.borrowerEmail
+                            : matchingSplit.payerEmail) ??
+                        '',
+                  );
+                }
+
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddSplitPage(
+                      initialPartner: partner,
+                      splitExpense: matchingSplit,
+                    ),
+                  ),
+                );
+
+                if (result == true && context.mounted) {
+                  viewModel.loadTransactions();
+                  splitVM.loadSplitExpenses();
+                }
+                return;
+              }
+            }
+
             final result = await Navigator.push(
               context,
               MaterialPageRoute(
@@ -278,10 +350,8 @@ class _TransactionListViewState extends State<TransactionListView> {
             );
             if (result == true) {
               if (context.mounted) {
-                Provider.of<TransactionViewModel>(
-                  context,
-                  listen: false,
-                ).loadTransactions();
+                viewModel.loadTransactions();
+                splitVM.loadSplitExpenses();
               }
             }
           },

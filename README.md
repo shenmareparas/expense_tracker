@@ -9,12 +9,14 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, Password Reset, in-app OTP recovery verification, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
 - **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges, automatically synchronized with split expenses and personal transactions.
 - **🤝 Shared Split Expenses**:
-  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`) and overall position banner.
-  - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` dropdown. Custom friends are persisted locally, can be deleted anytime, and seamlessly participate in all split modes.
-  - **Edit Split Expense**: Full editing support for existing split entries (payer, borrower, amount, description, category, and date).
-  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, and unified Settle Up confirmation modal. Supports deleting custom friends.
+  - **Overall Balance Hero Card**: Styled with the app's signature brand gradient (`#1E2038` → `#0F101C` in dark mode, primary indigo in light mode), top status pill, rolling amount counter animation (`TweenAnimationBuilder`), live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
+  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`).
+  - **Interactive Multi-Select Friend Picker**: Fast bottom sheet with search, checkmark indicators, real-time batch toggling, and sticky action bar to select multiple friends at once.
+  - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` sheet. Custom friends are persisted locally, can be deleted anytime, and seamlessly participate in all split modes.
+  - **Multi-Person Group Edit & Deletion**: Full editing and deletion support for split groups, automatically resolving sister splits, participant shares, percentages, and payer assignments.
+  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, pull-to-refresh, and unified Settle Up confirmation modal. Supports deleting custom friends.
   - **Settle Up Payments**: Support Settle Up for both lenders and debtors, logging income settlement transactions when receiving money and expense settlement transactions when paying back.
-  - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split dropdown, and accessible via a low-profile expand/collapse toggle.
+  - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split partner picker, and accessible via a low-profile expand/collapse toggle.
   - **Six Fully-Functional Split Modes**:
     - **Split Equally (`=`)**: Toggle member inclusion with live per-person recalculation.
     - **You Owe Partner Full**: Full bill amount assigned as debt to the partner.
@@ -23,7 +25,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
     - **Split by Percentages (`%`)**: Individual percentage inputs with computed monetary values (`₹XX.XX`) and live percentage balance pill (`XX% left`).
     - **Split by Shares (`===`)**: Stepper buttons (`+` / `−`) with real-time ratio calculation.
   - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
-  - **Transaction & Analytics Integration**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time.
+  - **Bidirectional Transaction & Analytics Sync**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time. Tapping a split transaction from the personal feed opens the full Split editor.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
 - **💸 Transaction Ledger & Math Inputs**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type, or date range. **Inline Math Operations**: Enter mathematical calculations (`+`, `−`, `×`, `÷`) directly into amount fields with an interactive operations toolbar (`MathOperationsBar`), live computation preview badge, and automatic evaluation upon exiting the field or saving.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, compound filter keys, concurrent request deduplication via `Completer`, and optimistic state updates with rollback in ViewModels to minimize network overhead and ensure instant screen transitions.
@@ -119,11 +121,13 @@ lib/
 ## 💾 Caching & Sync Strategy
 
 The `DatabaseService` uses an **in-memory cache** combined with query safeguards to prevent unnecessary PostgREST calls and ensure fluid navigation:
-- **TTL (Time to Live)**: Cache is valid for `30 seconds`.
-- **Compound Cache Key**: The cache uses a composite key generated from active filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`).
-- **Cache Invalidation**: Any database mutation (insert, update, delete, reordering) invalidates the cache immediately to force a sync.
-- **Request Deduplication**: A concurrency guard prevents concurrent identical network requests.
-- **Optimistic UI**: Transactions and split expense statuses are updated locally first, recalculating stats immediately, avoiding blocking spinners.
+- **TTL (Time to Live)**: Caches remain valid for `30 seconds` across personal transactions, categories, split expenses, and registered profiles.
+- **Compound Cache Key**: The transaction cache uses a composite key generated from active filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`).
+- **Cache Invalidation**: Any database mutation (insert, update, delete, reordering, settle up) invalidates the respective cache immediately to force a fresh sync.
+- **Request Deduplication**: Concurrency guards (`Completer` pattern) prevent duplicate identical in-flight network requests for transactions, splits, and profiles.
+- **Pull-to-Refresh Bypass**: Pulling down to refresh on home, split, or friend detail feeds passes `forceRefresh: true` to bypass the TTL cache and pull fresh data directly from Supabase.
+- **Optimistic UI**: Transactions and split expense statuses are updated locally first, recalculating stats immediately and avoiding blocking spinners.
+- **Sign-Out Purge**: `clearCache()` clears all caches on sign-out to prevent cross-account leakage.
 
 ---
 

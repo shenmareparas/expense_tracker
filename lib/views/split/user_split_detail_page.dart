@@ -151,19 +151,14 @@ class UserSplitDetailPage extends StatelessWidget {
                 ),
             ],
           ),
-          extendBodyBehindAppBar: true,
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isDark
-                    ? [Colors.black, Colors.black]
-                    : [const Color(0xFFEEF2FF), Colors.white],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
+          body: RefreshIndicator(
+            onRefresh: () async {
+              await splitVM.loadSplitExpenses(forceRefresh: true);
+              await splitVM.loadProfiles(forceRefresh: true);
+            },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 110, 16, 24),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 // ── Partner Header Summary Card ──────────────────────────────
                 Card(
@@ -550,7 +545,11 @@ class UserSplitDetailPage extends StatelessWidget {
         );
       },
       onDismissed: (_) async {
-        await splitVM.deleteSplitExpense(split.id);
+        final transactionVM = context.read<TransactionViewModel>();
+        await splitVM.deleteSplitExpense(
+          split.id,
+          transactionVM: transactionVM,
+        );
       },
       child: Card(
         elevation: 0,

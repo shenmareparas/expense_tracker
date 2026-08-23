@@ -61,8 +61,8 @@ class _SplitPageState extends State<SplitPage> {
 
         return RefreshIndicator(
           onRefresh: () async {
-            await splitVM.loadSplitExpenses();
-            await splitVM.loadProfiles();
+            await splitVM.loadSplitExpenses(forceRefresh: true);
+            await splitVM.loadProfiles(forceRefresh: true);
             await splitVM.loadHiddenFriends();
           },
           child: ListView(
@@ -82,19 +82,17 @@ class _SplitPageState extends State<SplitPage> {
                     children: [
                       Text(
                         'Friends',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '(${visiblePartners.length} visible)',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.5),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -104,7 +102,10 @@ class _SplitPageState extends State<SplitPage> {
                     icon: const Icon(Icons.person_add_outlined, size: 16),
                     label: const Text('Add Friend'),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
@@ -123,10 +124,9 @@ class _SplitPageState extends State<SplitPage> {
                       'All friends are hidden',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.5),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -161,10 +161,9 @@ class _SplitPageState extends State<SplitPage> {
                                 ? Icons.keyboard_arrow_up_rounded
                                 : Icons.keyboard_arrow_down_rounded,
                             size: 18,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.5),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -174,10 +173,9 @@ class _SplitPageState extends State<SplitPage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.5),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.5),
                             ),
                           ),
                         ],
@@ -210,145 +208,282 @@ class _SplitPageState extends State<SplitPage> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final net = splitVM.netBalance;
+    final totalOwed = splitVM.totalOwedToUser;
+    final totalOwes = splitVM.totalUserOwes;
     final isOwed = net > 0;
     final isSettledUp = net == 0;
+    final totalVolume = totalOwed + totalOwes;
+    final owedRatio = totalVolume > 0
+        ? (totalOwed / totalVolume).clamp(0.0, 1.0)
+        : 0.5;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.1),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  const Color(0xFF1E2038), // Deep premium indigo/navy
+                  const Color(0xFF0F101C), // Midnight obsidian
+                ]
+              : [
+                  theme.colorScheme.primary,
+                  theme.colorScheme.primary.withValues(alpha: 0.85),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(28),
+        border: isDark
+            ? Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                width: 1.5,
+              )
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                : theme.colorScheme.primary.withValues(alpha: 0.25),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      color: theme.colorScheme.surface.withValues(alpha: isDark ? 0.3 : 0.9),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row: "Overall Balance" + Status Tag
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Overall Balance',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(
+                      isSettledUp
+                          ? Icons.check_circle_outline
+                          : (isOwed
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward),
+                      color: isSettledUp
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : (isOwed
+                                ? Colors.greenAccent
+                                : const Color(0xFFFF8A80)),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      'Overall Balance',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.6),
+                      isSettledUp
+                          ? 'Settled'
+                          : (isOwed ? 'You are owed' : 'You owe'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    if (isSettledUp)
-                      const Text(
-                        'You are all settled up!',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
-                      )
-                    else ...[
-                      Text(
-                        '${isOwed ? '+' : '-'}₹${net.abs().toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: isOwed ? Colors.green.shade600 : Colors.red.shade600,
-                        ),
-                      ),
-                      Text(
-                        isOwed ? 'Overall, you are owed' : 'Overall, you owe',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isOwed ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
-                Container(
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Rolling/Tweening Amount Text (matches Analytics card animation)
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: net.abs()),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              final prefix = isSettledUp ? '' : (isOwed ? '+' : '-');
+              return Text(
+                '$prefix₹${value.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 4),
+
+          Text(
+            isSettledUp
+                ? 'All shared expenses are settled up'
+                : (isOwed
+                      ? 'Total amount friends owe you'
+                      : 'Total amount you owe to friends'),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.7),
+            ),
+          ),
+
+          // Visual Split Balance Ratio Bar (when dues exist)
+          if (totalVolume > 0) ...[
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: 6,
+                width: double.infinity,
+                color: Colors.white.withValues(alpha: 0.12),
+                child: Row(
+                  children: [
+                    if (totalOwed > 0)
+                      Expanded(
+                        flex: (owedRatio * 100).round().clamp(1, 99),
+                        child: Container(color: Colors.greenAccent),
+                      ),
+                    if (totalOwes > 0)
+                      Expanded(
+                        flex: ((1.0 - owedRatio) * 100).round().clamp(1, 99),
+                        child: Container(color: const Color(0xFFFF8A80)),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ] else ...[
+            const SizedBox(height: 20),
+          ],
+
+          // Sub-Cards: Breakdown for "You are owed" and "You owe"
+          Row(
+            children: [
+              // You are owed Sub-Card
+              Expanded(
+                child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSettledUp
-                        ? Colors.grey.withValues(alpha: 0.1)
-                        : (isOwed ? Colors.green : Colors.red)
-                            .withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                   ),
-                  child: Icon(
-                    isSettledUp
-                        ? Icons.check_circle_outline
-                        : (isOwed ? Icons.call_received : Icons.call_made),
-                    color: isSettledUp
-                        ? Colors.grey
-                        : (isOwed ? Colors.green : Colors.red),
-                    size: 28,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              children: [
-                Expanded(
                   child: Row(
                     children: [
-                      const Icon(Icons.arrow_downward, size: 16, color: Colors.green),
-                      const SizedBox(width: 6),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'You are owed',
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                          Text(
-                            '₹${splitVM.totalOwedToUser.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.green,
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.greenAccent.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_downward,
+                          size: 14,
+                          color: Colors.greenAccent,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'You are owed',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${totalOwed.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Expanded(
+              ),
+              const SizedBox(width: 12),
+              // You owe Sub-Card
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.arrow_upward, size: 16, color: Colors.red),
-                      const SizedBox(width: 6),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'You owe',
-                            style: TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                          Text(
-                            '₹${splitVM.totalUserOwes.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.red,
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF8A80).withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_upward,
+                          size: 14,
+                          color: Color(0xFFFF8A80),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'You owe',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${totalOwes.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -362,10 +497,9 @@ class _SplitPageState extends State<SplitPage> {
             Icon(
               Icons.group_off_outlined,
               size: 64,
-              color: Theme.of(context)
-                  .colorScheme
-                  .primary
-                  .withValues(alpha: 0.2),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
@@ -373,10 +507,9 @@ class _SplitPageState extends State<SplitPage> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
@@ -385,10 +518,9 @@ class _SplitPageState extends State<SplitPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.5),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -447,8 +579,10 @@ class _SplitPageState extends State<SplitPage> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 6,
+          ),
           onTap: () {
             AppHaptics.selectionClick(context);
             Navigator.push(
@@ -521,10 +655,7 @@ class _SplitPageState extends State<SplitPage> {
                   else ...[
                     Text(
                       isOwed ? 'owes you' : 'you owe',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                     Text(
                       '₹${net.abs().toStringAsFixed(2)}',
@@ -602,7 +733,9 @@ class _SplitPageState extends State<SplitPage> {
                     hintText: 'e.g. Alex Smith',
                     prefixIcon: const Icon(Icons.person_outline_rounded),
                     filled: true,
-                    fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                    fillColor: theme.colorScheme.onSurface.withValues(
+                      alpha: 0.05,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,

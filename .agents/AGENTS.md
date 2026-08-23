@@ -32,14 +32,16 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 
 ## 🤝 Shared Expenses & Integration Architecture
 
-- **Friends Feed**: Main Split screen (`SplitPage`) displays overall net balance banner and user-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
+- **Friends Feed**: Main Split screen (`SplitPage`) displays:
+  - **Overall Balance Hero Card**: Styled with the app's signature brand gradient (`Color(0xFF1E2038)` to `Color(0xFF0F101C)` in dark mode / primary indigo in light mode, `28px` corner radius), top header with frosted status pill, 500ms rolling number animation (`TweenAnimationBuilder<double>` with `FontFeature.tabularFigures()`), dynamic live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
+  - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
 - **Custom Friends Support**: Users can add unregistered friends via "Add new person" modal on `SplitPage` and `AddSplitPage`.
   - Custom friends are assigned client-generated UUIDs and persisted locally in `SharedPreferences` (`custom_friends`).
   - Merged seamlessly into `SplitViewModel.profiles` alongside remote Supabase profiles.
   - Can be deleted directly from `UserSplitDetailPage` via the top-right delete action.
   - Foreign key constraints on `split_expenses.borrower_id` and `payer_id` to `auth.users(id)` were dropped on Supabase to allow custom friend UUIDs.
-- **Edit Split Expense**: `AddSplitPage` supports editing existing splits (`widget.splitExpense != null`), pre-filling all previous parameters and updating the database via `SplitViewModel.updateSplitExpense`.
-- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, net friend balance summary, custom friend deletion, and a unified **Settle Up** confirmation modal.
+- **Edit Split Expense & Multi-Person Group Resolution**: `AddSplitPage` supports editing existing splits (`widget.splitExpense != null`), automatically resolving all sister splits (`SplitViewModel.getSisterSplits`) for the bill to load all sharing participants, their custom amounts/percentages/shares, and who paid. Saving edits updates the entire split group via `SplitViewModel.updateSplitExpenseGroup` and syncs with the personal transaction.
+- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, net friend balance summary, custom friend deletion, pull-to-refresh (`forceRefresh: true`), and a unified **Settle Up** confirmation modal.
 - **Settle Up Logic**: Both lenders (payers) and debtors (borrowers) can settle up. Settling up resolves all pending split shares between friends:
   - Lender receives money: logs `income` settlement transaction ("Settlement from Friend").
   - Debtor pays back: logs `expense` settlement transaction ("Settlement to Friend").
@@ -47,6 +49,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - Persisted locally via `SharedPreferences` (`hidden_friend_ids`).
   - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
   - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
+- **Multi-Select Friend Picker Sheet**: `AddSplitPage` features an interactive multi-select bottom sheet with search, checkmark indicators, real-time batch toggling, and a sticky "Done (N selected)" action bar, allowing users to select or deselect multiple friends in a single interaction without the sheet closing on each tap.
 - **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With, Who Paid, Split Mode). Saving is disabled until all required fields are valid.
 - **Six Split Modes**:
   - `equally` (`=`): Member checkboxes with equal fraction calculation.
@@ -55,18 +58,24 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - `exactAmounts` (`1.23`): Persistent numeric text fields per member with real-time remaining/over allocation pill (`₹XX left`).
   - `percentages` (`%`): Persistent percentage text fields per member with computed monetary preview and remaining percentage pill (`XX% left`).
   - `shares` (`===`): Tactile `+` and `−` integer steppers with dynamic ratio fraction calculation.
-- **Inline Math Operations**: Amount fields in both `AddTransactionPage` and `AddSplitPage` support math expressions (`+`, `−`, `×`, `÷`) evaluated via `MathEvaluator`. An animated `MathOperationsBar` appears on focus with operator chips (`+`, `−`, `×`, `÷`, `C`) and a live computation preview pill (`= ₹XX`). `TapRegion(groupId: EditableText)` prevents unwanted focus loss during toolbar interactions, and expressions are auto-calculated and formatted upon exiting the field or submitting.
 - **Transactions & Analytics Integration**: Creating a split expense automatically records the user's out-of-pocket share into `transactions` table, instantly updating personal ledger, Home screen feeds, and Analytics category charts.
+- **Bidirectional Split & Personal Transaction Sync**:
+  - Editing or deleting a split expense from `AddSplitPage` or `UserSplitDetailPage` automatically updates or deletes the corresponding personal transaction.
+  - Editing or deleting a split transaction from `AddTransactionPage` or `TransactionListView` automatically updates or deletes the corresponding split expense in `SplitViewModel`.
+  - Tapping a split transaction from the personal transactions list automatically navigates to `AddSplitPage` in edit mode for seamless management.
+  - Both `AddSplitPage` and `AddTransactionPage` provide a top-bar Delete action with confirmation when editing existing records.
+- **Unified Screen AppBar Styling**: Clean solid AppBar backgrounds (matching `ThemeData.appBarTheme` and scaffold background) across `AddTransactionPage`, `AddSplitPage`, and `UserSplitDetailPage` without `extendBodyBehindAppBar` gradients.
 
 ---
 
 ## 💾 Caching & Concurrency Strategy (`DatabaseService`)
 
-- **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`).
+- **TTL Configuration**: Caches remain valid for `30 seconds` (`_cacheTtl`) across personal transactions, categories, split expenses, and registered profiles.
 - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
-- **Invalidation**: All mutation operations (add, edit, delete, reorder) must explicitly call `_invalidateTransactionCache()` / `_invalidateCategoryCache()` to guarantee immediate data updates in the UI.
-- **Request Deduplication**: A concurrency guard using `_ongoingTransactionFetch` (via the `Completer` pattern) prevents concurrent callers from spawning duplicate identical network requests for full transaction loads.
-- **`clearCache()`**: Called on sign-out via `AuthViewModel.signOut()` to prevent cross-user data leakage.
+- **Invalidation**: All mutation operations (add, edit, delete, reorder, settle up) explicitly call `_invalidateTransactionCache()`, `_invalidateCategoryCache()`, or `_invalidateSplitCache()` to guarantee immediate data updates in the UI.
+- **Request Deduplication**: Concurrency guards using `_ongoingTransactionFetch`, `_ongoingSplitFetch`, and `_ongoingProfilesFetch` (via the `Completer` pattern) prevent concurrent callers from spawning duplicate identical network requests.
+- **Pull-to-Refresh Force Bypass**: Pulling down to refresh on the home feed, split feed (`SplitPage`), or friend detail page (`UserSplitDetailPage`) passes `forceRefresh: true` to bypass TTL caches and pull fresh data from Supabase.
+- **`clearCache()`**: Called on sign-out via `AuthViewModel.signOut()` to clear transactions, categories, split expenses, and profile caches, preventing cross-user data leakage.
 
 ---
 

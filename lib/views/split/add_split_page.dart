@@ -97,42 +97,101 @@ class _AddSplitPageState extends State<AddSplitPage> {
       // Initialize partner and payer state if editing an existing split expense
       if (widget.splitExpense != null) {
         final s = widget.splitExpense!;
+        final sisterSplits = splitVM.getSisterSplits(s);
         final currentUserId = splitVM.currentUserId;
         final isUserPayer = s.payerId == currentUserId;
 
         _iPaid = isUserPayer;
+        _selectedPartners.clear();
+        _includedPartnerIds.clear();
 
-        // Partner is either borrower or payer
-        final partnerId = isUserPayer ? s.borrowerId : s.payerId;
-        ProfileModel? partner;
-        try {
-          partner = splitVM.profiles.firstWhere((p) => p.id == partnerId);
-        } catch (_) {
-          final email = isUserPayer
-              ? (s.borrowerEmail ?? '')
-              : (s.payerEmail ?? '');
-          final name = isUserPayer ? s.borrowerName : s.payerName;
-          partner = ProfileModel(id: partnerId, email: email, name: name);
+        for (final split in sisterSplits) {
+          final partnerId = isUserPayer ? split.borrowerId : split.payerId;
+          final ProfileModel partner;
+          final foundPartner = splitVM.profiles
+              .cast<ProfileModel?>()
+              .firstWhere((p) => p?.id == partnerId, orElse: () => null);
+
+          if (foundPartner != null) {
+            partner = foundPartner;
+          } else {
+            final email = isUserPayer
+                ? (split.borrowerEmail ?? '')
+                : (split.payerEmail ?? '');
+            final name = isUserPayer ? split.borrowerName : split.payerName;
+            partner = ProfileModel(id: partnerId, email: email, name: name);
+          }
+
+          if (!_selectedPartners.any((p) => p.id == partner.id)) {
+            _selectedPartners.add(partner);
+          }
+          _includedPartnerIds.add(partner.id);
+
+          _exactAmounts[partnerId] = split.amount;
+          _exactAmountControllers[partnerId] = TextEditingController(
+            text: MathEvaluator.format(split.amount),
+          );
+
+          final pct = split.totalAmount > 0
+              ? (split.amount / split.totalAmount) * 100.0
+              : 0.0;
+          _percentages[partnerId] = pct;
+          _percentageControllers[partnerId] = TextEditingController(
+            text: pct.toStringAsFixed(1),
+          );
+
+          _shares[partnerId] = 1;
         }
 
-        if (!_selectedPartners.any((p) => p.id == partner!.id)) {
-          _selectedPartners.add(partner);
-        }
-        _includedPartnerIds.add(partner.id);
-
-        if (!isUserPayer) {
-          _payerPartner = partner;
+        if (!isUserPayer && _selectedPartners.isNotEmpty) {
+          _payerPartner = _selectedPartners.first;
         } else {
           _payerPartner = null;
         }
 
-        // Determine split mode
-        if (s.amount == s.totalAmount) {
+        final totalBorrowersShare = sisterSplits.fold<double>(
+          0.0,
+          (sum, sp) => sum + sp.amount,
+        );
+        final userRetainedShare = s.totalAmount - totalBorrowersShare;
+
+        if (userRetainedShare > 0.01) {
+          _includeMeInSplit = true;
+          _exactAmounts['current_user'] = userRetainedShare;
+          _exactAmountControllers['current_user'] = TextEditingController(
+            text: MathEvaluator.format(userRetainedShare),
+          );
+          final userPct = s.totalAmount > 0
+              ? (userRetainedShare / s.totalAmount) * 100.0
+              : 0.0;
+          _percentages['current_user'] = userPct;
+          _percentageControllers['current_user'] = TextEditingController(
+            text: userPct.toStringAsFixed(1),
+          );
+          _shares['current_user'] = 1;
+        } else {
+          _includeMeInSplit = false;
+        }
+
+        if (sisterSplits.length == 1 &&
+            (s.amount - s.totalAmount).abs() < 0.05) {
           _splitMode = isUserPayer
               ? SplitMode.partnerOwesFull
               : SplitMode.youOweFull;
         } else {
-          _splitMode = SplitMode.equally;
+          final totalMembers =
+              _includedPartnerIds.length + (_includeMeInSplit ? 1 : 0);
+          final equalShare =
+              totalMembers > 0 ? (s.totalAmount / totalMembers) : 0.0;
+          final allEqual = sisterSplits.every(
+            (sp) => (sp.amount - equalShare).abs() < 0.05,
+          );
+
+          if (allEqual) {
+            _splitMode = SplitMode.equally;
+          } else {
+            _splitMode = SplitMode.exactAmounts;
+          }
         }
 
         if (mounted) setState(() {});
@@ -495,12 +554,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
 
   void _showAddPartnerSheet(SplitViewModel splitVM) {
     AppHaptics.selectionClick(context);
-    final available = splitVM.profiles
-        .where(
-          (p) =>
-              !_selectedPartners.contains(p) && !splitVM.isFriendHidden(p.id),
-        )
-        .toList();
+    String searchQuery = '';
 
     showModalBottomSheet(
       context: context,
@@ -510,198 +564,390 @@ class _AddSplitPageState extends State<AddSplitPage> {
         final theme = Theme.of(ctx);
         final isDark = theme.brightness == Brightness.dark;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0A0A0A) : theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(
-                alpha: isDark ? 0.15 : 0.08,
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final allProfiles = splitVM.profiles
+                .where((p) => !splitVM.isFriendHidden(p.id))
+                .toList();
+
+            final filteredProfiles = searchQuery.trim().isEmpty
+                ? allProfiles
+                : allProfiles.where((p) {
+                    final q = searchQuery.toLowerCase();
+                    return p.displayName.toLowerCase().contains(q) ||
+                        p.email.toLowerCase().contains(q);
+                  }).toList();
+
+            final selectedCount = _selectedPartners.length;
+
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.82,
               ),
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: isDark ? 0.3 : 0.6,
-                      ),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF0A0A0A)
+                    : theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withValues(
+                    alpha: isDark ? 0.15 : 0.08,
+                  ),
+                ),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(
+                            alpha: isDark ? 0.3 : 0.6,
+                          ),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(28),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(
-                              Icons.person_add_rounded,
-                              color: theme.colorScheme.primary,
-                              size: 22,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.group_add_rounded,
+                                  color: theme.colorScheme.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 10),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Add Friends to Split',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                    Text(
+                                      selectedCount == 0
+                                          ? 'Tap friends to select'
+                                          : '$selectedCount friend${selectedCount > 1 ? 's' : ''} selected',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Add Friends to Split',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
+                            IconButton(
+                              icon: Icon(
+                                Icons.close_rounded,
+                                color: theme.colorScheme.onSurface,
                               ),
+                              onPressed: () => Navigator.pop(ctx),
+                              visualDensity: VisualDensity.compact,
                             ),
                           ],
                         ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Add New Person Action Tile
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 4,
-                    ),
-                    leading: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(
-                          alpha: 0.15,
-                        ),
-                        shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        Icons.person_add_alt_1_rounded,
-                        color: theme.colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      'Add new person',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                        fontSize: 15,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Add someone not registered yet',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.5,
-                        ),
-                      ),
-                    ),
-                    trailing: Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: theme.colorScheme.primary,
-                    ),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _showAddNewPersonDialog(splitVM);
-                    },
-                  ),
-                  Divider(
-                    height: 1,
-                    color: theme.colorScheme.outline.withValues(alpha: 0.12),
-                  ),
-                  if (available.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Text(
-                        'No other registered friends available.',
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.6,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    Flexible(
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: available.length,
-                        separatorBuilder: (context, index) => Divider(
-                          height: 1,
-                          color: theme.colorScheme.outline.withValues(
-                            alpha: 0.08,
-                          ),
-                        ),
-                        itemBuilder: (ctx, index) {
-                          final partner = available[index];
-                          return ListTile(
+
+                      // Search bar
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search friends...',
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              size: 20,
+                            ),
+                            suffixIcon: searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.clear_rounded,
+                                      size: 18,
+                                    ),
+                                    onPressed: () {
+                                      setModalState(() {
+                                        searchQuery = '';
+                                      });
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: isDark
+                                ? Colors.white.withValues(alpha: 0.05)
+                                : theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 4,
+                              horizontal: 16,
+                              vertical: 10,
                             ),
-                            leading: _buildAvatar(
-                              context: context,
-                              name: partner.displayName,
-                              radius: 18,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
                             ),
-                            title: Text(
-                              partner.displayName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          ),
+                          onChanged: (val) {
+                            setModalState(() {
+                              searchQuery = val;
+                            });
+                          },
+                        ),
+                      ),
+
+                      // Add New Person Action Tile
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 2,
+                        ),
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.15,
                             ),
-                            subtitle: Text(
-                              partner.email,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.6,
-                                ),
-                              ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.person_add_alt_1_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          'Add new person',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Add someone not registered yet',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
                             ),
-                            trailing: Icon(
-                              Icons.add_circle_rounded,
-                              color: theme.colorScheme.primary,
-                            ),
-                            onTap: () {
-                              AppHaptics.selectionClick(context);
-                              setState(() {
-                                _selectedPartners.add(partner);
-                                _includedPartnerIds.add(partner.id);
-                                if (!_iPaid && _payerPartner == null) {
-                                  _payerPartner = partner;
-                                }
-                              });
-                              Navigator.pop(ctx);
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: theme.colorScheme.primary,
+                        ),
+                        onTap: () {
+                          _showAddNewPersonDialog(
+                            splitVM,
+                            onAdded: () {
+                              setModalState(() {});
                             },
                           );
                         },
                       ),
-                    ),
-                ],
+                      Divider(
+                        height: 1,
+                        color: theme.colorScheme.outline.withValues(
+                          alpha: 0.12,
+                        ),
+                      ),
+
+                      // Friends List with multi-select checkboxes
+                      if (filteredProfiles.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            searchQuery.isNotEmpty
+                                ? 'No friends found matching "$searchQuery"'
+                                : 'No friends available. Add someone above!',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            itemCount: filteredProfiles.length,
+                            separatorBuilder: (context, index) => Divider(
+                              height: 1,
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: 0.08,
+                              ),
+                            ),
+                            itemBuilder: (context, index) {
+                              final partner = filteredProfiles[index];
+                              final isSelected = _selectedPartners.any(
+                                (p) => p.id == partner.id,
+                              );
+
+                              return ListTile(
+                                selected: isSelected,
+                                selectedTileColor: theme.colorScheme.primary
+                                    .withValues(
+                                      alpha: isDark ? 0.12 : 0.06,
+                                    ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 4,
+                                ),
+                                leading: _buildAvatar(
+                                  context: context,
+                                  name: partner.displayName,
+                                  radius: 18,
+                                ),
+                                title: Text(
+                                  partner.displayName,
+                                  style: TextStyle(
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? theme.colorScheme.primary
+                                        : null,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  partner.email,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                trailing: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? theme.colorScheme.primary
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.outline
+                                              .withValues(alpha: 0.4),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: isSelected
+                                      ? const Icon(
+                                          Icons.check_rounded,
+                                          size: 18,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                                onTap: () {
+                                  AppHaptics.selectionClick(context);
+                                  setState(() {
+                                    if (isSelected) {
+                                      _selectedPartners.removeWhere(
+                                        (p) => p.id == partner.id,
+                                      );
+                                      _includedPartnerIds.remove(partner.id);
+                                      if (_payerPartner?.id == partner.id) {
+                                        _payerPartner =
+                                            _selectedPartners.isNotEmpty
+                                                ? _selectedPartners.first
+                                                : null;
+                                      }
+                                    } else {
+                                      _selectedPartners.add(partner);
+                                      _includedPartnerIds.add(partner.id);
+                                      if (!_iPaid && _payerPartner == null) {
+                                        _payerPartner = partner;
+                                      }
+                                    }
+                                  });
+                                  setModalState(() {});
+                                },
+                              );
+                            },
+                          ),
+                        ),
+
+                      // Bottom "Done" Action Bar
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF0A0A0A)
+                              : theme.colorScheme.surface,
+                          border: Border(
+                            top: BorderSide(
+                              color: theme.colorScheme.outline.withValues(
+                                alpha: isDark ? 0.15 : 0.08,
+                              ),
+                            ),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: FilledButton(
+                            onPressed: () {
+                              AppHaptics.lightImpact(context);
+                              Navigator.pop(ctx);
+                            },
+                            style: FilledButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              selectedCount > 0
+                                  ? 'Done ($selectedCount Selected)'
+                                  : 'Done',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  void _showAddNewPersonDialog(SplitViewModel splitVM) {
+  void _showAddNewPersonDialog(
+    SplitViewModel splitVM, {
+    VoidCallback? onAdded,
+  }) {
     final nameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -793,6 +1039,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
                         _payerPartner = newProfile;
                       }
                     });
+                    onAdded?.call();
                   }
                   if (dialogCtx.mounted) {
                     Navigator.pop(dialogCtx);
@@ -1912,36 +2159,29 @@ class _AddSplitPageState extends State<AddSplitPage> {
       final isEditing = widget.splitExpense != null;
       final bool splitSuccess;
 
-      if (isEditing) {
-        final share = _getComputedShareForMember(
-          borrowerIds.isNotEmpty ? borrowerIds.first : (currentUserId ?? ''),
-        );
-        splitSuccess = await splitVM.updateSplitExpense(
-          id: widget.splitExpense!.id,
-          borrowerId: borrowerIds.isNotEmpty
-              ? borrowerIds.first
-              : (currentUserId ?? ''),
-          amount: share > 0 ? share : _perPersonShare,
-          totalAmount: amount,
-          description: description,
-          category: _category ?? 'General',
-          expenseDate: entryDateTime,
-          isPayer: _iPaid,
-          payerId: explicitPayerId,
-        );
-      } else if (_splitMode == SplitMode.exactAmounts ||
+      final splitsList = <Map<String, dynamic>>[];
+      if (_splitMode == SplitMode.exactAmounts ||
           _splitMode == SplitMode.percentages ||
           _splitMode == SplitMode.shares) {
         // Build custom borrower splits
-        final splitsList = <Map<String, dynamic>>[];
         for (final bId in borrowerIds) {
           final share = _getComputedShareForMember(bId);
           if (share > 0) {
             splitsList.add({'borrower_id': bId, 'amount': share});
           }
         }
+      } else {
+        for (final bId in borrowerIds) {
+          splitsList.add({'borrower_id': bId, 'amount': _perPersonShare});
+        }
+      }
 
-        splitSuccess = await splitVM.addCustomMultipleSplitExpenses(
+      if (isEditing) {
+        final origSisterSplits = splitVM.getSisterSplits(widget.splitExpense!);
+        final oldIds = origSisterSplits.map((s) => s.id).toList();
+
+        splitSuccess = await splitVM.updateSplitExpenseGroup(
+          oldSplitIds: oldIds,
           borrowerSplits: splitsList,
           totalAmount: amount,
           description: description,
@@ -1951,9 +2191,8 @@ class _AddSplitPageState extends State<AddSplitPage> {
           payerId: explicitPayerId,
         );
       } else {
-        splitSuccess = await splitVM.addMultipleSplitExpenses(
-          borrowerIds: borrowerIds,
-          perPersonAmount: _perPersonShare,
+        splitSuccess = await splitVM.addCustomMultipleSplitExpenses(
+          borrowerSplits: splitsList,
           totalAmount: amount,
           description: description,
           category: _category ?? 'General',
@@ -1976,21 +2215,59 @@ class _AddSplitPageState extends State<AddSplitPage> {
         return;
       }
 
-      // When the user paid the merchant, record the total bill amount paid out of pocket
-      if (_iPaid && _totalAmount > 0 && !isEditing) {
-        final partnerNames = _selectedPartners
-            .map((p) => p.displayName)
-            .join(', ');
-        final txDescription = 'Split: $description ($partnerNames)';
+      // Sync personal transaction with the split expense
+      final partnerNames = _selectedPartners
+          .map((p) => p.displayName)
+          .join(', ');
+      final txDescription = 'Split: $description ($partnerNames)';
 
-        await transactionVM.addTransaction(
-          amount: _totalAmount,
-          type: 'expense',
-          category: _category ?? 'General',
-          description: txDescription,
-          paymentMethod: _paymentMethod,
-          transactionDate: entryDateTime,
+      if (isEditing) {
+        final origSplit = widget.splitExpense!;
+        final existingTx = transactionVM.findMatchingSplitTransaction(
+          description: origSplit.description,
+          expenseDate: origSplit.expenseDate,
+          totalAmount: origSplit.totalAmount,
         );
+
+        if (_iPaid && _totalAmount > 0) {
+          if (existingTx != null) {
+            await transactionVM.updateTransaction(
+              id: existingTx.id,
+              amount: _totalAmount,
+              type: 'expense',
+              category: _category ?? 'General',
+              description: txDescription,
+              paymentMethod: _paymentMethod,
+              transactionDate: entryDateTime,
+            );
+          } else {
+            await transactionVM.addTransaction(
+              amount: _totalAmount,
+              type: 'expense',
+              category: _category ?? 'General',
+              description: txDescription,
+              paymentMethod: _paymentMethod,
+              transactionDate: entryDateTime,
+            );
+          }
+        } else {
+          // If user didn't pay, remove any personal transaction that was previously logged
+          if (existingTx != null) {
+            await transactionVM.deleteTransaction(existingTx.id);
+          }
+        }
+      } else {
+        // When the user paid the merchant on new split creation
+        if (_iPaid && _totalAmount > 0) {
+          await transactionVM.addTransaction(
+            amount: _totalAmount,
+            type: 'expense',
+            category: _category ?? 'General',
+            description: txDescription,
+            paymentMethod: _paymentMethod,
+            transactionDate: entryDateTime,
+          );
+        }
       }
 
       if (mounted) {
@@ -2014,7 +2291,6 @@ class _AddSplitPageState extends State<AddSplitPage> {
     final isEditing = widget.splitExpense != null;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Split Expense' : 'Add Split Expense'),
         elevation: 0,
@@ -2023,24 +2299,70 @@ class _AddSplitPageState extends State<AddSplitPage> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.pop(context),
         ),
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isDark
-                ? [Colors.black, Colors.black]
-                : [const Color(0xFFEEF2FF), Colors.white],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Consumer2<CategoryViewModel, SplitViewModel>(
-          builder: (context, categoryVM, splitVM, child) {
-            final isSaving = splitVM.isSaving;
-            final categories = categoryVM.expenseCategories;
+        actions: [
+          if (isEditing)
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.redAccent,
+              ),
+              onPressed: () async {
+                AppHaptics.vibrate(context);
+                final splitVM = context.read<SplitViewModel>();
+                final transactionVM = context.read<TransactionViewModel>();
+                final nav = Navigator.of(context);
 
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(24, 110, 24, 24),
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete Split Expense'),
+                    content: const Text(
+                      'Are you sure you want to delete this split expense? This will also remove the corresponding personal transaction.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red.withValues(alpha: 0.1),
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text(
+                          'Delete',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && mounted) {
+                  final origSisterSplits =
+                      splitVM.getSisterSplits(widget.splitExpense!);
+                  for (final s in origSisterSplits) {
+                    await splitVM.deleteSplitExpense(
+                      s.id,
+                      transactionVM: transactionVM,
+                    );
+                  }
+                  if (mounted) {
+                    nav.pop(true);
+                  }
+                }
+              },
+            ),
+        ],
+      ),
+      body: Consumer2<CategoryViewModel, SplitViewModel>(
+        builder: (context, categoryVM, splitVM, child) {
+          final isSaving = splitVM.isSaving;
+          final categories = categoryVM.expenseCategories;
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
               children: [
                 // ── 1. "With you and:" Bar (Split Feature #1) ───────────────
                 Container(
@@ -2245,7 +2567,9 @@ class _AddSplitPageState extends State<AddSplitPage> {
                                   vertical: 20,
                                 ),
                               ),
-                          keyboardType: TextInputType.text,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
                               RegExp(r'[0-9+\-*/÷×−().\s]'),
@@ -2579,7 +2903,6 @@ class _AddSplitPageState extends State<AddSplitPage> {
             );
           },
         ),
-      ),
     );
   }
 

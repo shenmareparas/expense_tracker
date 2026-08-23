@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/transaction.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';
+import 'split_viewmodel.dart';
 
 /// ViewModel for transaction state management.
 ///
@@ -272,7 +273,32 @@ class TransactionViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteTransaction(String id) async {
+  TransactionModel? findMatchingSplitTransaction({
+    required String description,
+    required DateTime expenseDate,
+    double? totalAmount,
+  }) {
+    final cleanDesc = description.trim().toLowerCase();
+    for (final t in _transactions) {
+      if (t.type != 'expense') continue;
+      final tDesc = (t.description ?? '').trim().toLowerCase();
+      final matchesDesc = tDesc == 'split: $cleanDesc' ||
+          tDesc.startsWith('split: $cleanDesc') ||
+          tDesc == cleanDesc;
+      if (!matchesDesc) continue;
+      final dateDiff = t.transactionDate.difference(expenseDate).inMinutes.abs();
+      final amountMatch = totalAmount == null || (t.amount - totalAmount).abs() < 0.05;
+      if (dateDiff < 120 || amountMatch) {
+        return t;
+      }
+    }
+    return null;
+  }
+
+  Future<void> deleteTransaction(
+    String id, {
+    SplitViewModel? splitVM,
+  }) async {
     final index = _transactions.indexWhere((t) => t.id == id);
     if (index == -1) return;
 
@@ -285,6 +311,11 @@ class TransactionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      if (splitVM != null &&
+          backup.description != null &&
+          backup.description!.toLowerCase().startsWith('split:')) {
+        await splitVM.deleteSplitsForTransaction(backup);
+      }
       await _databaseService.deleteTransaction(id);
     } catch (e) {
       _transactions.insert(index, backup);
