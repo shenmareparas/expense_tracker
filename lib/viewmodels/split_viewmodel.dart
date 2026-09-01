@@ -179,8 +179,10 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _splitExpenses = await _databaseService.getSplitExpenses(
-        forceRefresh: forceRefresh,
+      _splitExpenses = List<SplitExpenseModel>.from(
+        await _databaseService.getSplitExpenses(
+          forceRefresh: forceRefresh,
+        ),
       );
     } catch (e) {
       _errorMessage = _mapError(e);
