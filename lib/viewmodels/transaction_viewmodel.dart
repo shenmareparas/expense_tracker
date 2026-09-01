@@ -177,7 +177,7 @@ class TransactionViewModel extends ChangeNotifier {
       final result = await _databaseService.getTransactions(
         forceRefresh: forceRefresh,
         limit: null,
-        offset: 0,
+        offset: null,
         type: _filterType,
         categories: _filterCategories,
         paymentMethod: _filterPaymentMethod,
@@ -400,7 +400,7 @@ class TransactionViewModel extends ChangeNotifier {
       final result = await _databaseService.getTransactions(
         forceRefresh: forceRefresh,
         limit: null,
-        offset: 0,
+        offset: null,
         type: null,
         categories: null,
         startDate: _analyticsStartDate,

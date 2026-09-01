@@ -192,8 +192,11 @@ class DatabaseService {
       }
 
       var orderedQuery = query.order('transaction_date', ascending: false);
-      if (limit != null) orderedQuery = orderedQuery.limit(limit);
-      if (offset != null) orderedQuery = orderedQuery.range(offset, offset + (limit ?? 50) - 1);
+      if (offset != null && limit != null) {
+        orderedQuery = orderedQuery.range(offset, offset + limit - 1);
+      } else if (limit != null) {
+        orderedQuery = orderedQuery.limit(limit);
+      }
 
       final response = await orderedQuery;
 
