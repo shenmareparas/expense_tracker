@@ -18,8 +18,9 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
   - Add and delete custom (unregistered) friends stored locally via `SharedPreferences`, which seamlessly participate in all split operations without foreign key conflicts.
   - Hide / Unhide friend option with `SharedPreferences` persistence and low-profile expand/collapse toggle at the bottom of the split list.
   - Excludes hidden friends from the `AddSplitPage` partner selection.
-  - Interactive multi-select friend picker bottom sheet with search and batch checkmark toggles.
-  - Six split modes with live calculation & validation pills: `equally` (`=`), `youOweFull`, `partnerOwesFull`, `exactAmounts` (`1.23`), `percentages` (`%`), and `shares` (`===`).
+  - Interactive multi-select friend picker bottom sheet with search, checkmark indicators, and batch toggles.
+  - Responsive keyboard handling across all bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) with pinned headers/actions, dynamic max height constraints, view insets padding, and flexible scrollable bodies (`Flexible` + `SingleChildScrollView`) preventing `RenderFlex` overflows.
+  - Six split modes with live calculation & validation pills: `equally` (`=`), `youOweFull`, `partnerOwesFull`, `exactAmounts` (`1.23`), `percentages` (`%`), and `shares` (`===`). Exact amounts and percentage text fields include `scrollPadding` and `TextInputAction.next` for keyboard visibility.
   - Edit existing split expenses with full multi-person group resolution, pre-filling all sharing participants, exact amounts/percentages, and who paid.
   - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation and inline math evaluation in the amount field.
   - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, settlements logged as income/expense).

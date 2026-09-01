@@ -181,8 +181,9 @@ class _AddSplitPageState extends State<AddSplitPage> {
         } else {
           final totalMembers =
               _includedPartnerIds.length + (_includeMeInSplit ? 1 : 0);
-          final equalShare =
-              totalMembers > 0 ? (s.totalAmount / totalMembers) : 0.0;
+          final equalShare = totalMembers > 0
+              ? (s.totalAmount / totalMembers)
+              : 0.0;
           final allEqual = sisterSplits.every(
             (sp) => (sp.amount - equalShare).abs() < 0.05,
           );
@@ -582,7 +583,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
 
             return Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.82,
+                maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
               ),
               decoration: BoxDecoration(
                 color: isDark
@@ -599,341 +600,371 @@ class _AddSplitPageState extends State<AddSplitPage> {
               ),
               child: Material(
                 color: Colors.transparent,
-                child: SafeArea(
-                  top: false,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Header
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer.withValues(
-                            alpha: isDark ? 0.3 : 0.6,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(modalCtx).viewInsets.bottom,
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
                           ),
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(28),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer
+                                .withValues(alpha: isDark ? 0.3 : 0.6),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(28),
+                            ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.group_add_rounded,
-                                  color: theme.colorScheme.primary,
-                                  size: 24,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.group_add_rounded,
+                                    color: theme.colorScheme.primary,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Add Friends to Split',
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      Text(
+                                        selectedCount == 0
+                                            ? 'Tap friends to select'
+                                            : '$selectedCount friend${selectedCount > 1 ? 's' : ''} selected',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme.colorScheme.primary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: theme.colorScheme.onSurface,
                                 ),
-                                const SizedBox(width: 10),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Add Friends to Split',
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                onPressed: () => Navigator.pop(ctx),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Search bar
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Search friends...',
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                              ),
+                              suffixIcon: searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.clear_rounded,
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        setModalState(() {
+                                          searchQuery = '';
+                                        });
+                                      },
+                                    )
+                                  : null,
+                              filled: true,
+                              fillColor: isDark
+                                  ? Colors.white.withValues(alpha: 0.05)
+                                  : theme.colorScheme.surfaceContainerHighest
+                                        .withValues(alpha: 0.4),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: (val) {
+                              setModalState(() {
+                                searchQuery = val;
+                              });
+                            },
+                          ),
+                        ),
+
+                        // Scrollable content area (Add new person + Friends list / Empty state)
+                        Flexible(
+                          child: SingleChildScrollView(
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Add New Person Action Tile
+                                ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 2,
+                                  ),
+                                  leading: Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
                                     ),
-                                    Text(
-                                      selectedCount == 0
-                                          ? 'Tap friends to select'
-                                          : '$selectedCount friend${selectedCount > 1 ? 's' : ''} selected',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: theme.colorScheme.primary,
-                                        fontWeight: FontWeight.w600,
+                                    child: Icon(
+                                      Icons.person_add_alt_1_rounded,
+                                      color: theme.colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    'Add new person',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    'Add someone not registered yet',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  trailing: Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  onTap: () {
+                                    _showAddNewPersonDialog(
+                                      splitVM,
+                                      onAdded: () {
+                                        setModalState(() {});
+                                      },
+                                    );
+                                  },
+                                ),
+                                Divider(
+                                  height: 1,
+                                  color: theme.colorScheme.outline.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                ),
+
+                                // Friends List or Empty State
+                                if (filteredProfiles.isEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.all(24.0),
+                                    child: Center(
+                                      child: Text(
+                                        searchQuery.isNotEmpty
+                                            ? 'No friends found matching "$searchQuery"'
+                                            : 'No friends available. Add someone above!',
+                                        style: TextStyle(
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.6),
+                                        ),
+                                        textAlign: TextAlign.center,
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.close_rounded,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                              onPressed: () => Navigator.pop(ctx),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Search bar
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search friends...',
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              size: 20,
-                            ),
-                            suffixIcon: searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(
-                                      Icons.clear_rounded,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      setModalState(() {
-                                        searchQuery = '';
-                                      });
-                                    },
                                   )
-                                : null,
-                            filled: true,
-                            fillColor: isDark
-                                ? Colors.white.withValues(alpha: 0.05)
-                                : theme.colorScheme.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          onChanged: (val) {
-                            setModalState(() {
-                              searchQuery = val;
-                            });
-                          },
-                        ),
-                      ),
-
-                      // Add New Person Action Tile
-                      ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 2,
-                        ),
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.15,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.person_add_alt_1_rounded,
-                            color: theme.colorScheme.primary,
-                            size: 20,
-                          ),
-                        ),
-                        title: Text(
-                          'Add new person',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Add someone not registered yet',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 14,
-                          color: theme.colorScheme.primary,
-                        ),
-                        onTap: () {
-                          _showAddNewPersonDialog(
-                            splitVM,
-                            onAdded: () {
-                              setModalState(() {});
-                            },
-                          );
-                        },
-                      ),
-                      Divider(
-                        height: 1,
-                        color: theme.colorScheme.outline.withValues(
-                          alpha: 0.12,
-                        ),
-                      ),
-
-                      // Friends List with multi-select checkboxes
-                      if (filteredProfiles.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(32.0),
-                          child: Text(
-                            searchQuery.isNotEmpty
-                                ? 'No friends found matching "$searchQuery"'
-                                : 'No friends available. Add someone above!',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        Flexible(
-                          child: ListView.separated(
-                            shrinkWrap: true,
-                            padding: const EdgeInsets.symmetric(vertical: 4),
-                            itemCount: filteredProfiles.length,
-                            separatorBuilder: (context, index) => Divider(
-                              height: 1,
-                              color: theme.colorScheme.outline.withValues(
-                                alpha: 0.08,
-                              ),
-                            ),
-                            itemBuilder: (context, index) {
-                              final partner = filteredProfiles[index];
-                              final isSelected = _selectedPartners.any(
-                                (p) => p.id == partner.id,
-                              );
-
-                              return ListTile(
-                                selected: isSelected,
-                                selectedTileColor: theme.colorScheme.primary
-                                    .withValues(
-                                      alpha: isDark ? 0.12 : 0.06,
+                                else
+                                  ListView.separated(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
                                     ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 4,
-                                ),
-                                leading: _buildAvatar(
-                                  context: context,
-                                  name: partner.displayName,
-                                  radius: 18,
-                                ),
-                                title: Text(
-                                  partner.displayName,
-                                  style: TextStyle(
-                                    fontWeight: isSelected
-                                        ? FontWeight.bold
-                                        : FontWeight.w600,
-                                    color: isSelected
-                                        ? theme.colorScheme.primary
-                                        : null,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  partner.email,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                trailing: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? theme.colorScheme.primary
-                                        : Colors.transparent,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? theme.colorScheme.primary
-                                          : theme.colorScheme.outline
-                                              .withValues(alpha: 0.4),
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: isSelected
-                                      ? const Icon(
-                                          Icons.check_rounded,
-                                          size: 18,
-                                          color: Colors.white,
-                                        )
-                                      : null,
-                                ),
-                                onTap: () {
-                                  AppHaptics.selectionClick(context);
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedPartners.removeWhere(
+                                    itemCount: filteredProfiles.length,
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                          height: 1,
+                                          color: theme.colorScheme.outline
+                                              .withValues(alpha: 0.08),
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final partner = filteredProfiles[index];
+                                      final isSelected = _selectedPartners.any(
                                         (p) => p.id == partner.id,
                                       );
-                                      _includedPartnerIds.remove(partner.id);
-                                      if (_payerPartner?.id == partner.id) {
-                                        _payerPartner =
-                                            _selectedPartners.isNotEmpty
-                                                ? _selectedPartners.first
-                                                : null;
-                                      }
-                                    } else {
-                                      _selectedPartners.add(partner);
-                                      _includedPartnerIds.add(partner.id);
-                                      if (!_iPaid && _payerPartner == null) {
-                                        _payerPartner = partner;
-                                      }
-                                    }
-                                  });
-                                  setModalState(() {});
-                                },
-                              );
-                            },
+
+                                      return ListTile(
+                                        selected: isSelected,
+                                        selectedTileColor: theme
+                                            .colorScheme
+                                            .primary
+                                            .withValues(
+                                              alpha: isDark ? 0.12 : 0.06,
+                                            ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 4,
+                                            ),
+                                        leading: _buildAvatar(
+                                          context: context,
+                                          name: partner.displayName,
+                                          radius: 18,
+                                        ),
+                                        title: Text(
+                                          partner.displayName,
+                                          style: TextStyle(
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.w600,
+                                            color: isSelected
+                                                ? theme.colorScheme.primary
+                                                : null,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          partner.email,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
+                                        ),
+                                        trailing: AnimatedContainer(
+                                          duration: const Duration(
+                                            milliseconds: 200,
+                                          ),
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? theme.colorScheme.primary
+                                                : Colors.transparent,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? theme.colorScheme.primary
+                                                  : theme.colorScheme.outline
+                                                        .withValues(alpha: 0.4),
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: isSelected
+                                              ? const Icon(
+                                                  Icons.check_rounded,
+                                                  size: 18,
+                                                  color: Colors.white,
+                                                )
+                                              : null,
+                                        ),
+                                        onTap: () {
+                                          AppHaptics.selectionClick(context);
+                                          setState(() {
+                                            if (isSelected) {
+                                              _selectedPartners.removeWhere(
+                                                (p) => p.id == partner.id,
+                                              );
+                                              _includedPartnerIds.remove(
+                                                partner.id,
+                                              );
+                                              if (_payerPartner?.id ==
+                                                  partner.id) {
+                                                _payerPartner =
+                                                    _selectedPartners.isNotEmpty
+                                                    ? _selectedPartners.first
+                                                    : null;
+                                              }
+                                            } else {
+                                              _selectedPartners.add(partner);
+                                              _includedPartnerIds.add(
+                                                partner.id,
+                                              );
+                                              if (!_iPaid &&
+                                                  _payerPartner == null) {
+                                                _payerPartner = partner;
+                                              }
+                                            }
+                                          });
+                                          setModalState(() {});
+                                        },
+                                      );
+                                    },
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
 
-                      // Bottom "Done" Action Bar
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? const Color(0xFF0A0A0A)
-                              : theme.colorScheme.surface,
-                          border: Border(
-                            top: BorderSide(
-                              color: theme.colorScheme.outline.withValues(
-                                alpha: isDark ? 0.15 : 0.08,
+                        // Bottom "Done" Action Bar
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0A0A0A)
+                                : theme.colorScheme.surface,
+                            border: Border(
+                              top: BorderSide(
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: isDark ? 0.15 : 0.08,
+                                ),
+                              ),
+                            ),
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: FilledButton(
+                              onPressed: () {
+                                AppHaptics.lightImpact(context);
+                                Navigator.pop(ctx);
+                              },
+                              style: FilledButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Text(
+                                selectedCount > 0
+                                    ? 'Done ($selectedCount Selected)'
+                                    : 'Done',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: FilledButton(
-                            onPressed: () {
-                              AppHaptics.lightImpact(context);
-                              Navigator.pop(ctx);
-                            },
-                            style: FilledButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Text(
-                              selectedCount > 0
-                                  ? 'Done ($selectedCount Selected)'
-                                  : 'Done',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1068,6 +1099,9 @@ class _AddSplitPageState extends State<AddSplitPage> {
         final isDark = theme.brightness == Brightness.dark;
 
         return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+          ),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF0A0A0A) : theme.colorScheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -1130,80 +1164,91 @@ class _AddSplitPageState extends State<AddSplitPage> {
                   ),
 
                   // List of Partners
-                  ..._selectedPartners.map((partner) {
-                    final isSelected =
-                        !_iPaid && _payerPartner?.id == partner.id;
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 4,
-                      ),
-                      leading: _buildAvatar(
-                        context: context,
-                        name: partner.displayName,
-                        radius: 18,
-                      ),
-                      title: Text(
-                        partner.displayName,
-                        style: TextStyle(
-                          fontWeight: isSelected
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          fontSize: 16,
-                        ),
-                      ),
-                      trailing: isSelected
-                          ? Icon(
-                              Icons.check_circle_rounded,
-                              color: theme.colorScheme.primary,
-                            )
-                          : null,
-                      onTap: () {
-                        AppHaptics.selectionClick(context);
-                        setState(() {
-                          _iPaid = false;
-                          _payerPartner = partner;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                    );
-                  }),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ..._selectedPartners.map((partner) {
+                            final isSelected =
+                                !_iPaid && _payerPartner?.id == partner.id;
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 4,
+                              ),
+                              leading: _buildAvatar(
+                                context: context,
+                                name: partner.displayName,
+                                radius: 18,
+                              ),
+                              title: Text(
+                                partner.displayName,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              trailing: isSelected
+                                  ? Icon(
+                                      Icons.check_circle_rounded,
+                                      color: theme.colorScheme.primary,
+                                    )
+                                  : null,
+                              onTap: () {
+                                AppHaptics.selectionClick(context);
+                                setState(() {
+                                  _iPaid = false;
+                                  _payerPartner = partner;
+                                });
+                                Navigator.pop(ctx);
+                              },
+                            );
+                          }),
 
-                  // You (Current User)
-                  ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 4,
-                    ),
-                    leading: _buildAvatar(
-                      context: context,
-                      name: currentUserName,
-                      radius: 18,
-                      isCurrentUser: true,
-                    ),
-                    title: Text(
-                      '$currentUserName (You)',
-                      style: TextStyle(
-                        fontWeight: _iPaid ? FontWeight.bold : FontWeight.w500,
-                        fontSize: 16,
+                          // You (Current User)
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 4,
+                            ),
+                            leading: _buildAvatar(
+                              context: context,
+                              name: currentUserName,
+                              radius: 18,
+                              isCurrentUser: true,
+                            ),
+                            title: Text(
+                              '$currentUserName (You)',
+                              style: TextStyle(
+                                fontWeight: _iPaid
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                                fontSize: 16,
+                              ),
+                            ),
+                            trailing: _iPaid
+                                ? Icon(
+                                    Icons.check_circle_rounded,
+                                    color: theme.colorScheme.primary,
+                                  )
+                                : null,
+                            onTap: () {
+                              AppHaptics.selectionClick(context);
+                              setState(() {
+                                _iPaid = true;
+                                _payerPartner = null;
+                              });
+                              Navigator.pop(ctx);
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
                     ),
-                    trailing: _iPaid
-                        ? Icon(
-                            Icons.check_circle_rounded,
-                            color: theme.colorScheme.primary,
-                          )
-                        : null,
-                    onTap: () {
-                      AppHaptics.selectionClick(context);
-                      setState(() {
-                        _iPaid = true;
-                        _payerPartner = null;
-                      });
-                      Navigator.pop(ctx);
-                    },
                   ),
-                  const SizedBox(height: 12),
                 ],
               ),
             ),
@@ -1236,6 +1281,9 @@ class _AddSplitPageState extends State<AddSplitPage> {
             final isDark = theme.brightness == Brightness.dark;
 
             return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(modalContext).height * 0.88,
+              ),
               decoration: BoxDecoration(
                 color: isDark
                     ? const Color(0xFF0A0A0A)
@@ -1257,447 +1305,538 @@ class _AddSplitPageState extends State<AddSplitPage> {
                   ),
                   child: SafeArea(
                     top: false,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primaryContainer
-                                  .withValues(alpha: isDark ? 0.3 : 0.6),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(28),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.call_split_rounded,
-                                      color: theme.colorScheme.primary,
-                                      size: 22,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Choose Split Options',
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.close_rounded,
-                                    color: theme.colorScheme.onSurface,
-                                  ),
-                                  onPressed: () => Navigator.pop(ctx),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              ],
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Pinned Header
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer
+                                .withValues(alpha: isDark ? 0.3 : 0.6),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(28),
                             ),
                           ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.call_split_rounded,
+                                    color: theme.colorScheme.primary,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Choose Split Options',
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.close_rounded,
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                                onPressed: () => Navigator.pop(ctx),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ],
+                          ),
+                        ),
 
-                          const SizedBox(height: 16),
-
-                          // 3 Preset Options
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                        // Scrollable Body
+                        Flexible(
+                          child: SingleChildScrollView(
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _buildPresetButton(
-                                  context: modalContext,
-                                  label: 'Split the expense',
-                                  isSelected: _splitMode == SplitMode.equally,
-                                  onTap: () {
-                                    AppHaptics.selectionClick(context);
-                                    setState(
-                                      () => _splitMode = SplitMode.equally,
-                                    );
-                                    setModalState(() {});
-                                  },
+                                const SizedBox(height: 16),
+
+                                // 3 Preset Options
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      _buildPresetButton(
+                                        context: modalContext,
+                                        label: 'Split the expense',
+                                        isSelected:
+                                            _splitMode == SplitMode.equally,
+                                        onTap: () {
+                                          AppHaptics.selectionClick(context);
+                                          setState(
+                                            () =>
+                                                _splitMode = SplitMode.equally,
+                                          );
+                                          setModalState(() {});
+                                        },
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      _buildPresetButton(
+                                        context: modalContext,
+                                        label:
+                                            'You owe $partnerName ₹$amountFormatted',
+                                        isSelected:
+                                            _splitMode == SplitMode.youOweFull,
+                                        onTap: () {
+                                          AppHaptics.selectionClick(context);
+                                          setState(() {
+                                            _splitMode = SplitMode.youOweFull;
+                                            _iPaid = false;
+                                            if (_selectedPartners.isNotEmpty) {
+                                              _payerPartner =
+                                                  _selectedPartners.first;
+                                            }
+                                          });
+                                          setModalState(() {});
+                                        },
+                                      ),
+                                      const SizedBox(height: 8),
+
+                                      _buildPresetButton(
+                                        context: modalContext,
+                                        label:
+                                            '$partnerName owes you ₹$amountFormatted',
+                                        isSelected:
+                                            _splitMode ==
+                                            SplitMode.partnerOwesFull,
+                                        onTap: () {
+                                          AppHaptics.selectionClick(context);
+                                          setState(() {
+                                            _splitMode =
+                                                SplitMode.partnerOwesFull;
+                                            _iPaid = true;
+                                          });
+                                          setModalState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 8),
 
-                                _buildPresetButton(
-                                  context: modalContext,
-                                  label:
-                                      'You owe $partnerName ₹$amountFormatted',
-                                  isSelected:
-                                      _splitMode == SplitMode.youOweFull,
-                                  onTap: () {
-                                    AppHaptics.selectionClick(context);
-                                    setState(() {
-                                      _splitMode = SplitMode.youOweFull;
-                                      _iPaid = false;
-                                      if (_selectedPartners.isNotEmpty) {
-                                        _payerPartner = _selectedPartners.first;
-                                      }
-                                    });
-                                    setModalState(() {});
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-
-                                _buildPresetButton(
-                                  context: modalContext,
-                                  label:
-                                      '$partnerName owes you ₹$amountFormatted',
-                                  isSelected:
-                                      _splitMode == SplitMode.partnerOwesFull,
-                                  onTap: () {
-                                    AppHaptics.selectionClick(context);
-                                    setState(() {
-                                      _splitMode = SplitMode.partnerOwesFull;
-                                      _iPaid = true;
-                                    });
-                                    setModalState(() {});
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-                          Divider(
-                            height: 1,
-                            color: theme.colorScheme.outline.withValues(
-                              alpha: 0.1,
-                            ),
-                          ),
-
-                          // Split Mode Icons Bar
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.05)
-                                    : theme.colorScheme.surfaceContainerHighest
-                                          .withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
+                                const SizedBox(height: 16),
+                                Divider(
+                                  height: 1,
                                   color: theme.colorScheme.outline.withValues(
                                     alpha: 0.1,
                                   ),
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  _buildModeTabIcon(
-                                    context: modalContext,
-                                    label: '=',
-                                    isSelected: _splitMode == SplitMode.equally,
-                                    onTap: () {
-                                      AppHaptics.selectionClick(context);
-                                      setState(
-                                        () => _splitMode = SplitMode.equally,
-                                      );
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  _buildModeTabIcon(
-                                    context: modalContext,
-                                    label: '1.23',
-                                    isSelected:
-                                        _splitMode == SplitMode.exactAmounts,
-                                    onTap: () {
-                                      AppHaptics.selectionClick(context);
-                                      setState(() {
-                                        _splitMode = SplitMode.exactAmounts;
-                                        _initializeCustomSplitState();
-                                      });
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  _buildModeTabIcon(
-                                    context: modalContext,
-                                    label: '%',
-                                    isSelected:
-                                        _splitMode == SplitMode.percentages,
-                                    onTap: () {
-                                      AppHaptics.selectionClick(context);
-                                      setState(() {
-                                        _splitMode = SplitMode.percentages;
-                                        _initializeCustomSplitState();
-                                      });
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  _buildModeTabIcon(
-                                    context: modalContext,
-                                    label: '===',
-                                    isSelected: _splitMode == SplitMode.shares,
-                                    onTap: () {
-                                      AppHaptics.selectionClick(context);
-                                      setState(() {
-                                        _splitMode = SplitMode.shares;
-                                        _initializeCustomSplitState();
-                                      });
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
 
-                          // Mode Title and Remaining Balance / Status Pill
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 6,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _splitMode == SplitMode.equally
-                                      ? 'Split equally'
-                                      : _splitMode == SplitMode.exactAmounts
-                                      ? 'Split by exact amounts'
-                                      : _splitMode == SplitMode.percentages
-                                      ? 'Split by percentages'
-                                      : _splitMode == SplitMode.shares
-                                      ? 'Split by shares'
-                                      : 'Split expense',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                // Split Mode Icons Bar
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.05)
+                                          : theme
+                                                .colorScheme
+                                                .surfaceContainerHighest
+                                                .withValues(alpha: 0.5),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: theme.colorScheme.outline
+                                            .withValues(alpha: 0.1),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _buildModeTabIcon(
+                                          context: modalContext,
+                                          label: '=',
+                                          isSelected:
+                                              _splitMode == SplitMode.equally,
+                                          onTap: () {
+                                            AppHaptics.selectionClick(context);
+                                            setState(
+                                              () => _splitMode =
+                                                  SplitMode.equally,
+                                            );
+                                            setModalState(() {});
+                                          },
+                                        ),
+                                        _buildModeTabIcon(
+                                          context: modalContext,
+                                          label: '1.23',
+                                          isSelected:
+                                              _splitMode ==
+                                              SplitMode.exactAmounts,
+                                          onTap: () {
+                                            AppHaptics.selectionClick(context);
+                                            setState(() {
+                                              _splitMode =
+                                                  SplitMode.exactAmounts;
+                                              _initializeCustomSplitState();
+                                            });
+                                            setModalState(() {});
+                                          },
+                                        ),
+                                        _buildModeTabIcon(
+                                          context: modalContext,
+                                          label: '%',
+                                          isSelected:
+                                              _splitMode ==
+                                              SplitMode.percentages,
+                                          onTap: () {
+                                            AppHaptics.selectionClick(context);
+                                            setState(() {
+                                              _splitMode =
+                                                  SplitMode.percentages;
+                                              _initializeCustomSplitState();
+                                            });
+                                            setModalState(() {});
+                                          },
+                                        ),
+                                        _buildModeTabIcon(
+                                          context: modalContext,
+                                          label: '===',
+                                          isSelected:
+                                              _splitMode == SplitMode.shares,
+                                          onTap: () {
+                                            AppHaptics.selectionClick(context);
+                                            setState(() {
+                                              _splitMode = SplitMode.shares;
+                                              _initializeCustomSplitState();
+                                            });
+                                            setModalState(() {});
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                                if (_splitMode == SplitMode.exactAmounts)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          _exactAmountsRemaining.abs() <= 0.05
-                                          ? Colors.green.withValues(alpha: 0.15)
-                                          : Colors.orange.withValues(
-                                              alpha: 0.15,
+
+                                // Mode Title and Remaining Balance / Status Pill
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 6,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _splitMode == SplitMode.equally
+                                            ? 'Split equally'
+                                            : _splitMode ==
+                                                  SplitMode.exactAmounts
+                                            ? 'Split by exact amounts'
+                                            : _splitMode ==
+                                                  SplitMode.percentages
+                                            ? 'Split by percentages'
+                                            : _splitMode == SplitMode.shares
+                                            ? 'Split by shares'
+                                            : 'Split expense',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (_splitMode == SplitMode.exactAmounts)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                _exactAmountsRemaining.abs() <=
+                                                    0.05
+                                                ? Colors.green.withValues(
+                                                    alpha: 0.15,
+                                                  )
+                                                : Colors.orange.withValues(
+                                                    alpha: 0.15,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      _exactAmountsRemaining.abs() <= 0.05
-                                          ? '₹0.00 left'
-                                          : (_exactAmountsRemaining > 0
-                                                ? '₹${_exactAmountsRemaining.toStringAsFixed(2)} left'
-                                                : '₹${(-_exactAmountsRemaining).toStringAsFixed(2)} over'),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color:
+                                          ),
+                                          child: Text(
                                             _exactAmountsRemaining.abs() <= 0.05
-                                            ? Colors.green
-                                            : Colors.orange,
+                                                ? '₹0.00 left'
+                                                : (_exactAmountsRemaining > 0
+                                                      ? '₹${_exactAmountsRemaining.toStringAsFixed(2)} left'
+                                                      : '₹${(-_exactAmountsRemaining).toStringAsFixed(2)} over'),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color:
+                                                  _exactAmountsRemaining
+                                                          .abs() <=
+                                                      0.05
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                            ),
+                                          ),
+                                        )
+                                      else if (_splitMode ==
+                                          SplitMode.percentages)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                _percentagesRemaining.abs() <=
+                                                    0.5
+                                                ? Colors.green.withValues(
+                                                    alpha: 0.15,
+                                                  )
+                                                : Colors.orange.withValues(
+                                                    alpha: 0.15,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            _percentagesRemaining.abs() <= 0.5
+                                                ? '0% left'
+                                                : (_percentagesRemaining > 0
+                                                      ? '${_percentagesRemaining.toStringAsFixed(1)}% left'
+                                                      : '${(-_percentagesRemaining).toStringAsFixed(1)}% over'),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color:
+                                                  _percentagesRemaining.abs() <=
+                                                      0.5
+                                                  ? Colors.green
+                                                  : Colors.orange,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Members Rows for Selected Mode
+                                if (_splitMode == SplitMode.equally) ...[
+                                  // Members Checkboxes & Share Amount
+                                  ..._selectedPartners.map((partner) {
+                                    final isIncluded = _includedPartnerIds
+                                        .contains(partner.id);
+                                    final share = isIncluded
+                                        ? _perPersonShare
+                                        : 0.0;
+                                    return CheckboxListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 20,
+                                          ),
+                                      activeColor: theme.colorScheme.primary,
+                                      value: isIncluded,
+                                      onChanged: (val) {
+                                        AppHaptics.selectionClick(context);
+                                        setState(() {
+                                          if (val == true) {
+                                            _includedPartnerIds.add(partner.id);
+                                          } else {
+                                            if (_includedMembersCount > 1) {
+                                              _includedPartnerIds.remove(
+                                                partner.id,
+                                              );
+                                            }
+                                          }
+                                        });
+                                        setModalState(() {});
+                                      },
+                                      secondary: _buildAvatar(
+                                        context: context,
+                                        name: partner.displayName,
+                                        radius: 18,
+                                      ),
+                                      title: Text(
+                                        partner.displayName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        '₹${share.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          color: isIncluded
+                                              ? (isDark
+                                                    ? Colors.white70
+                                                    : Colors.black87)
+                                              : Colors.grey,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+
+                                  // Current User Checkbox
+                                  CheckboxListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                    ),
+                                    activeColor: theme.colorScheme.primary,
+                                    value: _includeMeInSplit,
+                                    onChanged: (val) {
+                                      AppHaptics.selectionClick(context);
+                                      setState(() {
+                                        if (val == true) {
+                                          _includeMeInSplit = true;
+                                        } else {
+                                          if (_includedMembersCount > 1) {
+                                            _includeMeInSplit = false;
+                                          }
+                                        }
+                                      });
+                                      setModalState(() {});
+                                    },
+                                    secondary: _buildAvatar(
+                                      context: context,
+                                      name: currentUserName,
+                                      radius: 18,
+                                      isCurrentUser: true,
+                                    ),
+                                    title: Text(
+                                      '$currentUserName (You)',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                  )
-                                else if (_splitMode == SplitMode.percentages)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _percentagesRemaining.abs() <= 0.5
-                                          ? Colors.green.withValues(alpha: 0.15)
-                                          : Colors.orange.withValues(
-                                              alpha: 0.15,
-                                            ),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      _percentagesRemaining.abs() <= 0.5
-                                          ? '0% left'
-                                          : (_percentagesRemaining > 0
-                                                ? '${_percentagesRemaining.toStringAsFixed(1)}% left'
-                                                : '${(-_percentagesRemaining).toStringAsFixed(1)}% over'),
+                                    subtitle: Text(
+                                      '₹${(_includeMeInSplit ? _perPersonShare : 0.0).toStringAsFixed(2)}',
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        color: _includeMeInSplit
+                                            ? (isDark
+                                                  ? Colors.white70
+                                                  : Colors.black87)
+                                            : Colors.grey,
                                         fontWeight: FontWeight.bold,
-                                        color:
-                                            _percentagesRemaining.abs() <= 0.5
-                                            ? Colors.green
-                                            : Colors.orange,
                                       ),
                                     ),
                                   ),
+                                ] else if (_splitMode ==
+                                    SplitMode.exactAmounts) ...[
+                                  // Exact Amount Rows
+                                  ..._selectedPartners.map((partner) {
+                                    return _buildExactAmountRow(
+                                      context: modalContext,
+                                      id: partner.id,
+                                      name: partner.displayName,
+                                      isCurrentUser: false,
+                                      setModalState: setModalState,
+                                    );
+                                  }),
+                                  _buildExactAmountRow(
+                                    context: modalContext,
+                                    id: 'current_user',
+                                    name: '$currentUserName (You)',
+                                    isCurrentUser: true,
+                                    setModalState: setModalState,
+                                  ),
+                                ] else if (_splitMode ==
+                                    SplitMode.percentages) ...[
+                                  // Percentage Rows
+                                  ..._selectedPartners.map((partner) {
+                                    return _buildPercentageRow(
+                                      context: modalContext,
+                                      id: partner.id,
+                                      name: partner.displayName,
+                                      isCurrentUser: false,
+                                      setModalState: setModalState,
+                                    );
+                                  }),
+                                  _buildPercentageRow(
+                                    context: modalContext,
+                                    id: 'current_user',
+                                    name: '$currentUserName (You)',
+                                    isCurrentUser: true,
+                                    setModalState: setModalState,
+                                  ),
+                                ] else if (_splitMode == SplitMode.shares) ...[
+                                  // Shares Rows
+                                  ..._selectedPartners.map((partner) {
+                                    return _buildSharesRow(
+                                      context: modalContext,
+                                      id: partner.id,
+                                      name: partner.displayName,
+                                      isCurrentUser: false,
+                                      setModalState: setModalState,
+                                    );
+                                  }),
+                                  _buildSharesRow(
+                                    context: modalContext,
+                                    id: 'current_user',
+                                    name: '$currentUserName (You)',
+                                    isCurrentUser: true,
+                                    setModalState: setModalState,
+                                  ),
+                                ],
+
+                                const SizedBox(height: 16),
                               ],
                             ),
                           ),
+                        ),
 
-                          // Members Rows for Selected Mode
-                          if (_splitMode == SplitMode.equally) ...[
-                            // Members Checkboxes & Share Amount
-                            ..._selectedPartners.map((partner) {
-                              final isIncluded = _includedPartnerIds.contains(
-                                partner.id,
-                              );
-                              final share = isIncluded ? _perPersonShare : 0.0;
-                              return CheckboxListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
+                        // Bottom Done Button
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF0A0A0A)
+                                : theme.colorScheme.surface,
+                            border: Border(
+                              top: BorderSide(
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: isDark ? 0.15 : 0.08,
                                 ),
-                                activeColor: theme.colorScheme.primary,
-                                value: isIncluded,
-                                onChanged: (val) {
-                                  AppHaptics.selectionClick(context);
-                                  setState(() {
-                                    if (val == true) {
-                                      _includedPartnerIds.add(partner.id);
-                                    } else {
-                                      if (_includedMembersCount > 1) {
-                                        _includedPartnerIds.remove(partner.id);
-                                      }
-                                    }
-                                  });
-                                  setModalState(() {});
-                                },
-                                secondary: _buildAvatar(
-                                  context: context,
-                                  name: partner.displayName,
-                                  radius: 18,
-                                ),
-                                title: Text(
-                                  partner.displayName,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '₹${share.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    color: isIncluded
-                                        ? (isDark
-                                              ? Colors.white70
-                                              : Colors.black87)
-                                        : Colors.grey,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              );
-                            }),
-
-                            // Current User Checkbox
-                            CheckboxListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
                               ),
-                              activeColor: theme.colorScheme.primary,
-                              value: _includeMeInSplit,
-                              onChanged: (val) {
-                                AppHaptics.selectionClick(context);
-                                setState(() {
-                                  if (val == true) {
-                                    _includeMeInSplit = true;
-                                  } else {
-                                    if (_includedMembersCount > 1) {
-                                      _includeMeInSplit = false;
-                                    }
-                                  }
-                                });
-                                setModalState(() {});
+                            ),
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: FilledButton(
+                              onPressed: () {
+                                AppHaptics.lightImpact(context);
+                                Navigator.pop(ctx);
                               },
-                              secondary: _buildAvatar(
-                                context: context,
-                                name: currentUserName,
-                                radius: 18,
-                                isCurrentUser: true,
-                              ),
-                              title: Text(
-                                '$currentUserName (You)',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+                              style: FilledButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                              subtitle: Text(
-                                '₹${(_includeMeInSplit ? _perPersonShare : 0.0).toStringAsFixed(2)}',
+                              child: const Text(
+                                'Done',
                                 style: TextStyle(
-                                  color: _includeMeInSplit
-                                      ? (isDark
-                                            ? Colors.white70
-                                            : Colors.black87)
-                                      : Colors.grey,
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
                               ),
                             ),
-                          ] else if (_splitMode == SplitMode.exactAmounts) ...[
-                            // Exact Amount Rows
-                            ..._selectedPartners.map((partner) {
-                              return _buildExactAmountRow(
-                                context: modalContext,
-                                id: partner.id,
-                                name: partner.displayName,
-                                isCurrentUser: false,
-                                setModalState: setModalState,
-                              );
-                            }),
-                            _buildExactAmountRow(
-                              context: modalContext,
-                              id: 'current_user',
-                              name: '$currentUserName (You)',
-                              isCurrentUser: true,
-                              setModalState: setModalState,
-                            ),
-                          ] else if (_splitMode == SplitMode.percentages) ...[
-                            // Percentage Rows
-                            ..._selectedPartners.map((partner) {
-                              return _buildPercentageRow(
-                                context: modalContext,
-                                id: partner.id,
-                                name: partner.displayName,
-                                isCurrentUser: false,
-                                setModalState: setModalState,
-                              );
-                            }),
-                            _buildPercentageRow(
-                              context: modalContext,
-                              id: 'current_user',
-                              name: '$currentUserName (You)',
-                              isCurrentUser: true,
-                              setModalState: setModalState,
-                            ),
-                          ] else if (_splitMode == SplitMode.shares) ...[
-                            // Shares Rows
-                            ..._selectedPartners.map((partner) {
-                              return _buildSharesRow(
-                                context: modalContext,
-                                id: partner.id,
-                                name: partner.displayName,
-                                isCurrentUser: false,
-                                setModalState: setModalState,
-                              );
-                            }),
-                            _buildSharesRow(
-                              context: modalContext,
-                              id: 'current_user',
-                              name: '$currentUserName (You)',
-                              isCurrentUser: true,
-                              setModalState: setModalState,
-                            ),
-                          ],
-
-                          const SizedBox(height: 16),
-                        ],
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1752,6 +1891,8 @@ class _AddSplitPageState extends State<AddSplitPage> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              textInputAction: TextInputAction.next,
+              scrollPadding: const EdgeInsets.only(bottom: 80),
               textAlign: TextAlign.end,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               decoration: InputDecoration(
@@ -1850,6 +1991,8 @@ class _AddSplitPageState extends State<AddSplitPage> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
+              textInputAction: TextInputAction.next,
+              scrollPadding: const EdgeInsets.only(bottom: 80),
               textAlign: TextAlign.end,
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               decoration: InputDecoration(
@@ -2340,8 +2483,9 @@ class _AddSplitPageState extends State<AddSplitPage> {
                 );
 
                 if (confirm == true && mounted) {
-                  final origSisterSplits =
-                      splitVM.getSisterSplits(widget.splitExpense!);
+                  final origSisterSplits = splitVM.getSisterSplits(
+                    widget.splitExpense!,
+                  );
                   for (final s in origSisterSplits) {
                     await splitVM.deleteSplitExpense(
                       s.id,
@@ -2363,546 +2507,543 @@ class _AddSplitPageState extends State<AddSplitPage> {
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-              children: [
-                // ── 1. "With you and:" Bar (Split Feature #1) ───────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+            children: [
+              // ── 1. "With you and:" Bar (Split Feature #1) ───────────────
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface.withValues(
+                    alpha: isDark ? 0.35 : 0.85,
                   ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withValues(
-                      alpha: isDark ? 0.35 : 0.85,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: theme.colorScheme.outline.withValues(
-                        alpha: isDark ? 0.15 : 0.08,
-                      ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(
+                      alpha: isDark ? 0.15 : 0.08,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                          children: const [
-                            TextSpan(text: 'With '),
-                            TextSpan(
-                              text: 'you',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: ' and: '),
-                          ],
+                ),
+                child: Row(
+                  children: [
+                    RichText(
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: theme.colorScheme.onSurface,
                         ),
+                        children: const [
+                          TextSpan(text: 'With '),
+                          TextSpan(
+                            text: 'you',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(text: ' and: '),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              ..._selectedPartners.map((partner) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8.0),
-                                  child: Container(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      4,
-                                      3,
-                                      6,
-                                      3,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? const Color(0xFF1E1E1E)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: theme.colorScheme.outline
-                                            .withValues(
-                                              alpha: isDark ? 0.2 : 0.15,
-                                            ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildAvatar(
-                                          context: context,
-                                          name: partner.displayName,
-                                          radius: 10,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          partner.displayName,
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        InkWell(
-                                          onTap: () {
-                                            AppHaptics.selectionClick(context);
-                                            setState(() {
-                                              _selectedPartners.remove(partner);
-                                              _includedPartnerIds.remove(
-                                                partner.id,
-                                              );
-                                              if (_payerPartner == partner) {
-                                                _payerPartner =
-                                                    _selectedPartners.isNotEmpty
-                                                    ? _selectedPartners.first
-                                                    : null;
-                                              }
-                                            });
-                                          },
-                                          child: const Icon(
-                                            Icons.close_rounded,
-                                            size: 14,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }),
-
-                              // Add button
-                              InkWell(
-                                onTap: () => _showAddPartnerSheet(splitVM),
-                                borderRadius: BorderRadius.circular(20),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            ..._selectedPartners.map((partner) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 5,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    4,
+                                    3,
+                                    6,
+                                    3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: theme.colorScheme.primary.withValues(
-                                      alpha: 0.12,
-                                    ),
+                                    color: isDark
+                                        ? const Color(0xFF1E1E1E)
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: theme.colorScheme.primary
-                                          .withValues(alpha: 0.35),
+                                      color: theme.colorScheme.outline
+                                          .withValues(
+                                            alpha: isDark ? 0.2 : 0.15,
+                                          ),
                                     ),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        Icons.add_rounded,
-                                        size: 15,
-                                        color: theme.colorScheme.primary,
+                                      _buildAvatar(
+                                        context: context,
+                                        name: partner.displayName,
+                                        radius: 10,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        partner.displayName,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        'Add',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: theme.colorScheme.primary,
-                                          fontWeight: FontWeight.bold,
+                                      InkWell(
+                                        onTap: () {
+                                          AppHaptics.selectionClick(context);
+                                          setState(() {
+                                            _selectedPartners.remove(partner);
+                                            _includedPartnerIds.remove(
+                                              partner.id,
+                                            );
+                                            if (_payerPartner == partner) {
+                                              _payerPartner =
+                                                  _selectedPartners.isNotEmpty
+                                                  ? _selectedPartners.first
+                                                  : null;
+                                            }
+                                          });
+                                        },
+                                        child: const Icon(
+                                          Icons.close_rounded,
+                                          size: 14,
+                                          color: Colors.grey,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
+                              );
+                            }),
+
+                            // Add button
+                            InkWell(
+                              onTap: () => _showAddPartnerSheet(splitVM),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: theme.colorScheme.primary.withValues(
+                                      alpha: 0.35,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.add_rounded,
+                                      size: 15,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Add',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── 2. Add Transaction Style Inputs Card ───────────────────
+              Card(
+                elevation: 0,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(
+                    color: theme.colorScheme.outline.withValues(
+                      alpha: isDark ? 0.15 : 0.08,
+                    ),
+                  ),
+                ),
+                color: theme.colorScheme.surface.withValues(
+                  alpha: isDark ? 0.35 : 0.85,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildSectionTitle('Amount'),
+                      TextField(
+                        controller: _amountController,
+                        focusNode: _amountFocusNode,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _evaluateAmount(),
+                        onTapOutside: (_) {
+                          _evaluateAmount();
+                          FocusScope.of(context).unfocus();
+                        },
+                        onChanged: (_) => setState(() {}),
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        decoration:
+                            _inputDecoration(
+                              '0.00',
+                              Icons.account_balance_wallet_rounded,
+                            ).copyWith(
+                              prefixText: '₹ ',
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 20,
+                              ),
+                            ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'[0-9+\-*/÷×−().\s]'),
+                          ),
+                        ],
+                      ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeInOut,
+                        child: _amountFocusNode.hasFocus
+                            ? MathOperationsBar(
+                                controller: _amountController,
+                                focusNode: _amountFocusNode,
+                                onOperationApplied: () {
+                                  if (mounted) setState(() {});
+                                },
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildSectionTitle('Description'),
+                      TextField(
+                        controller: _descriptionController,
+                        onChanged: (_) => setState(() {}),
+                        maxLength: 200,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                        decoration: _inputDecoration(
+                          'What was this for?',
+                          Icons.description_rounded,
+                        ).copyWith(counterText: ''),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildSectionTitle('Category'),
+                      AppDropdown<String>(
+                        value: _category,
+                        hint: 'Select Category',
+                        prefixIcon: Icons.category_rounded,
+                        items: categories.map((String category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            AppHaptics.selectionClick(context);
+                            setState(() {
+                              _category = newValue;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildSectionTitle('Payment Method'),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'upi',
+                            label: Text('UPI'),
+                            icon: Icon(Icons.qr_code_2_rounded),
+                          ),
+                          ButtonSegment(
+                            value: 'cash',
+                            label: Text('Cash'),
+                            icon: Icon(Icons.payments_outlined),
+                          ),
+                        ],
+                        selected: {_paymentMethod},
+                        onSelectionChanged: (Set<String> newSelection) {
+                          AppHaptics.selectionClick(context);
+                          setState(() {
+                            _paymentMethod = newSelection.first;
+                          });
+                        },
+                        style: SegmentedButton.styleFrom(
+                          backgroundColor: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
+                          selectedBackgroundColor:
+                              theme.colorScheme.primaryContainer,
+                          selectedForegroundColor:
+                              theme.colorScheme.onPrimaryContainer,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildSectionTitle('Date & Time'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _selectDate(context),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.05,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.transparent),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 20,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        DateFormatter.formatDate(_selectedDate),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _selectTime(context),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.05,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.transparent),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time_rounded,
+                                      size: 20,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _selectedTime.format(context),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── 3. Split Sentence Selector Card (Split Feature #2) ──────
+              Card(
+                elevation: 0,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(
+                    color: theme.colorScheme.outline.withValues(
+                      alpha: isDark ? 0.15 : 0.08,
+                    ),
+                  ),
+                ),
+                color: theme.colorScheme.surface.withValues(
+                  alpha: isDark ? 0.35 : 0.85,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
+                  child: Column(
+                    children: [
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 10,
+                        children: [
+                          Text(
+                            'Paid by',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          _buildPill(
+                            text: _payerDisplayName,
+                            onTap: _showChoosePayerSheet,
+                          ),
+                          Text(
+                            'and split',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          _buildPill(
+                            text: _splitModeSummary,
+                            onTap: _showChooseSplitOptionsSheet,
+                          ),
+                          Text(
+                            '.',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: isDark ? 0.15 : 0.08,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.25,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          _splitCalculationSubtext,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 28),
 
-                // ── 2. Add Transaction Style Inputs Card ───────────────────
-                Card(
-                  elevation: 0,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    side: BorderSide(
-                      color: theme.colorScheme.outline.withValues(
-                        alpha: isDark ? 0.15 : 0.08,
-                      ),
+              // ── 4. Unified Full-Width Save Button ──────────────────────
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: FilledButton(
+                  onPressed: (_isFormValid && !isSaving) ? _saveEntry : null,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    disabledBackgroundColor: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.12),
+                    disabledForegroundColor: theme.colorScheme.onSurface
+                        .withValues(alpha: 0.38),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  color: theme.colorScheme.surface.withValues(
-                    alpha: isDark ? 0.35 : 0.85,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildSectionTitle('Amount'),
-                        TextField(
-                          controller: _amountController,
-                          focusNode: _amountFocusNode,
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => _evaluateAmount(),
-                          onTapOutside: (_) {
-                            _evaluateAmount();
-                            FocusScope.of(context).unfocus();
-                          },
-                          onChanged: (_) => setState(() {}),
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          decoration:
-                              _inputDecoration(
-                                '0.00',
-                                Icons.account_balance_wallet_rounded,
-                              ).copyWith(
-                                prefixText: '₹ ',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 20,
-                                ),
-                              ),
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9+\-*/÷×−().\s]'),
-                            ),
-                          ],
-                        ),
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 200),
-                          curve: Curves.easeInOut,
-                          child: _amountFocusNode.hasFocus
-                              ? MathOperationsBar(
-                                  controller: _amountController,
-                                  focusNode: _amountFocusNode,
-                                  onOperationApplied: () {
-                                    if (mounted) setState(() {});
-                                  },
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        const SizedBox(height: 20),
-
-                        _buildSectionTitle('Description'),
-                        TextField(
-                          controller: _descriptionController,
-                          onChanged: (_) => setState(() {}),
-                          maxLength: 200,
-                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                          decoration: _inputDecoration(
-                            'What was this for?',
-                            Icons.description_rounded,
-                          ).copyWith(counterText: ''),
-                          textCapitalization: TextCapitalization.sentences,
-                        ),
-                        const SizedBox(height: 20),
-
-                        _buildSectionTitle('Category'),
-                        AppDropdown<String>(
-                          value: _category,
-                          hint: 'Select Category',
-                          prefixIcon: Icons.category_rounded,
-                          items: categories.map((String category) {
-                            return DropdownMenuItem(
-                              value: category,
-                              child: Text(category),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              AppHaptics.selectionClick(context);
-                              setState(() {
-                                _category = newValue;
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 20),
-
-                        _buildSectionTitle('Payment Method'),
-                        SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment(
-                              value: 'upi',
-                              label: Text('UPI'),
-                              icon: Icon(Icons.qr_code_2_rounded),
-                            ),
-                            ButtonSegment(
-                              value: 'cash',
-                              label: Text('Cash'),
-                              icon: Icon(Icons.payments_outlined),
-                            ),
-                          ],
-                          selected: {_paymentMethod},
-                          onSelectionChanged: (Set<String> newSelection) {
-                            AppHaptics.selectionClick(context);
-                            setState(() {
-                              _paymentMethod = newSelection.first;
-                            });
-                          },
-                          style: SegmentedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? Colors.white.withValues(alpha: 0.05)
-                                : theme.colorScheme.surfaceContainerHighest
-                                      .withValues(alpha: 0.5),
-                            selectedBackgroundColor:
-                                theme.colorScheme.primaryContainer,
-                            selectedForegroundColor:
-                                theme.colorScheme.onPrimaryContainer,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (isSaving) ...[
+                        SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.onPrimary,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
-
-                        _buildSectionTitle('Date & Time'),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => _selectDate(context),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.calendar_today_rounded,
-                                        size: 20,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          DateFormatter.formatDate(
-                                            _selectedDate,
-                                          ),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: InkWell(
-                                onTap: () => _selectTime(context),
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.access_time_rounded,
-                                        size: 20,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          _selectedTime.format(context),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        const SizedBox(width: 12),
+                      ] else ...[
+                        const Icon(Icons.check_circle_outline, size: 24),
+                        const SizedBox(width: 12),
                       ],
-                    ),
+                      Text(
+                        isSaving
+                            ? (isEditing ? 'Updating...' : 'Saving...')
+                            : (isEditing
+                                  ? 'Update Split Expense'
+                                  : 'Save Split Expense'),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // ── 3. Split Sentence Selector Card (Split Feature #2) ──────
-                Card(
-                  elevation: 0,
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    side: BorderSide(
-                      color: theme.colorScheme.outline.withValues(
-                        alpha: isDark ? 0.15 : 0.08,
-                      ),
-                    ),
-                  ),
-                  color: theme.colorScheme.surface.withValues(
-                    alpha: isDark ? 0.35 : 0.85,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 24,
-                    ),
-                    child: Column(
-                      children: [
-                        Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 8,
-                          runSpacing: 10,
-                          children: [
-                            Text(
-                              'Paid by',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            _buildPill(
-                              text: _payerDisplayName,
-                              onTap: _showChoosePayerSheet,
-                            ),
-                            Text(
-                              'and split',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w500,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            _buildPill(
-                              text: _splitModeSummary,
-                              onTap: _showChooseSplitOptionsSheet,
-                            ),
-                            Text(
-                              '.',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: isDark ? 0.15 : 0.08,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.25,
-                              ),
-                            ),
-                          ),
-                          child: Text(
-                            _splitCalculationSubtext,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // ── 4. Unified Full-Width Save Button ──────────────────────
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: FilledButton(
-                    onPressed: (_isFormValid && !isSaving) ? _saveEntry : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primary,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      disabledBackgroundColor: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.12),
-                      disabledForegroundColor: theme.colorScheme.onSurface
-                          .withValues(alpha: 0.38),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (isSaving) ...[
-                          SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                theme.colorScheme.onPrimary,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ] else ...[
-                          const Icon(Icons.check_circle_outline, size: 24),
-                          const SizedBox(width: 12),
-                        ],
-                        Text(
-                          isSaving
-                              ? (isEditing ? 'Updating...' : 'Saving...')
-                              : (isEditing
-                                    ? 'Update Split Expense'
-                                    : 'Save Split Expense'),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 

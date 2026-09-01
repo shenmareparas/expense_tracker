@@ -50,6 +50,12 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
   - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
 - **Multi-Select Friend Picker Sheet**: `AddSplitPage` features an interactive multi-select bottom sheet with search, checkmark indicators, real-time batch toggling, and a sticky "Done (N selected)" action bar, allowing users to select or deselect multiple friends in a single interaction without the sheet closing on each tap.
+- **Keyboard-Responsive Modal Bottom Sheet Architecture**: All modal bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) follow a strict responsive layout pattern:
+  - Root container specifies `constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88)`.
+  - Wrapped with `Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom))` to automatically shift above the software keyboard.
+  - Top headers and bottom action buttons are pinned outside the scrollable body in a `Column(mainAxisSize: MainAxisSize.min)`.
+  - All middle scrollable content (including lists and empty search states) is enclosed in `Flexible(child: SingleChildScrollView(keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag, child: Column(...)))` to guarantee zero `RenderFlex` overflow errors regardless of keyboard height or display size.
+  - Text fields in Exact Amounts and Percentages rows include `scrollPadding: const EdgeInsets.only(bottom: 80)` and `textInputAction: TextInputAction.next` for visible input clearance.
 - **Two-Section Split Form**: `AddSplitPage` divides inputs into **Transaction Details** (Amount, Description, Category, Date & Time) and **Split Details** (Split With, Who Paid, Split Mode). Saving is disabled until all required fields are valid.
 - **Six Split Modes**:
   - `equally` (`=`): Member checkboxes with equal fraction calculation.

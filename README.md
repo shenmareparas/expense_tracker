@@ -12,6 +12,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
   - **Overall Balance Hero Card**: Styled with the app's signature brand gradient (`#1E2038` → `#0F101C` in dark mode, primary indigo in light mode), top status pill, rolling amount counter animation (`TweenAnimationBuilder`), live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
   - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`).
   - **Interactive Multi-Select Friend Picker**: Fast bottom sheet with search, checkmark indicators, real-time batch toggling, and sticky action bar to select multiple friends at once.
+  - **Keyboard-Responsive Modal Architecture**: All split-related bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) feature bounded height constraints (`BoxConstraints`), view insets padding, pinned headers & action bars, and flexible drag-dismissible scrollable bodies preventing `RenderFlex` keyboard overflows on all screen sizes.
   - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` sheet. Custom friends are persisted locally, can be deleted anytime, and seamlessly participate in all split modes.
   - **Multi-Person Group Edit & Deletion**: Full editing and deletion support for split groups, automatically resolving sister splits, participant shares, percentages, and payer assignments.
   - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, pull-to-refresh, and unified Settle Up confirmation modal. Supports deleting custom friends.
@@ -21,8 +22,8 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
     - **Split Equally (`=`)**: Toggle member inclusion with live per-person recalculation.
     - **You Owe Partner Full**: Full bill amount assigned as debt to the partner.
     - **Partner Owes You Full**: Full bill amount assigned as receivable.
-    - **Split by Exact Amounts (`1.23`)**: Individual numerical amount inputs with live balance remaining/over allocation pill indicator (`₹XX.XX left`).
-    - **Split by Percentages (`%`)**: Individual percentage inputs with computed monetary values (`₹XX.XX`) and live percentage balance pill (`XX% left`).
+    - **Split by Exact Amounts (`1.23`)**: Individual numerical amount inputs with live balance remaining/over allocation pill indicator (`₹XX.XX left`), `scrollPadding` for keyboard clearance, and `TextInputAction.next`.
+    - **Split by Percentages (`%`)**: Individual percentage inputs with computed monetary values (`₹XX.XX`), live percentage balance pill (`XX% left`), `scrollPadding`, and `TextInputAction.next`.
     - **Split by Shares (`===`)**: Stepper buttons (`+` / `−`) with real-time ratio calculation.
   - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
   - **Bidirectional Transaction & Analytics Sync**: Out-of-pocket split shares and settlements automatically log to personal transactions, updating home feeds and analytics charts in real time. Tapping a split transaction from the personal feed opens the full Split editor.
