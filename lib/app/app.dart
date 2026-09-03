@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/theme_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
@@ -36,13 +35,11 @@ class MyApp extends StatelessWidget {
             ),
             themeMode: themeService.themeMode,
             theme: ThemeData(
+              fontFamily: 'Roboto',
               colorScheme: ColorScheme.fromSeed(
                 seedColor: const Color(0xFF4F46E5),
               ),
               useMaterial3: true,
-              textTheme: GoogleFonts.interTextTheme(
-                ThemeData.light().textTheme,
-              ),
               appBarTheme: const AppBarTheme(
                 centerTitle: true,
                 elevation: 0,
@@ -56,6 +53,7 @@ class MyApp extends StatelessWidget {
               ),
             ),
             darkTheme: ThemeData(
+              fontFamily: 'Roboto',
               brightness: Brightness.dark,
               scaffoldBackgroundColor: Colors.black,
               colorScheme: ColorScheme.fromSeed(
@@ -63,7 +61,6 @@ class MyApp extends StatelessWidget {
                 brightness: Brightness.dark,
                 surface: const Color(0xFF0A0A0A),
               ),
-              textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
               appBarTheme: const AppBarTheme(
                 centerTitle: true,
                 elevation: 0,
