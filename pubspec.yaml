@@ -38,6 +38,7 @@ dependencies:
   intl: ^0.20.2
   connectivity_plus: ^7.3.1
 
+  material_ui: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

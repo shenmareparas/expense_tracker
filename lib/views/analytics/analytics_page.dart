@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -97,15 +97,25 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     }
 
     final now = DateTime.now();
+    final DateTime startOfToday = DateTime(now.year, now.month, now.day);
+    final DateTime endOfToday = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      23,
+      59,
+      59,
+      999,
+    );
     DateTime startDate;
-    DateTime endDate = DateTime(now.year, now.month, now.day);
+    DateTime endDate = endOfToday;
 
     switch (period) {
       case '7days':
-        startDate = endDate.subtract(const Duration(days: 6));
+        startDate = startOfToday.subtract(const Duration(days: 6));
         break;
       case '30days':
-        startDate = endDate.subtract(const Duration(days: 29));
+        startDate = startOfToday.subtract(const Duration(days: 29));
         break;
       case 'month':
         startDate = DateTime(now.year, now.month, 1);
@@ -114,7 +124,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         startDate = DateTime(now.year, 1, 1);
         break;
       default:
-        startDate = endDate.subtract(const Duration(days: 6));
+        startDate = startOfToday.subtract(const Duration(days: 6));
     }
 
     final vm = Provider.of<TransactionViewModel>(context, listen: false);
@@ -167,7 +177,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         _selectedTimePeriod = 'custom';
         _selectedCategoryFilters.clear();
       });
-      vm.loadAnalyticsSnapshot(startDate: picked.start, endDate: picked.end);
+      final customEndDate = DateTime(
+        picked.end.year,
+        picked.end.month,
+        picked.end.day,
+        23,
+        59,
+        59,
+        999,
+      );
+      vm.loadAnalyticsSnapshot(startDate: picked.start, endDate: customEndDate);
     }
   }
 
@@ -1654,9 +1673,13 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
 
     // Detect if we are using monthly bucket formatting
     final DateTime start =
+        widget.viewModel.analyticsStartDate ??
         widget.viewModel.filterStartDate ??
         DateTime.now().subtract(const Duration(days: 7));
-    final DateTime end = widget.viewModel.filterEndDate ?? DateTime.now();
+    final DateTime end =
+        widget.viewModel.analyticsEndDate ??
+        widget.viewModel.filterEndDate ??
+        DateTime.now();
     final bool isMonthlyFormatted =
         widget.selectedTimePeriod == 'year' ||
         end.difference(start).inDays > 65;

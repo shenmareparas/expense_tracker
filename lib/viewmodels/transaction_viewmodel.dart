@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../models/transaction.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';
@@ -65,8 +65,12 @@ class TransactionViewModel extends ChangeNotifier {
     _filterType = type;
     _filterCategories = categories ?? [];
     _filterPaymentMethod = paymentMethod;
-    _filterStartDate = startDate;
-    _filterEndDate = endDate;
+    _filterStartDate = startDate != null
+        ? DateTime(startDate.year, startDate.month, startDate.day)
+        : null;
+    _filterEndDate = endDate != null
+        ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999)
+        : null;
     _hasAnalyticsSnapshot = false;
     _analyticsTransactions = [];
     _analyticsStartDate = null;
@@ -394,8 +398,12 @@ class TransactionViewModel extends ChangeNotifier {
     bool forceRefresh = false,
   }) async {
     _errorMessage = null;
-    _analyticsStartDate = startDate;
-    _analyticsEndDate = endDate;
+    _analyticsStartDate = startDate != null
+        ? DateTime(startDate.year, startDate.month, startDate.day)
+        : null;
+    _analyticsEndDate = endDate != null
+        ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999)
+        : null;
     try {
       final result = await _databaseService.getTransactions(
         forceRefresh: forceRefresh,
