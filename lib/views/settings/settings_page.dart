@@ -6,6 +6,7 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../widgets/app_dropdown.dart';
+import '../home/widgets/export_pdf_bottom_sheet.dart';
 import 'manage_categories_page.dart';
 
 /// Settings page — accesses ThemeService via Provider instead of constructor.
@@ -100,6 +101,23 @@ class SettingsPage extends StatelessWidget {
                     ),
                   );
                 }
+              },
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: Icon(
+                Icons.picture_as_pdf_outlined,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: const Text(
+                'Export Statement (PDF)',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Filter and view, share, or save as PDF'),
+              trailing: const Icon(Icons.chevron_right, size: 20),
+              onTap: () {
+                AppHaptics.selectionClick(context);
+                showExportPdfBottomSheet(context);
               },
             ),
           ],

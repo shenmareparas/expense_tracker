@@ -424,6 +424,39 @@ class TransactionViewModel extends ChangeNotifier {
     }
   }
 
+  /// Fetches transactions matching export criteria without altering current screen pagination or filters.
+  Future<List<TransactionModel>> fetchTransactionsForExport({
+    String? type,
+    List<String>? categories,
+    String? paymentMethod,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      final normalizedStart = startDate != null
+          ? DateTime(startDate.year, startDate.month, startDate.day)
+          : null;
+      final normalizedEnd = endDate != null
+          ? DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59, 999)
+          : null;
+
+      final results = await _databaseService.getTransactions(
+        forceRefresh: false,
+        limit: null,
+        offset: null,
+        type: type,
+        categories: categories,
+        paymentMethod: paymentMethod,
+        startDate: normalizedStart,
+        endDate: normalizedEnd,
+      );
+      return results;
+    } catch (e) {
+      _errorMessage = _mapError(e);
+      return [];
+    }
+  }
+
   /// Maps raw exceptions to user-friendly, non-leaky messages.
   String _mapError(Object error) {
     if (error is AppException) {

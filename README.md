@@ -31,6 +31,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **💸 Transaction Ledger & Math Inputs**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type, or date range. **Inline Math Operations**: Enter mathematical calculations (`+`, `−`, `×`, `÷`) directly into amount fields with an interactive operations toolbar (`MathOperationsBar`), live computation preview badge, and automatic evaluation upon exiting the field or saving.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, compound filter keys, concurrent request deduplication via `Completer`, and optimistic state updates with rollback in ViewModels to minimize network overhead and ensure instant screen transitions.
 - **📈 Analytics Snapshot & Date Boundaries**: A dedicated `loadAnalyticsSnapshot()` mechanism in `TransactionViewModel` fetches a separate date-filtered dataset for analytics without clobbering the main transaction feed or filters. All date-range filters normalize end dates to end-of-day (`23:59:59.999`) to guarantee same-day transactions are reliably included.
+- **📄 PDF Statements & Export**: Export transaction statements as formatted PDF documents directly from **Settings → General → Export Statement (PDF)**. Includes custom date ranges (presets & custom picker), transaction type, payment method, category multi-filters, and live matching metrics. Allows instant **View PDF** (via `open_file`), **Share PDF** (direct system share sheet via `share_plus`), or **Save to Device Storage**. Includes safe-area top overlay status toasts (`_TopToastWidget`) and pagination support up to 200+ pages (`pw.TableHelper.fromTextArray`).
 - **⚙️ Customizable Settings & Preferences**: Personalize the experience by configuring theme (system/light/dark), haptic feedback, default analytics tab, analytics tab order, and hidden friends — all saved persistently via `SharedPreferences`.
 - **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes (`#000000` scaffold / `#0A0A0A` surface for dark mode), custom Inter typography (packaged locally to avoid network delays), rounded press highlights (`Clip.antiAlias`), conditional haptic feedback, `AnimatedSwitcher` tab transitions, and tap-to-scroll-to-top gestures.
 
@@ -59,6 +60,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **Fonts & Styling**: [Google Fonts](https://pub.dev/packages/google_fonts) (`google_fonts: ^8.0.2` with Inter font loaded locally)
 - **Formatting & Localization**: [Intl](https://pub.dev/packages/intl) (`intl: ^0.20.2`)
 - **Persistence**: [Shared Preferences](https://pub.dev/packages/shared_preferences) (`shared_preferences: ^2.5.4`)
+- **PDF Generation & Export**: [pdf](https://pub.dev/packages/pdf) (`pdf: ^3.13.1`), [open_file](https://pub.dev/packages/open_file) (`open_file: ^4.0.0`), [share_plus](https://pub.dev/packages/share_plus) (`share_plus: ^13.3.1`), [path_provider](https://pub.dev/packages/path_provider) (`path_provider: ^2.1.6`)
 
 ---
 
@@ -78,13 +80,14 @@ lib/
 │   └── transaction.dart      # TransactionModel (full CRUD fields + copyWith)
 ├── services/                 # ONLY layer that imports supabase_flutter
 │   ├── auth_service.dart     # Singleton: Supabase Auth + retry/back-off + error mapping
-│   └── database_service.dart # Singleton: PostgREST ops, 30s TTL cache, Completer dedup
+│   ├── database_service.dart # Singleton: PostgREST ops, 30s TTL cache, Completer dedup
+│   └── pdf_export_service.dart # Singleton: PDF generation, table formatting, viewing, sharing & saving
 ├── viewmodels/               # ALL business logic lives here — ChangeNotifier state machines
 │   ├── auth_viewmodel.dart   # Loading/error flags, recovery mode, session stream
 │   ├── category_viewmodel.dart  # CRUD, drag reorder with rollback, seeding, name lists
 │   ├── split_viewmodel.dart  # Feed, net balances, settle up, hidden friends; user identity via AuthService
 │   ├── theme_viewmodel.dart  # Theme mode, haptics, analytics tab preferences
-│   └── transaction_viewmodel.dart  # Feed, filters, search, analytics snapshot, optimistic ops
+│   └── transaction_viewmodel.dart  # Feed, filters, search, analytics snapshot, optimistic ops, fetchTransactionsForExport
 ├── views/                    # UI ONLY — consume ViewModels via Provider/Consumer
 │   ├── analytics/
 │   │   └── analytics_page.dart   # FL Chart pie + bar, memoized aggregations
@@ -96,6 +99,7 @@ lib/
 │   ├── home/
 │   │   ├── home_page.dart         # Bottom nav, AnimatedSwitcher tab transitions
 │   │   └── widgets/
+│   │       ├── export_pdf_bottom_sheet.dart # PDF Statement export filter sheet & top status toasts
 │   │       ├── filter_bottom_sheet.dart
 │   │       └── transaction_list.dart  # Infinite scroll-load-more pagination
 │   ├── settings/

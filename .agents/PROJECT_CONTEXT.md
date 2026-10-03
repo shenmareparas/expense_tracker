@@ -29,7 +29,8 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
   - Unified solid AppBar styling across all sub-screens (`AddTransactionPage`, `AddSplitPage`, `UserSplitDetailPage`).
 - **Categories**: Dynamic category management including custom names/types and drag-and-drop reordering. Protects built-in "Other" category from rename/delete/reorder.
 - **Analytics & Insights**: Interactive FL Chart dashboards (pie breakdown + daily trend bar chart), date-range filtering (`7days`, `30days`, `month`, `year`, `custom`), category filtering, and per-tab income/expense/net selection. Automatically synchronized with split expenses and personal transactions.
-- **Settings**: Theme (system/light/dark), haptic feedback toggle, default analytics tab, custom analytics tab order, manage categories, and clear cache. All persisted via `SharedPreferences`.
+- **PDF Statements & Export**: Export transaction statements as formatted PDF documents accessible from **Settings → General → Export Statement (PDF)**. Features custom date ranges (presets & custom picker), transaction type, payment method, category multi-filters, and live matching metrics. Allows instant **View PDF** (via `open_file`), **Share PDF** (direct system share sheet via `share_plus`), or **Save to Device Storage**. Includes safe-area top overlay status toasts (`_TopToastWidget`) and pagination support up to 200+ pages (`pw.TableHelper.fromTextArray`).
+- **Settings**: Theme (system/light/dark), haptic feedback toggle, default analytics tab, custom analytics tab order, manage categories, export statements (PDF), and clear cache. All persisted via `SharedPreferences`.
 - **Aesthetics & Haptics**: Sleek, customized dark and light modes using the local Inter font, rounded press highlights (`Clip.antiAlias`), and conditional haptic feedback via `AppHaptics`.
 
 ---
@@ -76,13 +77,14 @@ lib/
 │   └── transaction.dart      # TransactionModel: full financial record with copyWith
 ├── services/                 # Singleton data/auth services — only layer touching Supabase SDK
 │   ├── auth_service.dart     # AuthService: sign in/up/out, OTP, retry with exponential back-off
-│   └── database_service.dart # DatabaseService: TTL cache, Completer dedup, all PostgREST ops
+│   ├── database_service.dart # DatabaseService: TTL cache, Completer dedup, all PostgREST ops
+│   └── pdf_export_service.dart # PdfExportService: Generates A4 PDF reports, table formatting, viewing, sharing & saving
 ├── viewmodels/               # ChangeNotifier state machines — all business logic lives here
 │   ├── auth_viewmodel.dart   # Auth state, loading/error flags, recovery mode detection
 │   ├── category_viewmodel.dart  # Category CRUD, drag reorder, seeding, computed name lists
 │   ├── split_viewmodel.dart  # Feed, net balances, settle up, hidden friends; currentUserDisplayName/currentUserEmail via AuthService, profile list
 │   ├── theme_viewmodel.dart  # Theme mode, haptics, analytics tab preferences (SharedPreferences)
-│   └── transaction_viewmodel.dart  # Transaction feed, filters, search, analytics snapshot, optimistic ops
+│   └── transaction_viewmodel.dart  # Transaction feed, filters, search, analytics snapshot, optimistic ops, fetchTransactionsForExport
 ├── views/                    # UI screens — consume ViewModels only, no direct SDK access
 │   ├── analytics/
 │   │   └── analytics_page.dart   # FL Chart pie + trend bar, memoized per-category aggregations
@@ -94,6 +96,7 @@ lib/
 │   ├── home/
 │   │   ├── home_page.dart         # Bottom nav shell, AnimatedSwitcher tab transitions
 │   │   └── widgets/
+│   │       ├── export_pdf_bottom_sheet.dart # PDF Statement export filter sheet & top status toasts
 │   │       ├── filter_bottom_sheet.dart  # Filter modal (type, categories, payment, dates)
 │   │       └── transaction_list.dart     # Paginated transaction list with scroll-load-more
 │   ├── settings/

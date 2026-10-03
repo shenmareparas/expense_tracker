@@ -184,6 +184,13 @@ All data columns map strictly between remote database fields and Flutter immutab
 10. **SharedPreferences**: Always cache the `SharedPreferences` instance in a private field (e.g. `_prefs`) resolved lazily via `??=`. Never call `SharedPreferences.getInstance()` on every method invocation — see `ThemeViewModel` and `SplitViewModel` as reference implementations.
 11. **Write operations**: Always use `_executeMutation()` in `DatabaseService` for any method that modifies data (INSERT, UPDATE, DELETE). Reserve `_execute()` for read-only operations. This ensures offline users get an immediate `NetworkException` instead of a TCP timeout.
 12. **Date Range Boundaries & End-of-Day Normalization**: Whenever constructing or applying end dates (`endDate`) for database queries (`.lte`) or date-range filtering (in `AnalyticsPage`, `TransactionViewModel.loadAnalyticsSnapshot`, and `TransactionViewModel.setFilters`), always normalize `endDate` to include the full day (`23:59:59.999`) and `startDate` to start-of-day (`00:00:00.000`). Truncating `endDate` to midnight cut off transactions created during the current/selected day. In `_BarChartWidget`, always resolve start/end dates from `analyticsStartDate`/`analyticsEndDate` before falling back to `filterStartDate`/`filterEndDate`.
+13. **PDF Export & Statement Architecture**:
+    - **Service & Generation**: Handled via `PdfExportService.instance` using `pdf` (`^3.13.1`), `open_file` (`^4.0.0`), `share_plus` (`^13.3.1`), and `path_provider` (`^2.1.6`).
+    - **MultiPage Pagination Safeguard**: `pw.MultiPage` must always configure `maxPages: 200` (or higher) to prevent the default 20-page safety limit exception during exports of large transaction histories.
+    - **Table Auto-Wrap**: Always use `pw.TableHelper.fromTextArray` for transactions tabular reporting to support clean automated row splitting across page breaks.
+    - **iOS Share Sheet Anchor**: When calling `SharePlus.instance.share`, always provide `sharePositionOrigin` calculated from the modal's `RenderBox` bounds (`box.localToGlobal(Offset.zero) & box.size`) to prevent crash/unresponsive popovers on iPad and iOS sheets.
+    - **Top Overlay Notification Toasts**: Display all export feedback via root `OverlayEntry` animations (`_TopToastWidget`) anchored below the top `AppBar` rather than pushing `SnackBar` upward with large margins, avoiding `Floating SnackBar presented off screen` rendering exceptions.
+    - **MVVM Data Retrieval**: Views must query transactions for export through `TransactionViewModel.fetchTransactionsForExport()` without mutating current page filters, pagination offsets, or UI list state.
 
 ---
 
