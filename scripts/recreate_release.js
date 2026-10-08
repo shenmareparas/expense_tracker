@@ -7,7 +7,7 @@ if (!token) {
   process.exit(1);
 }
 const repo = "shenmareparas/expense_tracker";
-const oldReleaseId = "340194429";
+const oldReleaseId = "406708487";
 const filePath = path.join(__dirname, '../build/app/outputs/flutter-apk/app-release.apk');
 
 async function run() {
@@ -35,7 +35,7 @@ async function run() {
       body: JSON.stringify({
         tag_name: "v1.0.0",
         name: "Release v1.0.0",
-        body: "Updated release of the Expense Tracker app including the new OTP recovery/password reset flow.",
+        body: "Updated release of Expense Tracker including cross-user automatic split expense settlement sync.",
         draft: false,
         prerelease: false
       })
