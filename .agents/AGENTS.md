@@ -45,6 +45,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 - **Settle Up Logic**: Both lenders (payers) and debtors (borrowers) can settle up. Settling up resolves all pending split shares between friends:
   - Lender receives money: logs `income` settlement transaction ("Settlement from Friend").
   - Debtor pays back: logs `expense` settlement transaction ("Settlement to Friend").
+  - **Cross-User Backend Sync Trigger (`trg_split_expense_settlement`)**: Attached to `split_expenses.status`. Whenever a user settles a shared expense on their device, the `SECURITY DEFINER` trigger automatically generates the counterpart settlement transaction (`income` for the lender, or `expense` for the borrower) under the counterpart user's `user_id` with their profile display name. On status reversal (`pending`), the trigger cleanly removes the generated settlement transaction.
 - **Hide / Unhide Friends**: Hide friends via the top-right `AppBar` action on the friend detail screen.
   - Persisted locally via `SharedPreferences` (`hidden_friend_ids`).
   - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
