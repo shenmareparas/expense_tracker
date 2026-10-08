@@ -37,17 +37,27 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 
 ---
 
-## 📸 Screenshots
+## 📸 App Showcase & Screenshots
 
-| Light Mode | Dark Mode |
-|:---:|:---:|
-| <img src="screenshots/1a.webp" width="300"> | <img src="screenshots/1b.webp" width="300"> |
-| <img src="screenshots/2a.webp" width="300"> | <img src="screenshots/2b.webp" width="300"> |
-| <img src="screenshots/3a.webp" width="300"> | <img src="screenshots/3b.webp" width="300"> |
-| <img src="screenshots/4a.webp" width="300"> | <img src="screenshots/4b.webp" width="300"> |
-| <img src="screenshots/5a.webp" width="300"> | <img src="screenshots/5b.webp" width="300"> |
-| <img src="screenshots/6a.webp" width="300"> | <img src="screenshots/6b.webp" width="300"> |
-| <img src="screenshots/7a.webp" width="300"> | <img src="screenshots/7b.webp" width="300"> |
+<p align="center">
+  <em>A side-by-side comparison of the application across Light and Dark themes, highlighting the high-contrast Material 3 UI and crafted micro-interactions.</em>
+</p>
+
+<div align="center">
+
+| Screen & Feature | Light Mode | Dark Mode |
+| :--- | :---: | :---: |
+| **Authentication & Onboarding**<br><sub>Supabase Auth, session persistence, OTP recovery</sub> | <img src="screenshots/1a.webp" width="340" alt="Auth - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/1b.webp" width="340" alt="Auth - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Transaction Feed & Ledger**<br><sub>Filter by tags, search amounts & real-time sync</sub> | <img src="screenshots/2a.webp" width="340" alt="Transactions Feed - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/2b.webp" width="340" alt="Transactions Feed - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Add Transaction**<br><sub>Interactive math toolbar, instant calculation & tag selector</sub> | <img src="screenshots/3a.webp" width="340" alt="Add Transaction - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/3b.webp" width="340" alt="Add Transaction - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Split Expenses Dashboard**<br><sub>Animated balance hero card, ratio bar & friends list</sub> | <img src="screenshots/4a.webp" width="340" alt="Split Dashboard - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/4b.webp" width="340" alt="Split Dashboard - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Add / Edit Shared Expense**<br><sub>Multi-friend selection, 6 split modes & ratio steppers</sub> | <img src="screenshots/5a.webp" width="340" alt="Add Split - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/5b.webp" width="340" alt="Add Split - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Analytics & Trends**<br><sub>Date range drill-down, filter chips & cash flow insights</sub> | <img src="screenshots/6a.webp" width="340" alt="Analytics Overview - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/6b.webp" width="340" alt="Analytics Overview - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Category Breakdown**<br><sub>Interactive FL Chart visualizations & granular distributions</sub> | <img src="screenshots/7a.webp" width="340" alt="Category Analytics - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/7b.webp" width="340" alt="Category Analytics - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Preferences & Settings**<br><sub>Theme picker, haptic feedback toggles & PDF export hub</sub> | <img src="screenshots/8a.webp" width="340" alt="Settings - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/8b.webp" width="340" alt="Settings - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+| **Category Management**<br><sub>Fluid drag-and-drop reordering & custom tag management</sub> | <img src="screenshots/9a.webp" width="340" alt="Manage Categories - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/9b.webp" width="340" alt="Manage Categories - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
+
+</div>
 
 ---
 
