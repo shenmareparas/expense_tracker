@@ -7,7 +7,7 @@ if (!token) {
   process.exit(1);
 }
 const repo = "shenmareparas/expense_tracker";
-const oldReleaseId = "406708487";
+const oldReleaseId = "413784668";
 const filePath = path.join(__dirname, '../build/app/outputs/flutter-apk/app-release.apk');
 
 async function run() {
@@ -35,7 +35,7 @@ async function run() {
       body: JSON.stringify({
         tag_name: "v1.0.0",
         name: "Release v1.0.0",
-        body: "Updated release of Expense Tracker including cross-user automatic split expense settlement sync.",
+        body: "Updated release of Expense Tracker including Dynamic System Colors (Material You) theme matching, adaptive split/analytics balance hero cards, and cross-user split settlement sync.",
         draft: false,
         prerelease: false
       })
