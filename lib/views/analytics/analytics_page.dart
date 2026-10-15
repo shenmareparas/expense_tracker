@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -743,8 +743,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           gradient: LinearGradient(
             colors: isDark
                 ? [
-                    const Color(0xFF1E2038), // Deep premium indigo/navy
-                    const Color(0xFF0F101C), // Midnight obsidian
+                    Color.alphaBlend(
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.28),
+                      const Color(0xFF141522),
+                    ),
+                    Color.alphaBlend(
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+                      const Color(0xFF0A0A10),
+                    ),
                   ]
                 : [
                     Theme.of(context).colorScheme.primary,

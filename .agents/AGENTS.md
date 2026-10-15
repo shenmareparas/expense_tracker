@@ -33,7 +33,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 ## 🤝 Shared Expenses & Integration Architecture
 
 - **Friends Feed**: Main Split screen (`SplitPage`) displays:
-  - **Overall Balance Hero Card**: Styled with the app's signature brand gradient (`Color(0xFF1E2038)` to `Color(0xFF0F101C)` in dark mode / primary indigo in light mode, `28px` corner radius), top header with frosted status pill, 500ms rolling number animation (`TweenAnimationBuilder<double>` with `FontFeature.tabularFigures()`), dynamic live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
+  - **Overall Balance Hero Card**: Styled with an adaptive brand gradient that harmonizes with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode, `28px` corner radius), top header with frosted status pill, 500ms rolling number animation (`TweenAnimationBuilder<double>` with `FontFeature.tabularFigures()`), dynamic live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
   - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
 - **Custom Friends Support**: Users can add unregistered friends via "Add new person" modal on `SplitPage` and `AddSplitPage`.
   - Custom friends are assigned client-generated UUIDs and persisted locally in `SharedPreferences` (`custom_friends`).
@@ -158,8 +158,8 @@ All data columns map strictly between remote database fields and Flutter immutab
 ## 🎨 UI & UX Principles
 
 1. **Material 3 Design**: Utilize Material 3 widgets and design patterns.
-2. **Dynamic Theming**: Support light/dark mode seamlessly via `ThemeViewModel`. Dark mode uses `#000000` scaffold background and `#0A0A0A` surface/card colors. Light mode uses `Color(0xFF4F46E5)` as the seed color; dark mode uses `Color(0xFF818CF8)`.
-3. **Typography**: High-contrast text using the **Inter** Google Font family (packaged locally inside `google_fonts/` to prevent runtime fetching and styling delays). `GoogleFonts.config.allowRuntimeFetching = false` is set in `main.dart`.
+2. **Dynamic Theming & System Colors**: Support light/dark mode seamlessly via `ThemeViewModel`. Dark mode uses `#000000` scaffold background and `#0A0A0A` surface/card colors. Seed colors default to `Color(0xFF4F46E5)` for light and `Color(0xFF818CF8)` for dark. Optionally extract system wallpaper & palette accents via `dynamic_color` (`DynamicColorBuilder`) when `ThemeViewModel.useDynamicColor` is toggled on.
+3. **Typography**: High-contrast text using bundled Roboto font.
 4. **Scroll-to-Top Gesture**: Tapping the active navigation item or the `AppBar` title smoothly scrolls scrollable lists back to the top (`ScrollController.animateTo(0)`).
 5. **Tactile Haptic Feedback**: Use `AppHaptics` in `lib/utils/haptics.dart` rather than calling standard `HapticFeedback` directly. Verify `ThemeViewModel.hapticEnabled` before executing haptic events.
 6. **Card Clipping & Rounded Highlights**: Always set `clipBehavior: Clip.antiAlias` on `Card` and matching `shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(...))` on `ListTile` so press/hold highlights conform perfectly to card rounded corners.

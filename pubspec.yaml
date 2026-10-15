@@ -38,7 +38,7 @@ dependencies:
   intl: ^0.20.2
   connectivity_plus: ^7.3.1
 
-  material_ui: any
+  dynamic_color: ^1.7.0
   pdf: ^3.13.1
   share_plus: ^13.3.1
   path_provider: ^2.1.6

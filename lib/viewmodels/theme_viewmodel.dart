@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// ViewModel for theme mode persistence and notification.
@@ -7,12 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// don't await [SharedPreferences.getInstance] again.
 class ThemeViewModel extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
+  bool _useDynamicColor = false;
   bool _hapticEnabled = true;
   String _defaultAnalyticsTab = 'net';
   List<String> _analyticsTabOrder = ['net', 'expense', 'income'];
   SharedPreferences? _prefs;
 
   ThemeMode get themeMode => _themeMode;
+  bool get useDynamicColor => _useDynamicColor;
   bool get hapticEnabled => _hapticEnabled;
   String get defaultAnalyticsTab => _defaultAnalyticsTab;
   List<String> get analyticsTabOrder => _analyticsTabOrder;
@@ -24,6 +26,7 @@ class ThemeViewModel extends ChangeNotifier {
   Future<void> _loadSettings() async {
     _prefs = await SharedPreferences.getInstance();
     final themeString = _prefs!.getString('theme_mode') ?? 'system';
+    _useDynamicColor = _prefs!.getBool('use_dynamic_color') ?? false;
     _hapticEnabled = _prefs!.getBool('haptic_enabled') ?? true;
     _defaultAnalyticsTab = _prefs!.getString('default_analytics_tab') ?? 'expense';
     _analyticsTabOrder = _prefs!.getStringList('analytics_tab_order') ?? ['expense', 'income', 'net'];
@@ -41,6 +44,14 @@ class ThemeViewModel extends ChangeNotifier {
 
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setString('theme_mode', mode.name);
+  }
+
+  Future<void> setUseDynamicColor(bool enabled) async {
+    _useDynamicColor = enabled;
+    notifyListeners();
+
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setBool('use_dynamic_color', enabled);
   }
 
   Future<void> setHapticEnabled(bool enabled) async {

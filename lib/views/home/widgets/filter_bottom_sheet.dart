@@ -1,4 +1,4 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart';
 import '../../../utils/haptics.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
