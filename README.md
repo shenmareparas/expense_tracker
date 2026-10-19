@@ -244,3 +244,9 @@ ViewModels catch these exceptions and display user-friendly error bars without e
    ```bash
    flutter run
    ```
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
