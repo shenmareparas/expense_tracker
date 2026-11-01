@@ -160,6 +160,22 @@ void showFilterBottomSheet(
                           });
                         },
                       ),
+                      const SizedBox(width: 8),
+                      _buildTypeChip(
+                        context: context,
+                        label: 'Split',
+                        isSelected: selectedType == 'split',
+                        selectedColor: Colors.orange.withValues(alpha: 0.15),
+                        textColor: theme.brightness == Brightness.dark
+                            ? Colors.orange.shade300
+                            : Colors.orange.shade800,
+                        borderColor: Colors.orange.withValues(alpha: 0.5),
+                        onTap: () {
+                          setState(() {
+                            selectedType = 'split';
+                          });
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -567,10 +583,12 @@ Widget _buildTypeChip({
         ),
         child: Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             color: isSelected ? textColor : theme.colorScheme.onSurfaceVariant,
-            fontSize: 14,
+            fontSize: 13,
           ),
         ),
       ),

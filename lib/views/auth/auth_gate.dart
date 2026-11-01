@@ -12,7 +12,7 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authViewModel = Provider.of<AuthViewModel>(context);
-    
+
     if (authViewModel.isInRecoveryMode) {
       return const UpdatePasswordPage();
     }

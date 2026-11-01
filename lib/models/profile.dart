@@ -3,11 +3,7 @@ class ProfileModel {
   final String email;
   final String? name;
 
-  ProfileModel({
-    required this.id,
-    required this.email,
-    this.name,
-  });
+  ProfileModel({required this.id, required this.email, this.name});
 
   String get displayName {
     if (name != null && name!.trim().isNotEmpty) {
@@ -25,11 +21,7 @@ class ProfileModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'email': email,
-      'name': name,
-    };
+    return {'id': id, 'email': email, 'name': name};
   }
 
   @override

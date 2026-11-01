@@ -29,10 +29,7 @@ class AppDropdown<T> extends StatelessWidget {
     if (!hasValue && value != null) {
       effectiveItems.insert(
         0,
-        DropdownMenuItem<T>(
-          value: value,
-          child: Text(value.toString()),
-        ),
+        DropdownMenuItem<T>(value: value, child: Text(value.toString())),
       );
     }
 

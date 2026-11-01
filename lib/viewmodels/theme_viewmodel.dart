@@ -28,8 +28,11 @@ class ThemeViewModel extends ChangeNotifier {
     final themeString = _prefs!.getString('theme_mode') ?? 'system';
     _useDynamicColor = _prefs!.getBool('use_dynamic_color') ?? false;
     _hapticEnabled = _prefs!.getBool('haptic_enabled') ?? true;
-    _defaultAnalyticsTab = _prefs!.getString('default_analytics_tab') ?? 'expense';
-    _analyticsTabOrder = _prefs!.getStringList('analytics_tab_order') ?? ['expense', 'income', 'net'];
+    _defaultAnalyticsTab =
+        _prefs!.getString('default_analytics_tab') ?? 'expense';
+    _analyticsTabOrder =
+        _prefs!.getStringList('analytics_tab_order') ??
+        ['expense', 'income', 'net'];
 
     _themeMode = ThemeMode.values.firstWhere(
       (e) => e.name == themeString,

@@ -76,20 +76,17 @@ class PdfExportService {
     final String dateRangeText = (startDate != null && endDate != null)
         ? '${_dateFormat.format(startDate)} - ${_dateFormat.format(endDate)}'
         : (startDate != null)
-            ? 'From ${_dateFormat.format(startDate)}'
-            : (endDate != null)
-                ? 'Until ${_dateFormat.format(endDate)}'
-                : 'All Time';
+        ? 'From ${_dateFormat.format(startDate)}'
+        : (endDate != null)
+        ? 'Until ${_dateFormat.format(endDate)}'
+        : 'All Time';
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         maxPages: 200,
-        theme: pw.ThemeData.withFont(
-          base: fontRegular,
-          bold: fontBold,
-        ),
+        theme: pw.ThemeData.withFont(base: fontRegular, bold: fontBold),
         header: (context) => _buildHeader(
           title: title,
           userName: userName,
@@ -134,7 +131,8 @@ class PdfExportService {
               pw.Expanded(
                 child: _buildMetricCard(
                   label: 'NET BALANCE',
-                  value: '${netBalance >= 0 ? '+' : ''}${_currencyFormat.format(netBalance)}',
+                  value:
+                      '${netBalance >= 0 ? '+' : ''}${_currencyFormat.format(netBalance)}',
                   accentColor: netBalance >= 0 ? primaryColor : expenseColor,
                   bgColor: const PdfColor.fromInt(0xFFF8FAFC),
                   fontBold: fontBold,
@@ -205,11 +203,16 @@ class PdfExportService {
               ),
               headerDecoration: const pw.BoxDecoration(
                 color: tableHeaderBg,
-                borderRadius: pw.BorderRadius.vertical(top: pw.Radius.circular(4)),
+                borderRadius: pw.BorderRadius.vertical(
+                  top: pw.Radius.circular(4),
+                ),
               ),
               headerHeight: 28,
               cellHeight: 28,
-              cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              cellPadding: const pw.EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 4,
+              ),
               cellStyle: pw.TextStyle(
                 font: fontRegular,
                 fontSize: 8.5,
@@ -243,7 +246,9 @@ class PdfExportService {
               },
               data: transactions.map((tx) {
                 final isIncome = tx.type == 'income';
-                final desc = (tx.description != null && tx.description!.trim().isNotEmpty)
+                final desc =
+                    (tx.description != null &&
+                        tx.description!.trim().isNotEmpty)
                     ? tx.description!
                     : '—';
                 return [
@@ -276,7 +281,10 @@ class PdfExportService {
       padding: const pw.EdgeInsets.only(bottom: 12),
       decoration: const pw.BoxDecoration(
         border: pw.Border(
-          bottom: pw.BorderSide(color: PdfColor.fromInt(0xFFE5E7EB), width: 1.5),
+          bottom: pw.BorderSide(
+            color: PdfColor.fromInt(0xFFE5E7EB),
+            width: 1.5,
+          ),
         ),
       ),
       child: pw.Row(
@@ -429,7 +437,9 @@ class PdfExportService {
     required Uint8List bytes,
     String? fileName,
   }) async {
-    final name = fileName ?? 'statement_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+    final name =
+        fileName ??
+        'statement_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
     final file = await _writeTempPdf(bytes, name);
     return OpenFile.open(file.path);
   }
@@ -441,7 +451,9 @@ class PdfExportService {
     String? subject,
     Rect? sharePositionOrigin,
   }) async {
-    final name = fileName ?? 'statement_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+    final name =
+        fileName ??
+        'statement_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
     final file = await _writeTempPdf(bytes, name);
     return SharePlus.instance.share(
       ShareParams(
@@ -457,7 +469,9 @@ class PdfExportService {
     required Uint8List bytes,
     String? fileName,
   }) async {
-    final name = fileName ?? 'statement_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+    final name =
+        fileName ??
+        'statement_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
     Directory? dir;
     if (Platform.isAndroid) {
       dir = Directory('/storage/emulated/0/Download');

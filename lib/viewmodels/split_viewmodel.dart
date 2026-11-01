@@ -12,8 +12,16 @@ import 'transaction_viewmodel.dart';
 
 /// ViewModel managing Split Expenses and user profiles.
 class SplitViewModel extends ChangeNotifier {
-  final DatabaseService _databaseService = DatabaseService.instance;
-  final AuthService _authService = AuthService.instance;
+  final DatabaseService? _dbService;
+  final AuthService? _authServiceInstance;
+
+  DatabaseService get _databaseService =>
+      _dbService ?? DatabaseService.instance;
+  AuthService get _authService => _authServiceInstance ?? AuthService.instance;
+
+  SplitViewModel({DatabaseService? databaseService, AuthService? authService})
+    : _dbService = databaseService,
+      _authServiceInstance = authService;
 
   /// Cached SharedPreferences instance — avoids repeated `getInstance()` calls.
   SharedPreferences? _prefs;
@@ -44,7 +52,8 @@ class SplitViewModel extends ChangeNotifier {
   Set<String> get hiddenFriendIds => _hiddenFriendIds;
 
   bool isFriendHidden(String friendId) => _hiddenFriendIds.contains(friendId);
-  bool isCustomFriend(String friendId) => _customProfiles.any((p) => p.id == friendId);
+  bool isCustomFriend(String friendId) =>
+      _customProfiles.any((p) => p.id == friendId);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -55,7 +64,17 @@ class SplitViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  String? get currentUserId => _authService.currentUser?.id;
+  String? _mockUserId;
+  String? get currentUserId => _mockUserId ?? _authService.currentUser?.id;
+
+  @visibleForTesting
+  void setMockData({
+    List<SplitExpenseModel>? splitExpenses,
+    String? mockUserId,
+  }) {
+    if (splitExpenses != null) _splitExpenses = splitExpenses;
+    if (mockUserId != null) _mockUserId = mockUserId;
+  }
 
   /// Display name of the currently signed-in user (name from metadata, or email prefix, or 'You').
   String get currentUserDisplayName {
@@ -155,7 +174,9 @@ class SplitViewModel extends ChangeNotifier {
 
     try {
       final prefs = await _getPrefs();
-      final encodedList = _customProfiles.map((p) => jsonEncode(p.toJson())).toList();
+      final encodedList = _customProfiles
+          .map((p) => jsonEncode(p.toJson()))
+          .toList();
       await prefs.setStringList('custom_friend_profiles', encodedList);
     } catch (_) {}
 
@@ -168,7 +189,9 @@ class SplitViewModel extends ChangeNotifier {
 
     try {
       final prefs = await _getPrefs();
-      final encodedList = _customProfiles.map((p) => jsonEncode(p.toJson())).toList();
+      final encodedList = _customProfiles
+          .map((p) => jsonEncode(p.toJson()))
+          .toList();
       await prefs.setStringList('custom_friend_profiles', encodedList);
     } catch (_) {}
   }
@@ -180,9 +203,7 @@ class SplitViewModel extends ChangeNotifier {
 
     try {
       _splitExpenses = List<SplitExpenseModel>.from(
-        await _databaseService.getSplitExpenses(
-          forceRefresh: forceRefresh,
-        ),
+        await _databaseService.getSplitExpenses(forceRefresh: forceRefresh),
       );
     } catch (e) {
       _errorMessage = _mapError(e);
@@ -303,7 +324,8 @@ class SplitViewModel extends ChangeNotifier {
   List<SplitExpenseModel> getSisterSplits(SplitExpenseModel split) {
     final list = _splitExpenses.where((s) {
       final samePayer = s.payerId == split.payerId;
-      final sameDesc = s.description.trim().toLowerCase() ==
+      final sameDesc =
+          s.description.trim().toLowerCase() ==
           split.description.trim().toLowerCase();
       final sameTotal = (s.totalAmount - split.totalAmount).abs() < 0.05;
       final sameDate =
@@ -449,7 +471,9 @@ class SplitViewModel extends ChangeNotifier {
 
       if (newStatus == 'settled') {
         final isPayer = split.payerId == uid;
-        final partnerName = isPayer ? split.displayBorrower : split.displayPayer;
+        final partnerName = isPayer
+            ? split.displayBorrower
+            : split.displayPayer;
         final description = isPayer
             ? 'Settlement from $partnerName for ${split.description}'
             : 'Settlement to $partnerName for ${split.description}';
@@ -476,18 +500,24 @@ class SplitViewModel extends ChangeNotifier {
       } else if (newStatus == 'pending' && transactionVM != null) {
         // If split is reverted back to pending, look for and clean up any single settlement transaction
         final isPayer = split.payerId == uid;
-        final partnerName = isPayer ? split.displayBorrower : split.displayPayer;
+        final partnerName = isPayer
+            ? split.displayBorrower
+            : split.displayPayer;
         final descToMatch = isPayer
-            ? 'settlement from $partnerName for ${split.description}'.toLowerCase()
-            : 'settlement to $partnerName for ${split.description}'.toLowerCase();
+            ? 'settlement from $partnerName for ${split.description}'
+                  .toLowerCase()
+            : 'settlement to $partnerName for ${split.description}'
+                  .toLowerCase();
 
-        final matchingTx = transactionVM.transactions.cast<TransactionModel?>().firstWhere(
-          (t) =>
-              t != null &&
-              (t.description?.toLowerCase() == descToMatch) &&
-              (t.amount - split.amount).abs() < 0.05,
-          orElse: () => null,
-        );
+        final matchingTx = transactionVM.transactions
+            .cast<TransactionModel?>()
+            .firstWhere(
+              (t) =>
+                  t != null &&
+                  (t.description?.toLowerCase() == descToMatch) &&
+                  (t.amount - split.amount).abs() < 0.05,
+              orElse: () => null,
+            );
 
         if (matchingTx != null) {
           await transactionVM.deleteTransaction(matchingTx.id);
@@ -512,6 +542,285 @@ class SplitViewModel extends ChangeNotifier {
     return desc;
   }
 
+  /// Returns the current user's individual financial share for a split expense transaction,
+  /// or null if the transaction is not recognized as a split expense.
+  double? getUserShareForSplitTransaction(TransactionModel t) {
+    final uid = currentUserId;
+    if (uid == null) return null;
+
+    final desc = t.description?.trim() ?? '';
+    final isExplicitSplit = desc.toLowerCase().startsWith('split:');
+    final cleanDesc = extractSplitDescription(desc).toLowerCase();
+
+    // Match candidate splits where the current user was the payer
+    final matchingSplits = _splitExpenses.where((s) {
+      if (s.payerId != uid) return false;
+      final sDesc = s.description.trim().toLowerCase();
+      final descMatch =
+          sDesc == cleanDesc ||
+          (cleanDesc.isNotEmpty && sDesc.contains(cleanDesc)) ||
+          (desc.isNotEmpty && desc.toLowerCase().contains(sDesc));
+      if (!descMatch) return false;
+
+      final dateDiff = s.expenseDate
+          .difference(t.transactionDate)
+          .inMinutes
+          .abs();
+      final amountMatch = (s.totalAmount - t.amount).abs() < 0.05;
+      final sameDay =
+          s.expenseDate.year == t.transactionDate.year &&
+          s.expenseDate.month == t.transactionDate.month &&
+          s.expenseDate.day == t.transactionDate.day;
+      return amountMatch || dateDiff < 1440 || sameDay;
+    }).toList();
+
+    if (matchingSplits.isEmpty) {
+      return isExplicitSplit ? t.amount : null;
+    }
+
+    // Sort candidates to pick the one closest in amount and time
+    matchingSplits.sort((a, b) {
+      final amountDiffA = (a.totalAmount - t.amount).abs();
+      final amountDiffB = (b.totalAmount - t.amount).abs();
+      if ((amountDiffA - amountDiffB).abs() > 0.05) {
+        return amountDiffA.compareTo(amountDiffB);
+      }
+      final dateDiffA = a.expenseDate
+          .difference(t.transactionDate)
+          .inMinutes
+          .abs();
+      final dateDiffB = b.expenseDate
+          .difference(t.transactionDate)
+          .inMinutes
+          .abs();
+      return dateDiffA.compareTo(dateDiffB);
+    });
+
+    final targetSplit = matchingSplits.first;
+    final sisterSplits = getSisterSplits(targetSplit);
+
+    // Sum all portions owed by other participants
+    final othersShare = sisterSplits
+        .where((s) => s.borrowerId != uid)
+        .fold(0.0, (sum, s) => sum + s.amount);
+
+    final rawMyShare = targetSplit.totalAmount - othersShare;
+    final myShare = rawMyShare < 0.0
+        ? 0.0
+        : (rawMyShare > targetSplit.totalAmount
+              ? targetSplit.totalAmount
+              : rawMyShare);
+
+    return double.parse(myShare.toStringAsFixed(2));
+  }
+
+  /// Finds an underlying split expense matching a settlement expense transaction.
+  SplitExpenseModel? findMatchingSplitForSettlement(TransactionModel t) {
+    final uid = currentUserId;
+    if (uid == null) return null;
+
+    final desc = t.description?.trim().toLowerCase() ?? '';
+    final forIndex = desc.indexOf(' for ');
+    String targetDesc = '';
+    if (forIndex != -1) {
+      targetDesc = desc.substring(forIndex + 5).trim();
+    }
+
+    for (final s in _splitExpenses) {
+      if (s.borrowerId == uid) {
+        if (targetDesc.isNotEmpty &&
+            s.description.trim().toLowerCase() == targetDesc) {
+          return s;
+        }
+      }
+    }
+
+    if (targetDesc.isEmpty) {
+      for (final s in _splitExpenses) {
+        if (s.borrowerId == uid && (s.amount - t.amount).abs() < 0.05) {
+          return s;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// Returns synthetic transaction models for shared expenses where other users were the payer
+  /// and the current user is the borrower, matching the given filter criteria.
+  List<TransactionModel> getBorrowerSplitTransactions({
+    String? type,
+    List<String>? categories,
+    String? paymentMethod,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? searchQuery,
+    List<TransactionModel>? existingTransactions,
+  }) {
+    final uid = currentUserId;
+    if (uid == null) return [];
+
+    // Borrower splits are split obligations ("You Owe"), not direct paid expenses or income.
+    // They are only included when viewing all transactions (type == null) or filtering by 'split' / 'you_owe'.
+    if (type != null &&
+        type.toLowerCase() != 'split' &&
+        type.toLowerCase() != 'you_owe') {
+      return [];
+    }
+
+    final query = (searchQuery ?? '').trim().toLowerCase();
+    final results = <TransactionModel>[];
+
+    for (final s in _splitExpenses) {
+      if (s.borrowerId != uid || s.payerId == uid || s.amount <= 0) {
+        continue;
+      }
+
+      // Check date boundaries
+      if (startDate != null && s.expenseDate.isBefore(startDate)) continue;
+      if (endDate != null && s.expenseDate.isAfter(endDate)) continue;
+
+      // Check category filters
+      if (categories != null && categories.isNotEmpty) {
+        final matchesCat = categories.any(
+          (c) => c.trim().toLowerCase() == s.category.trim().toLowerCase(),
+        );
+        if (!matchesCat) continue;
+      }
+
+      // Check payment method
+      if (paymentMethod != null &&
+          paymentMethod.isNotEmpty &&
+          paymentMethod != 'upi' &&
+          paymentMethod != 'split') {
+        continue;
+      }
+
+      String payerName = s.displayPayer;
+      if (payerName == 'User') {
+        final profile = profiles.cast<ProfileModel?>().firstWhere(
+          (p) => p != null && p.id == s.payerId,
+          orElse: () => null,
+        );
+        if (profile != null && profile.displayName.isNotEmpty) {
+          payerName = profile.displayName;
+        }
+      }
+      final cleanDesc = s.description.trim();
+      final txDesc = cleanDesc.toLowerCase().startsWith('split:')
+          ? cleanDesc
+          : 'Split: $cleanDesc';
+
+      // Check search query
+      if (query.isNotEmpty) {
+        final matchesDesc = txDesc.toLowerCase().contains(query);
+        final matchesPayer = payerName.toLowerCase().contains(query);
+        final matchesCat = s.category.toLowerCase().contains(query);
+        final matchesAmount = s.amount.toString().contains(query);
+        if (!matchesDesc && !matchesPayer && !matchesCat && !matchesAmount) {
+          continue;
+        }
+      }
+
+      // Check if already represented in personal transactions (defensive safeguard)
+      if (existingTransactions != null) {
+        final alreadyExists = existingTransactions.any((t) {
+          if (t.type != 'expense') return false;
+          final desc = (t.description ?? '').trim().toLowerCase();
+          if (desc.startsWith('settlement') ||
+              desc.startsWith('split settlement')) {
+            return false;
+          }
+          final sDesc = s.description.trim().toLowerCase();
+          final matchesDesc =
+              desc == 'split: $sDesc' ||
+              desc.startsWith('split: $sDesc') ||
+              desc == sDesc;
+          final matchesAmount = (t.amount - s.amount).abs() < 0.05;
+          final matchesDate =
+              s.expenseDate.difference(t.transactionDate).inMinutes.abs() < 120;
+          return matchesDesc && (matchesAmount || matchesDate);
+        });
+        if (alreadyExists) continue;
+      }
+
+      results.add(
+        TransactionModel(
+          id: 'split_borrower_${s.id}',
+          userId: uid,
+          amount: s.amount,
+          type: 'expense',
+          category: s.category.trim().isEmpty ? 'General' : s.category,
+          description: txDesc,
+          paymentMethod: 'upi',
+          transactionDate: s.expenseDate,
+          createdAt: s.createdAt,
+        ),
+      );
+    }
+
+    return results;
+  }
+
+  /// Transforms raw transactions for personal spending analytics:
+  /// 1. Split expenses where the user was the payer are adjusted to reflect only the user's out-of-pocket share (total - borrowers' shares).
+  /// 2. If the user's share is 0 (e.g. paid on behalf of a partner), it is omitted from expense calculations.
+  /// 3. Split expenses added by other users where the current user is a borrower are included under their category (e.g. 'Food').
+  /// 4. Settlement reimbursements received from friends ('Settlement from ...') are excluded from income.
+  /// 5. Settlements paid to friends ('Settlement to ...') are excluded from expenses to prevent double-counting with borrower split expenses.
+  List<TransactionModel> transformTransactionsForAnalytics(
+    List<TransactionModel> transactions, {
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    final adjusted = <TransactionModel>[];
+
+    for (final t in transactions) {
+      final descLower = (t.description ?? '').trim().toLowerCase();
+
+      // 1. Settlement reimbursements from friends are debt repayments, not earned income
+      if (t.type == 'income' &&
+          (descLower.startsWith('settlement from') ||
+              descLower.startsWith('split settlement from'))) {
+        continue;
+      }
+
+      // 2. Settlements paid to friends are debt payments for shared expenses.
+      // Since the underlying borrower split expense is directly included with its true category and date below,
+      // settlement payment transactions must be omitted to prevent double-counting.
+      if (t.type == 'expense' &&
+          (descLower.startsWith('settlement to') ||
+              descLower.startsWith('split settlement to'))) {
+        continue;
+      }
+
+      // 3. Split expenses where user was the payer
+      if (t.type == 'expense') {
+        final userShare = getUserShareForSplitTransaction(t);
+        if (userShare != null) {
+          if (userShare > 0) {
+            adjusted.add(t.copyWith(amount: userShare));
+          }
+          // If userShare == 0, omit from personal spending analytics.
+          continue;
+        }
+      }
+
+      // 4. Regular personal transaction
+      adjusted.add(t);
+    }
+
+    // 5. Include shared expenses where other users were the payer and current user is the borrower
+    final borrowerSplits = getBorrowerSplitTransactions(
+      startDate: startDate,
+      endDate: endDate,
+      existingTransactions: transactions,
+    );
+    adjusted.addAll(borrowerSplits);
+
+    return adjusted;
+  }
+
   Future<void> deleteSplitExpense(
     String id, {
     TransactionViewModel? transactionVM,
@@ -529,10 +838,12 @@ class SplitViewModel extends ChangeNotifier {
       final uid = currentUserId;
       if (uid != null && backup.payerId == uid && transactionVM != null) {
         // Check if other splits with the same description and date still exist
-        final otherSplitsExist = _splitExpenses.any((s) =>
-            s.payerId == uid &&
-            s.description.toLowerCase() == backup.description.toLowerCase() &&
-            s.expenseDate.difference(backup.expenseDate).inMinutes.abs() < 5);
+        final otherSplitsExist = _splitExpenses.any(
+          (s) =>
+              s.payerId == uid &&
+              s.description.toLowerCase() == backup.description.toLowerCase() &&
+              s.expenseDate.difference(backup.expenseDate).inMinutes.abs() < 5,
+        );
 
         if (!otherSplitsExist) {
           final txList = transactionVM.transactions;
@@ -542,10 +853,17 @@ class SplitViewModel extends ChangeNotifier {
                 t != null &&
                 t.type == 'expense' &&
                 ((t.description?.trim().toLowerCase() == 'split: $cleanDesc') ||
-                 (t.description?.trim().toLowerCase().startsWith('split: $cleanDesc') ?? false) ||
-                 (t.description?.trim().toLowerCase() == cleanDesc)) &&
-                (t.transactionDate.difference(backup.expenseDate).inMinutes.abs() < 120 ||
-                 (t.amount - backup.totalAmount).abs() < 0.05),
+                    (t.description?.trim().toLowerCase().startsWith(
+                          'split: $cleanDesc',
+                        ) ??
+                        false) ||
+                    (t.description?.trim().toLowerCase() == cleanDesc)) &&
+                (t.transactionDate
+                            .difference(backup.expenseDate)
+                            .inMinutes
+                            .abs() <
+                        120 ||
+                    (t.amount - backup.totalAmount).abs() < 0.05),
             orElse: () => null,
           );
 
@@ -569,9 +887,18 @@ class SplitViewModel extends ChangeNotifier {
 
     final matchingSplits = _splitExpenses.where((s) {
       final matchesUser = s.payerId == uid || s.borrowerId == uid;
-      final matchesDesc = s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
-          (transaction.description?.toLowerCase().contains(s.description.toLowerCase()) ?? false);
-      final matchesDate = s.expenseDate.difference(transaction.transactionDate).inMinutes.abs() < 120;
+      final matchesDesc =
+          s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
+          (transaction.description?.toLowerCase().contains(
+                s.description.toLowerCase(),
+              ) ??
+              false);
+      final matchesDate =
+          s.expenseDate
+              .difference(transaction.transactionDate)
+              .inMinutes
+              .abs() <
+          120;
       final matchesAmount = (s.totalAmount - transaction.amount).abs() < 0.05;
       return matchesUser && matchesDesc && (matchesDate || matchesAmount);
     }).toList();
@@ -589,9 +916,18 @@ class SplitViewModel extends ChangeNotifier {
 
     final matchingSplits = _splitExpenses.where((s) {
       final matchesUser = s.payerId == uid;
-      final matchesDesc = s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
-          (transaction.description?.toLowerCase().contains(s.description.toLowerCase()) ?? false);
-      final matchesDate = s.expenseDate.difference(transaction.transactionDate).inMinutes.abs() < 120;
+      final matchesDesc =
+          s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
+          (transaction.description?.toLowerCase().contains(
+                s.description.toLowerCase(),
+              ) ??
+              false);
+      final matchesDate =
+          s.expenseDate
+              .difference(transaction.transactionDate)
+              .inMinutes
+              .abs() <
+          120;
       final matchesAmount = (s.totalAmount - transaction.amount).abs() < 0.05;
       return matchesUser && matchesDesc && (matchesDate || matchesAmount);
     }).toList();
@@ -600,7 +936,9 @@ class SplitViewModel extends ChangeNotifier {
       final double newAmount;
       if (s.totalAmount > 0 && s.amount > 0) {
         final ratio = s.amount / s.totalAmount;
-        newAmount = double.parse((transaction.amount * ratio).toStringAsFixed(2));
+        newAmount = double.parse(
+          (transaction.amount * ratio).toStringAsFixed(2),
+        );
       } else {
         newAmount = s.amount;
       }
@@ -636,7 +974,7 @@ class SplitViewModel extends ChangeNotifier {
     final pendingSplits = _splitExpenses.where((s) {
       return s.status == 'pending' &&
           ((s.payerId == uid && s.borrowerId == partnerId) ||
-           (s.borrowerId == uid && s.payerId == partnerId));
+              (s.borrowerId == uid && s.payerId == partnerId));
     }).toList();
 
     if (pendingSplits.isEmpty) return;
@@ -739,7 +1077,9 @@ class SplitViewModel extends ChangeNotifier {
         if (transactionVM != null) {
           await transactionVM.deleteTransaction(record.createdTransactionId!);
         } else {
-          await _databaseService.deleteTransaction(record.createdTransactionId!);
+          await _databaseService.deleteTransaction(
+            record.createdTransactionId!,
+          );
         }
       }
 
@@ -797,4 +1137,3 @@ class _LastSettlementRecord {
     required this.timestamp,
   });
 }
-

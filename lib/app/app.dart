@@ -35,8 +35,8 @@ class MyApp extends StatelessWidget {
                   darkDynamic != null) {
                 lightColorScheme = lightDynamic.harmonized();
                 darkColorScheme = darkDynamic.harmonized().copyWith(
-                      surface: const Color(0xFF0A0A0A),
-                    );
+                  surface: const Color(0xFF0A0A0A),
+                );
               } else {
                 lightColorScheme = ColorScheme.fromSeed(
                   seedColor: const Color(0xFF4F46E5),
@@ -96,7 +96,9 @@ class MyApp extends StatelessWidget {
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
                     ),
                   ),
                   useMaterial3: true,

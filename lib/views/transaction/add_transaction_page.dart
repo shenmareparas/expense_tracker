@@ -282,10 +282,11 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                 final splitVM = context.read<SplitViewModel>();
                 final nav = Navigator.of(context);
 
-                final isSplit = widget.transaction!.description != null &&
-                    widget.transaction!.description!
-                        .toLowerCase()
-                        .startsWith('split:');
+                final isSplit =
+                    widget.transaction!.description != null &&
+                    widget.transaction!.description!.toLowerCase().startsWith(
+                      'split:',
+                    );
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
@@ -347,401 +348,401 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                   ? const Center(child: CircularProgressIndicator())
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                        children: [
-                          // Type Toggle
-                          Center(
-                            child: SegmentedButton<String>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: 'expense',
-                                  label: Text('Expense'),
-                                  icon: Icon(Icons.arrow_upward),
-                                ),
-                                ButtonSegment(
-                                  value: 'income',
-                                  label: Text('Income'),
-                                  icon: Icon(Icons.arrow_downward),
-                                ),
-                              ],
-                              selected: {_type},
-                              onSelectionChanged: (Set<String> newSelection) {
-                                AppHaptics.selectionClick(context);
-                                setState(() {
-                                  _type = newSelection.first;
-                                  final newCategories = _type == 'income'
-                                      ? categoryViewModel.incomeCategories
-                                      : categoryViewModel.expenseCategories;
-                                  _category = newCategories.isNotEmpty
-                                      ? newCategories.first
-                                      : null;
-                                });
-                              },
-                              style: SegmentedButton.styleFrom(
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.surface.withValues(alpha: 0.5),
-                                selectedBackgroundColor: _type == 'expense'
-                                    ? Colors.red.withValues(alpha: 0.2)
-                                    : Colors.green.withValues(alpha: 0.2),
-                                selectedForegroundColor: _type == 'expense'
-                                    ? Colors.red
-                                    : Colors.green,
-                                side: BorderSide(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.outline.withValues(alpha: 0.1),
-                                ),
+                      children: [
+                        // Type Toggle
+                        Center(
+                          child: SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(
+                                value: 'expense',
+                                label: Text('Expense'),
+                                icon: Icon(Icons.arrow_upward),
                               ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Inputs Card
-                          Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
+                              ButtonSegment(
+                                value: 'income',
+                                label: Text('Income'),
+                                icon: Icon(Icons.arrow_downward),
+                              ),
+                            ],
+                            selected: {_type},
+                            onSelectionChanged: (Set<String> newSelection) {
+                              AppHaptics.selectionClick(context);
+                              setState(() {
+                                _type = newSelection.first;
+                                final newCategories = _type == 'income'
+                                    ? categoryViewModel.incomeCategories
+                                    : categoryViewModel.expenseCategories;
+                                _category = newCategories.isNotEmpty
+                                    ? newCategories.first
+                                    : null;
+                              });
+                            },
+                            style: SegmentedButton.styleFrom(
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surface.withValues(alpha: 0.5),
+                              selectedBackgroundColor: _type == 'expense'
+                                  ? Colors.red.withValues(alpha: 0.2)
+                                  : Colors.green.withValues(alpha: 0.2),
+                              selectedForegroundColor: _type == 'expense'
+                                  ? Colors.red
+                                  : Colors.green,
                               side: BorderSide(
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.outline.withValues(alpha: 0.1),
                               ),
                             ),
-                            color: Theme.of(context).colorScheme.surface
-                                .withValues(
-                                  alpha:
-                                      Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? 0.3
-                                      : 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Inputs Card
+                        Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            side: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          color: Theme.of(context).colorScheme.surface
+                              .withValues(
+                                alpha:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? 0.3
+                                    : 0.8,
+                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildSectionTitle('Amount'),
+                                TextField(
+                                  controller: _amountController,
+                                  focusNode: _amountFocusNode,
+                                  textInputAction: TextInputAction.done,
+                                  onSubmitted: (_) => _evaluateAmount(),
+                                  onTapOutside: (_) {
+                                    _evaluateAmount();
+                                    FocusScope.of(context).unfocus();
+                                  },
+                                  onChanged: (_) => setState(() {}),
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  decoration:
+                                      _inputDecoration(
+                                        '0.00',
+                                        Icons.account_balance_wallet,
+                                      ).copyWith(
+                                        prefixText: '₹ ',
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 24,
+                                              vertical: 24,
+                                            ),
+                                      ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                      RegExp(r'[0-9+\-*/÷×−().\s]'),
+                                    ),
+                                  ],
                                 ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  _buildSectionTitle('Amount'),
-                                  TextField(
-                                    controller: _amountController,
-                                    focusNode: _amountFocusNode,
-                                    textInputAction: TextInputAction.done,
-                                    onSubmitted: (_) => _evaluateAmount(),
-                                    onTapOutside: (_) {
-                                      _evaluateAmount();
-                                      FocusScope.of(context).unfocus();
-                                    },
-                                    onChanged: (_) => setState(() {}),
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    decoration:
-                                        _inputDecoration(
-                                          '0.00',
-                                          Icons.account_balance_wallet,
-                                        ).copyWith(
-                                          prefixText: '₹ ',
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 24,
-                                                vertical: 24,
-                                              ),
-                                        ),
-                                    keyboardType: const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.allow(
-                                        RegExp(r'[0-9+\-*/÷×−().\s]'),
-                                      ),
-                                    ],
-                                  ),
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 200),
-                                    curve: Curves.easeInOut,
-                                    child: _amountFocusNode.hasFocus
-                                        ? MathOperationsBar(
-                                            controller: _amountController,
-                                            focusNode: _amountFocusNode,
-                                            onOperationApplied: () {
-                                              if (mounted) setState(() {});
-                                            },
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-                                  const SizedBox(height: 24),
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeInOut,
+                                  child: _amountFocusNode.hasFocus
+                                      ? MathOperationsBar(
+                                          controller: _amountController,
+                                          focusNode: _amountFocusNode,
+                                          onOperationApplied: () {
+                                            if (mounted) setState(() {});
+                                          },
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                                const SizedBox(height: 24),
 
-                                  _buildSectionTitle('Description'),
-                                  TextField(
-                                    controller: _descriptionController,
-                                    maxLength: 200,
-                                    maxLengthEnforcement:
-                                        MaxLengthEnforcement.enforced,
-                                    decoration: _inputDecoration(
-                                      'What was this for?',
-                                      Icons.description,
-                                    ).copyWith(counterText: ''),
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
-                                  ),
-                                  const SizedBox(height: 24),
+                                _buildSectionTitle('Description'),
+                                TextField(
+                                  controller: _descriptionController,
+                                  maxLength: 200,
+                                  maxLengthEnforcement:
+                                      MaxLengthEnforcement.enforced,
+                                  decoration: _inputDecoration(
+                                    'What was this for?',
+                                    Icons.description,
+                                  ).copyWith(counterText: ''),
+                                  textCapitalization:
+                                      TextCapitalization.sentences,
+                                ),
+                                const SizedBox(height: 24),
 
-                                  _buildSectionTitle('Category'),
-                                  AppDropdown<String>(
-                                    key: ValueKey(
-                                      'category_dropdown_${_type}_$_category',
-                                    ),
-                                    value: _category,
-                                    hint: 'Select Category',
-                                    prefixIcon: Icons.category,
-                                    items: (_category != null &&
-                                            !categories.contains(_category)
-                                        ? [_category!, ...categories]
-                                        : categories)
-                                        .map((String category) {
-                                      return DropdownMenuItem(
-                                        value: category,
-                                        child: Text(category),
-                                      );
-                                    }).toList(),
-                                    onChanged: (String? newValue) {
-                                      if (newValue != null) {
-                                        AppHaptics.selectionClick(context);
-                                        setState(() {
-                                          _category = newValue;
-                                        });
-                                      }
-                                    },
+                                _buildSectionTitle('Category'),
+                                AppDropdown<String>(
+                                  key: ValueKey(
+                                    'category_dropdown_${_type}_$_category',
                                   ),
-                                  const SizedBox(height: 24),
-
-                                  _buildSectionTitle('Payment Method'),
-                                  SegmentedButton<String>(
-                                    segments: const [
-                                      ButtonSegment(
-                                        value: 'upi',
-                                        label: Text('UPI'),
-                                        icon: Icon(Icons.qr_code_2),
-                                      ),
-                                      ButtonSegment(
-                                        value: 'cash',
-                                        label: Text('Cash'),
-                                        icon: Icon(Icons.payments_outlined),
-                                      ),
-                                    ],
-                                    selected: {_paymentMethod},
-                                    onSelectionChanged: (Set<String> newSelection) {
+                                  value: _category,
+                                  hint: 'Select Category',
+                                  prefixIcon: Icons.category,
+                                  items:
+                                      (_category != null &&
+                                                  !categories.contains(
+                                                    _category,
+                                                  )
+                                              ? [_category!, ...categories]
+                                              : categories)
+                                          .map((String category) {
+                                            return DropdownMenuItem(
+                                              value: category,
+                                              child: Text(category),
+                                            );
+                                          })
+                                          .toList(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
                                       AppHaptics.selectionClick(context);
                                       setState(() {
-                                        _paymentMethod = newSelection.first;
+                                        _category = newValue;
                                       });
-                                    },
-                                    style: SegmentedButton.styleFrom(
-                                      backgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.surface.withValues(alpha: 0.5),
-                                      selectedBackgroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.primary.withValues(alpha: 0.15),
-                                      selectedForegroundColor: Theme.of(
-                                        context,
-                                      ).colorScheme.primary,
-                                      side: BorderSide(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.outline.withValues(alpha: 0.1),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 24),
-
-                                  _buildSectionTitle('Date & Time'),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: InkWell(
-                                          onTap: () => _selectDate(context),
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withValues(alpha: 0.05),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: Colors.transparent,
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.calendar_today,
-                                                  size: 20,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary,
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Text(
-                                                    DateFormatter.formatDate(
-                                                      _selectedDate,
-                                                    ),
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: InkWell(
-                                          onTap: () => _selectTime(context),
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withValues(alpha: 0.05),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                              border: Border.all(
-                                                color: Colors.transparent,
-                                              ),
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.access_time,
-                                                  size: 20,
-                                                  color: Theme.of(
-                                                    context,
-                                                  ).colorScheme.primary,
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Text(
-                                                    _selectedTime.format(
-                                                      context,
-                                                    ),
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 48),
-
-                          // Save Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: FilledButton(
-                              onPressed: state.isSaving
-                                  ? null
-                                  : _saveTransaction,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: _type == 'expense'
-                                    ? Colors.red.withValues(alpha: 0.1)
-                                    : Colors.green.withValues(alpha: 0.1),
-                                foregroundColor: _type == 'expense'
-                                    ? Colors.red
-                                    : Colors.green,
-                                shadowColor: Colors.transparent,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                                    }
+                                  },
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (state.isSaving) ...[
-                                    SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              _type == 'expense'
-                                                  ? Colors.red
-                                                  : Colors.green,
-                                            ),
-                                      ),
+                                const SizedBox(height: 24),
+
+                                _buildSectionTitle('Payment Method'),
+                                SegmentedButton<String>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: 'upi',
+                                      label: Text('UPI'),
+                                      icon: Icon(Icons.qr_code_2),
                                     ),
-                                    const SizedBox(width: 12),
-                                  ] else ...[
-                                    Icon(
-                                      widget.transaction == null
-                                          ? Icons.check_circle_outline
-                                          : Icons.update,
-                                      size: 24,
-                                      color: _type == 'expense'
-                                          ? Colors.red
-                                          : Colors.green,
+                                    ButtonSegment(
+                                      value: 'cash',
+                                      label: Text('Cash'),
+                                      icon: Icon(Icons.payments_outlined),
                                     ),
-                                    const SizedBox(width: 12),
                                   ],
-                                  Text(
-                                    state.isSaving
-                                        ? (widget.transaction == null
-                                              ? 'Saving...'
-                                              : 'Updating...')
-                                        : (widget.transaction == null
-                                              ? 'Save Transaction'
-                                              : 'Update Transaction'),
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: _type == 'expense'
-                                          ? Colors.red
-                                          : Colors.green,
-                                      letterSpacing: 1.1,
+                                  selected: {_paymentMethod},
+                                  onSelectionChanged:
+                                      (Set<String> newSelection) {
+                                        AppHaptics.selectionClick(context);
+                                        setState(() {
+                                          _paymentMethod = newSelection.first;
+                                        });
+                                      },
+                                  style: SegmentedButton.styleFrom(
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surface
+                                        .withValues(alpha: 0.5),
+                                    selectedBackgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.15),
+                                    selectedForegroundColor: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                    side: BorderSide(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .outline
+                                          .withValues(alpha: 0.1),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                                const SizedBox(height: 24),
+
+                                _buildSectionTitle('Date & Time'),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: InkWell(
+                                        onTap: () => _selectDate(context),
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.05),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.transparent,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_today,
+                                                size: 20,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  DateFormatter.formatDate(
+                                                    _selectedDate,
+                                                  ),
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: InkWell(
+                                        onTap: () => _selectTime(context),
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.05),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.transparent,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.access_time,
+                                                size: 20,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.primary,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  _selectedTime.format(context),
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      );
-              },
-            );
-          },
-        ),
+                        ),
+
+                        const SizedBox(height: 48),
+
+                        // Save Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: FilledButton(
+                            onPressed: state.isSaving ? null : _saveTransaction,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _type == 'expense'
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : Colors.green.withValues(alpha: 0.1),
+                              foregroundColor: _type == 'expense'
+                                  ? Colors.red
+                                  : Colors.green,
+                              shadowColor: Colors.transparent,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (state.isSaving) ...[
+                                  SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        _type == 'expense'
+                                            ? Colors.red
+                                            : Colors.green,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ] else ...[
+                                  Icon(
+                                    widget.transaction == null
+                                        ? Icons.check_circle_outline
+                                        : Icons.update,
+                                    size: 24,
+                                    color: _type == 'expense'
+                                        ? Colors.red
+                                        : Colors.green,
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Text(
+                                  state.isSaving
+                                      ? (widget.transaction == null
+                                            ? 'Saving...'
+                                            : 'Updating...')
+                                      : (widget.transaction == null
+                                            ? 'Save Transaction'
+                                            : 'Update Transaction'),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: _type == 'expense'
+                                        ? Colors.red
+                                        : Colors.green,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+            },
+          );
+        },
+      ),
     );
   }
 

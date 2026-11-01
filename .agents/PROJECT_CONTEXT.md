@@ -9,7 +9,7 @@ This document provides a high-level overview of the **Expense Tracker** Flutter 
 The Expense Tracker is a Flutter mobile application designed for personal finance tracking. It supports:
 
 - **Authentication**: Email/Password signup, login, password resetting (request link / 6-digit OTP code verification), and secure updates powered by Supabase Auth. Auth state persistence is handled via stream subscription in `AuthViewModel`.
-- **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (type, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview).
+- **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (transaction type with All/Income/Expense/Split, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview). Unpaid borrower split obligations appear directly in the feed styled distinctly with amber/orange split icons and a `[ You Owe ]` badge without minus signs so they are not mistaken for paid expenses, while payer split expenses display the split icon (`Icons.call_split_rounded`) in red like other paid expenses.
 - **Split Expenses**:
   - **Overall Balance Hero Card**: Features an adaptive brand gradient harmonized with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode), rolling amount counter animation (`TweenAnimationBuilder`), dynamic visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
   - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
@@ -23,14 +23,15 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
   - Six split modes with live calculation & validation pills: `equally` (`=`), `youOweFull`, `partnerOwesFull`, `exactAmounts` (`1.23`), `percentages` (`%`), and `shares` (`===`). Exact amounts and percentage text fields include `scrollPadding` and `TextInputAction.next` for keyboard visibility.
   - Edit existing split expenses with full multi-person group resolution, pre-filling all sharing participants, exact amounts/percentages, and who paid.
   - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation and inline math evaluation in the amount field.
-  - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, settlements logged as income/expense).
+  - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, borrower split obligations surfaced directly in the transaction feed with amber/orange styling and `[ You Owe ]` badge without minus signs, and settlements logged as income/expense).
+  - Dedicated Split transaction type filter chip in `filter_bottom_sheet.dart` and PDF export sheet, isolating all shared obligations and payer split records while keeping `Expense` clean of unpaid splits.
   - Seamless bidirectional editing & deletion sync: updating or deleting a split expense automatically updates or deletes the corresponding personal transaction, and vice versa.
   - Tapping a split transaction from the personal feed directly opens the full Split editor with partner and split mode pre-configured.
   - Unified solid AppBar styling across all sub-screens (`AddTransactionPage`, `AddSplitPage`, `UserSplitDetailPage`).
 - **Categories**: Dynamic category management including custom names/types and drag-and-drop reordering. Protects built-in "Other" category from rename/delete/reorder.
 - **Analytics & Insights**: Interactive FL Chart dashboards (pie breakdown + daily trend bar chart), date-range filtering (`7days`, `30days`, `month`, `year`, `custom`), category filtering, and per-tab income/expense/net selection. Adaptive summary hero card gradient harmonizes with dynamic theme colors. Automatically synchronized with split expenses and personal transactions.
 - **PDF Statements & Export**: Export transaction statements as formatted PDF documents accessible from **Settings → General → Export Statement (PDF)**. Features custom date ranges (presets & custom picker), transaction type, payment method, category multi-filters, and live matching metrics. Allows instant **View PDF** (via `open_file`), **Share PDF** (direct system share sheet via `share_plus`), or **Save to Device Storage**. Includes safe-area top overlay status toasts (`_TopToastWidget`) and pagination support up to 200+ pages (`pw.TableHelper.fromTextArray`).
-- **Settings**: Theme (system/light/dark), dynamic system color matching (`Dynamic Colors` toggle via `dynamic_color`), haptic feedback toggle, default analytics tab, custom analytics tab order, manage categories, export statements (PDF), and clear cache. All persisted via `SharedPreferences`.
+- **Settings**: Theme (system/light/dark), dynamic system color matching (`Dynamic Colors` toggle via `dynamic_color` on Android), haptic feedback toggle, default analytics tab, custom analytics tab order, manage categories, export statements (PDF), and clear cache. All persisted via `SharedPreferences`.
 - **Aesthetics & Haptics**: Sleek, customized dark and light modes with bundled Roboto font, dynamic wallpaper & accent extraction on supported devices, rounded press highlights (`Clip.antiAlias`), and conditional haptic feedback via `AppHaptics`.
 
 ---
@@ -97,8 +98,8 @@ lib/
 │   │   ├── home_page.dart         # Bottom nav shell, AnimatedSwitcher tab transitions
 │   │   └── widgets/
 │   │       ├── export_pdf_bottom_sheet.dart # PDF Statement export filter sheet & top status toasts
-│   │       ├── filter_bottom_sheet.dart  # Filter modal (type, categories, payment, dates)
-│   │       └── transaction_list.dart     # Paginated transaction list with scroll-load-more
+│   │       ├── filter_bottom_sheet.dart  # Filter modal (type with All/Income/Expense/Split, categories, payment, dates)
+│   │       └── transaction_list.dart     # Paginated feed merging personal transactions and borrower split obligations
 │   ├── settings/
 │   │   ├── manage_categories_page.dart  # Add/edit/delete/reorder categories
 │   │   └── settings_page.dart           # All app settings with Consumer bindings
@@ -151,3 +152,4 @@ lib/
 9. **SharedPreferences singleton** — `SplitViewModel` caches the `SharedPreferences` instance in `_prefs` (lazy `??=` via `_getPrefs()`), avoiding repeated `getInstance()` overhead on every custom-friend or hidden-friend write.
 10. **Connectivity pre-check on mutations** — `DatabaseService._executeMutation()` wraps `_execute()` with a `ConnectivityChecker.isConnected()` call before any INSERT/UPDATE/DELETE. If offline, `NetworkException` is thrown immediately. Read methods stay on `_execute()` since the TTL cache usually satisfies them without touching the network.
 11. **Date range boundary normalization** — To prevent same-day transactions from being excluded by PostgREST `.lte` filters (which compare against exact timestamps), all date queries and filter setters (`loadAnalyticsSnapshot`, `setFilters`, `AnalyticsPage`) normalize `endDate` to the last millisecond of the day (`23:59:59.999`) and `startDate` to midnight (`00:00:00.000`). Bar chart date intervals also prioritize `analyticsStartDate`/`analyticsEndDate` before falling back to `filterStartDate`/`filterEndDate`.
+12. **Split transaction type filtering & borrower split presentation** — In the database, transactions only store `expense` or `income`. When filtering by `type == 'split'`, `DatabaseService.getTransactions()` queries personal splits using `description.ilike('split:%')`, while `SplitViewModel.getBorrowerSplitTransactions()` returns shared borrower split debts. When filtering by `type == 'expense'`, borrower splits are omitted because the money was not paid out-of-pocket yet.

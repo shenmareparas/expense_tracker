@@ -53,8 +53,8 @@ class _TransactionListViewState extends State<TransactionListView> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TransactionViewModel>(
-      builder: (context, viewModel, child) {
+    return Consumer2<TransactionViewModel, SplitViewModel>(
+      builder: (context, viewModel, splitViewModel, child) {
         if (viewModel.isLoading && viewModel.transactions.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -63,10 +63,28 @@ class _TransactionListViewState extends State<TransactionListView> {
           return Center(child: Text('Error: ${viewModel.errorMessage}'));
         }
 
-        final transactions = viewModel.filteredTransactions;
+        final personalTxs = viewModel.filteredTransactions;
+        final borrowerSplitTxs = splitViewModel.getBorrowerSplitTransactions(
+          type: viewModel.filterType,
+          categories: viewModel.filterCategories,
+          paymentMethod: viewModel.filterPaymentMethod,
+          startDate: viewModel.filterStartDate,
+          endDate: viewModel.filterEndDate,
+          searchQuery: viewModel.searchQuery,
+          existingTransactions: personalTxs,
+        );
+
+        final transactions = <TransactionModel>[
+          ...personalTxs,
+          ...borrowerSplitTxs,
+        ]..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+
         if (transactions.isEmpty) {
           return RefreshIndicator(
-            onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
+            onRefresh: () async {
+              await viewModel.loadTransactions(forceRefresh: true);
+              await splitViewModel.loadSplitExpenses(forceRefresh: true);
+            },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16.0),
@@ -80,7 +98,10 @@ class _TransactionListViewState extends State<TransactionListView> {
         }
 
         return RefreshIndicator(
-          onRefresh: () => viewModel.loadTransactions(forceRefresh: true),
+          onRefresh: () async {
+            await viewModel.loadTransactions(forceRefresh: true);
+            await splitViewModel.loadSplitExpenses(forceRefresh: true);
+          },
           child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.all(16.0),
@@ -103,6 +124,7 @@ class _TransactionListViewState extends State<TransactionListView> {
                 context,
                 transactions[index],
                 viewModel,
+                splitViewModel,
               );
             },
           ),
@@ -156,8 +178,25 @@ class _TransactionListViewState extends State<TransactionListView> {
     BuildContext context,
     TransactionModel t,
     TransactionViewModel viewModel,
+    SplitViewModel splitViewModel,
   ) {
     final isIncome = t.type == 'income';
+    final isBorrowerSplit = t.id.startsWith('split_borrower_');
+    final isPayerSplit =
+        (t.description != null &&
+            t.description!.toLowerCase().startsWith('split:')) ||
+        t.paymentMethod == 'split';
+    final isSplit = isBorrowerSplit || isPayerSplit;
+    SplitExpenseModel? borrowerSplit;
+    if (isBorrowerSplit) {
+      final splitId = t.id.substring('split_borrower_'.length);
+      borrowerSplit = splitViewModel.splitExpenses
+          .cast<SplitExpenseModel?>()
+          .firstWhere((s) => s != null && s.id == splitId, orElse: () => null);
+    }
+    final isSettled = borrowerSplit?.status == 'settled';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Dismissible(
       key: Key(t.id),
       background: Container(
@@ -190,13 +229,15 @@ class _TransactionListViewState extends State<TransactionListView> {
                 ),
               ),
               title: Text(
-                'Delete Transaction',
+                isBorrowerSplit ? 'Delete Split Expense' : 'Delete Transaction',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              content: const Text(
-                'Are you sure you want to delete this transaction? This action cannot be undone.',
+              content: Text(
+                isBorrowerSplit
+                    ? 'Are you sure you want to delete this shared split expense? This action cannot be undone.'
+                    : 'Are you sure you want to delete this transaction? This action cannot be undone.',
                 textAlign: TextAlign.center,
               ),
               shape: RoundedRectangleBorder(
@@ -255,7 +296,12 @@ class _TransactionListViewState extends State<TransactionListView> {
       },
       onDismissed: (_) async {
         final splitVM = context.read<SplitViewModel>();
-        await viewModel.deleteTransaction(t.id, splitVM: splitVM);
+        if (isBorrowerSplit) {
+          final splitId = t.id.substring('split_borrower_'.length);
+          await splitVM.deleteSplitExpense(splitId, transactionVM: viewModel);
+        } else {
+          await viewModel.deleteTransaction(t.id, splitVM: splitVM);
+        }
       },
       child: Card(
         clipBehavior: Clip.hardEdge,
@@ -277,10 +323,56 @@ class _TransactionListViewState extends State<TransactionListView> {
             AppHaptics.lightImpact(context);
             final splitVM = context.read<SplitViewModel>();
 
+            if (isBorrowerSplit) {
+              final matchingSplit = borrowerSplit;
+              if (matchingSplit != null) {
+                final isUserPayer =
+                    matchingSplit.payerId == splitVM.currentUserId;
+                final partnerId = isUserPayer
+                    ? matchingSplit.borrowerId
+                    : matchingSplit.payerId;
+                ProfileModel? partner;
+                try {
+                  partner = splitVM.profiles.firstWhere(
+                    (p) => p.id == partnerId,
+                  );
+                } catch (_) {
+                  partner = ProfileModel(
+                    id: partnerId,
+                    name: isUserPayer
+                        ? matchingSplit.borrowerName
+                        : matchingSplit.payerName,
+                    email:
+                        (isUserPayer
+                            ? matchingSplit.borrowerEmail
+                            : matchingSplit.payerEmail) ??
+                        '',
+                  );
+                }
+
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddSplitPage(
+                      initialPartner: partner,
+                      splitExpense: matchingSplit,
+                    ),
+                  ),
+                );
+
+                if (result == true && context.mounted) {
+                  viewModel.loadTransactions();
+                  splitVM.loadSplitExpenses();
+                }
+              }
+              return;
+            }
+
             if (t.description != null &&
                 t.description!.toLowerCase().startsWith('split:')) {
-              final splitDesc =
-                  SplitViewModel.extractSplitDescription(t.description!);
+              final splitDesc = SplitViewModel.extractSplitDescription(
+                t.description!,
+              );
               final matchingSplit = splitVM.splitExpenses
                   .cast<SplitExpenseModel?>()
                   .firstWhere(
@@ -309,15 +401,17 @@ class _TransactionListViewState extends State<TransactionListView> {
                     : matchingSplit.payerId;
                 ProfileModel? partner;
                 try {
-                  partner =
-                      splitVM.profiles.firstWhere((p) => p.id == partnerId);
+                  partner = splitVM.profiles.firstWhere(
+                    (p) => p.id == partnerId,
+                  );
                 } catch (_) {
                   partner = ProfileModel(
                     id: partnerId,
                     name: isUserPayer
                         ? matchingSplit.borrowerName
                         : matchingSplit.payerName,
-                    email: (isUserPayer
+                    email:
+                        (isUserPayer
                             ? matchingSplit.borrowerEmail
                             : matchingSplit.payerEmail) ??
                         '',
@@ -358,26 +452,65 @@ class _TransactionListViewState extends State<TransactionListView> {
           leading: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isIncome
-                  ? Colors.green.withValues(alpha: 0.1)
-                  : Colors.red.withValues(alpha: 0.1),
+              color: isBorrowerSplit
+                  ? (isSettled
+                        ? Colors.grey.withValues(alpha: 0.12)
+                        : (isDark
+                              ? Colors.orange.withValues(alpha: 0.18)
+                              : Colors.orange.withValues(alpha: 0.12)))
+                  : (isIncome
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1)),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-              color: isIncome ? Colors.green : Colors.red,
+              isBorrowerSplit
+                  ? (isSettled
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.call_split_rounded)
+                  : isSplit
+                  ? Icons.call_split_rounded
+                  : (isIncome ? Icons.arrow_downward : Icons.arrow_upward),
+              color: isBorrowerSplit
+                  ? (isSettled
+                        ? Colors.grey
+                        : (isDark
+                              ? Colors.orange.shade300
+                              : Colors.orange.shade700))
+                  : (isIncome ? Colors.green : Colors.red),
             ),
           ),
           title: Text(
-            (t.description != null && t.description!.isNotEmpty)
-                ? t.description!
-                : t.category,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            isBorrowerSplit
+                ? _cleanBorrowerSplitTitle(
+                    borrowerSplit?.description ?? t.description ?? '',
+                    fallbackCategory: borrowerSplit?.category ?? t.category,
+                  )
+                : ((t.description != null && t.description!.isNotEmpty)
+                      ? t.description!
+                      : t.category),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              decoration: isSettled ? TextDecoration.lineThrough : null,
+              color: isSettled ? Colors.grey : null,
+            ),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (t.description != null && t.description!.isNotEmpty)
+              if (isBorrowerSplit && borrowerSplit != null)
+                Text(
+                  isSettled
+                      ? '${borrowerSplit.category} • Settled with ${borrowerSplit.displayPayer}'
+                      : '${borrowerSplit.category} • ${borrowerSplit.displayPayer} paid ₹${borrowerSplit.totalAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              else if (t.description != null && t.description!.isNotEmpty)
                 Text(
                   t.category,
                   style: const TextStyle(fontSize: 13),
@@ -390,17 +523,84 @@ class _TransactionListViewState extends State<TransactionListView> {
               ),
             ],
           ),
-          isThreeLine: t.description != null && t.description!.isNotEmpty,
-          trailing: Text(
-            '${isIncome ? '+' : '-'}₹${t.amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: isIncome ? Colors.green.shade600 : Colors.red.shade500,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          isThreeLine: true,
+          trailing: isBorrowerSplit
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSettled
+                            ? Colors.grey.withValues(alpha: 0.15)
+                            : (isDark
+                                  ? Colors.orange.withValues(alpha: 0.2)
+                                  : Colors.orange.withValues(alpha: 0.12)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isSettled ? 'Settled' : 'You Owe',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: isSettled
+                              ? Colors.grey
+                              : (isDark
+                                    ? Colors.orange.shade300
+                                    : Colors.orange.shade800),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '₹${t.amount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: isSettled
+                            ? Colors.grey
+                            : (isDark
+                                  ? Colors.orange.shade300
+                                  : Colors.orange.shade700),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                )
+              : Text(
+                  '${isIncome ? '+' : '-'}₹${t.amount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: isIncome
+                        ? Colors.green.shade600
+                        : Colors.red.shade500,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
         ),
       ),
     );
+  }
+
+  String _cleanBorrowerSplitTitle(
+    String raw, {
+    required String fallbackCategory,
+  }) {
+    var title = raw.trim();
+    final parenIdx = title.lastIndexOf('(');
+    if (parenIdx != -1 && title.endsWith(')')) {
+      title = title.substring(0, parenIdx).trim();
+    }
+    if (title.isEmpty) {
+      title = fallbackCategory.trim();
+    }
+    if (!title.toLowerCase().startsWith('split:')) {
+      title = 'Split: $title';
+    }
+    return title;
   }
 }

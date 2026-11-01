@@ -45,6 +45,11 @@ class _HomePageState extends State<HomePage> {
       if (categoryVM.categories.isEmpty) {
         categoryVM.loadCategories();
       }
+
+      final splitVM = Provider.of<SplitViewModel>(context, listen: false);
+      if (splitVM.splitExpenses.isEmpty) {
+        splitVM.loadSplitExpenses();
+      }
     });
   }
 
@@ -282,30 +287,30 @@ class _HomePageState extends State<HomePage> {
                 child: const Icon(Icons.add),
               )
             : (_selectedIndex == 1
-                ? FloatingActionButton(
-                    key: const ValueKey('add_split_fab'),
-                    onPressed: () async {
-                      AppHaptics.lightImpact(context);
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AddSplitPage(),
-                        ),
-                      );
-                      if (result == true && context.mounted) {
-                        Provider.of<SplitViewModel>(
+                  ? FloatingActionButton(
+                      key: const ValueKey('add_split_fab'),
+                      onPressed: () async {
+                        AppHaptics.lightImpact(context);
+                        final result = await Navigator.push(
                           context,
-                          listen: false,
-                        ).loadSplitExpenses();
-                        Provider.of<TransactionViewModel>(
-                          context,
-                          listen: false,
-                        ).loadTransactions();
-                      }
-                    },
-                    child: const Icon(Icons.group_add),
-                  )
-                : const SizedBox.shrink(key: ValueKey('empty_fab'))),
+                          MaterialPageRoute(
+                            builder: (context) => const AddSplitPage(),
+                          ),
+                        );
+                        if (result == true && context.mounted) {
+                          Provider.of<SplitViewModel>(
+                            context,
+                            listen: false,
+                          ).loadSplitExpenses();
+                          Provider.of<TransactionViewModel>(
+                            context,
+                            listen: false,
+                          ).loadTransactions();
+                        }
+                      },
+                      child: const Icon(Icons.group_add),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('empty_fab'))),
       ),
     );
   }

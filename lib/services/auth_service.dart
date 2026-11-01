@@ -48,9 +48,7 @@ class AuthService {
   /// Updates the current user's password.
   Future<UserResponse> updatePassword(String newPassword) {
     return _retry(
-      () => _client.auth.updateUser(
-        UserAttributes(password: newPassword),
-      ),
+      () => _client.auth.updateUser(UserAttributes(password: newPassword)),
     );
   }
 
@@ -118,7 +116,10 @@ class AuthService {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
       if (msg.contains('invalid') || msg.contains('credentials')) {
-        if (msg.contains('token') || msg.contains('otp') || msg.contains('code') || msg.contains('expired')) {
+        if (msg.contains('token') ||
+            msg.contains('otp') ||
+            msg.contains('code') ||
+            msg.contains('expired')) {
           throw const AppAuthException('Invalid or expired verification code.');
         }
         throw const AppAuthException('Invalid email or password.');

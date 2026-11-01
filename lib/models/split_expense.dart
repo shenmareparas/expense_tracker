@@ -128,7 +128,8 @@ class SplitExpenseModel {
   }
 
   @override
-  bool operator ==(Object other) => other is SplitExpenseModel && other.id == id;
+  bool operator ==(Object other) =>
+      other is SplitExpenseModel && other.id == id;
 
   @override
   int get hashCode => id.hashCode;

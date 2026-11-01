@@ -32,7 +32,8 @@ class _ExportPdfSheet extends StatefulWidget {
 
 class _ExportPdfSheetState extends State<_ExportPdfSheet> {
   // Filters
-  String _datePreset = 'This Month'; // 'All Time', 'This Month', 'Last Month', 'This Year', 'Custom'
+  String _datePreset =
+      'This Month'; // 'All Time', 'This Month', 'Last Month', 'This Year', 'Custom'
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -59,7 +60,15 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
       } else if (preset == 'Last Month') {
         final lastMonth = DateTime(now.year, now.month - 1, 1);
         _startDate = DateTime(lastMonth.year, lastMonth.month, 1);
-        _endDate = DateTime(lastMonth.year, lastMonth.month + 1, 0, 23, 59, 59, 999);
+        _endDate = DateTime(
+          lastMonth.year,
+          lastMonth.month + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        );
       } else if (preset == 'This Year') {
         _startDate = DateTime(now.year, 1, 1);
         _endDate = DateTime(now.year, 12, 31, 23, 59, 59, 999);
@@ -79,16 +88,13 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
       lastDate: DateTime(now.year + 2),
       initialDateRange: (_startDate != null && _endDate != null)
           ? DateTimeRange(start: _startDate!, end: _endDate!)
-          : DateTimeRange(
-              start: DateTime(now.year, now.month, 1),
-              end: now,
-            ),
+          : DateTimeRange(start: DateTime(now.year, now.month, 1), end: now),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: Theme.of(context).colorScheme.primary,
-                ),
+              primary: Theme.of(context).colorScheme.primary,
+            ),
           ),
           child: child!,
         );
@@ -98,8 +104,23 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
     if (picked != null) {
       setState(() {
         _datePreset = 'Custom';
-        _startDate = DateTime(picked.start.year, picked.start.month, picked.start.day, 0, 0, 0);
-        _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59, 999);
+        _startDate = DateTime(
+          picked.start.year,
+          picked.start.month,
+          picked.start.day,
+          0,
+          0,
+          0,
+        );
+        _endDate = DateTime(
+          picked.end.year,
+          picked.end.month,
+          picked.end.day,
+          23,
+          59,
+          59,
+          999,
+        );
       });
     }
   }
@@ -115,13 +136,20 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
       }
 
       // Type filter
-      if (_selectedType != null && tx.type != _selectedType) {
-        return false;
+      if (_selectedType != null) {
+        if (_selectedType == 'split') {
+          final isSplit =
+              tx.description?.toLowerCase().startsWith('split:') ?? false;
+          if (!isSplit) return false;
+        } else if (tx.type != _selectedType) {
+          return false;
+        }
       }
 
       // Payment Method filter
       if (_selectedPaymentMethod != null &&
-          tx.paymentMethod.toLowerCase() != _selectedPaymentMethod!.toLowerCase()) {
+          tx.paymentMethod.toLowerCase() !=
+              _selectedPaymentMethod!.toLowerCase()) {
         return false;
       }
 
@@ -146,7 +174,9 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
     try {
       final matching = await txVm.fetchTransactionsForExport(
         type: _selectedType,
-        categories: _selectedCategories.isEmpty ? null : _selectedCategories.toList(),
+        categories: _selectedCategories.isEmpty
+            ? null
+            : _selectedCategories.toList(),
         paymentMethod: _selectedPaymentMethod,
         startDate: _startDate,
         endDate: _endDate,
@@ -165,7 +195,8 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
       }
 
       final user = AuthService.instance.currentUser;
-      final userName = user?.userMetadata?['name'] as String? ??
+      final userName =
+          user?.userMetadata?['name'] as String? ??
           user?.userMetadata?['full_name'] as String? ??
           '';
       final userEmail = user?.email ?? '';
@@ -182,11 +213,14 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
         startDate: _startDate,
         endDate: _endDate,
         filterType: _selectedType,
-        filterCategories: _selectedCategories.isEmpty ? null : _selectedCategories.toList(),
+        filterCategories: _selectedCategories.isEmpty
+            ? null
+            : _selectedCategories.toList(),
         filterPaymentMethod: _selectedPaymentMethod,
       );
 
-      final fileName = 'ExpenseTracker_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+      final fileName =
+          'ExpenseTracker_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
 
       if (!mounted) return;
 
@@ -283,8 +317,8 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
     final availableCategories = _selectedType == 'income'
         ? catVm.incomeCategories
         : _selectedType == 'expense'
-            ? catVm.expenseCategories
-            : {...catVm.expenseCategories, ...catVm.incomeCategories}.toList();
+        ? catVm.expenseCategories
+        : {...catVm.expenseCategories, ...catVm.incomeCategories}.toList();
 
     return Padding(
       padding: EdgeInsets.only(
@@ -314,7 +348,10 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
 
               // Title and Live Metrics Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -359,16 +396,18 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: (matchingTotal >= 0
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFEF4444))
-                            .withValues(alpha: 0.12),
+                        color:
+                            (matchingTotal >= 0
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFEF4444))
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: (matchingTotal >= 0
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFEF4444))
-                              .withValues(alpha: 0.3),
+                          color:
+                              (matchingTotal >= 0
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFEF4444))
+                                  .withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -401,7 +440,12 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          ...['This Month', 'Last Month', 'This Year', 'All Time'].map((preset) {
+                          ...[
+                            'This Month',
+                            'Last Month',
+                            'This Year',
+                            'All Time',
+                          ].map((preset) {
                             final isSelected = _datePreset == preset;
                             return ChoiceChip(
                               label: Text(preset),
@@ -423,12 +467,17 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                                   : colorScheme.onSurfaceVariant,
                             ),
                             label: Text(
-                              _datePreset == 'Custom' && _startDate != null && _endDate != null
+                              _datePreset == 'Custom' &&
+                                      _startDate != null &&
+                                      _endDate != null
                                   ? '${DateFormat('d MMM').format(_startDate!)} - ${DateFormat('d MMM').format(_endDate!)}'
                                   : 'Custom Range...',
                             ),
                             side: _datePreset == 'Custom'
-                                ? BorderSide(color: colorScheme.primary, width: 1.5)
+                                ? BorderSide(
+                                    color: colorScheme.primary,
+                                    width: 1.5,
+                                  )
                                 : null,
                             onPressed: _selectCustomDateRange,
                           ),
@@ -441,8 +490,12 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                       SegmentedButton<String?>(
                         segments: const [
                           ButtonSegment(value: null, label: Text('All')),
-                          ButtonSegment(value: 'expense', label: Text('Expenses')),
+                          ButtonSegment(
+                            value: 'expense',
+                            label: Text('Expenses'),
+                          ),
                           ButtonSegment(value: 'income', label: Text('Income')),
+                          ButtonSegment(value: 'split', label: Text('Split')),
                         ],
                         selected: {_selectedType},
                         onSelectionChanged: (Set<String?> newSelection) {
@@ -517,7 +570,10 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                         children: availableCategories.map((cat) {
                           final isSelected = _selectedCategories.contains(cat);
                           return FilterChip(
-                            label: Text(cat, style: const TextStyle(fontSize: 12)),
+                            label: Text(
+                              cat,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             selected: isSelected,
                             visualDensity: VisualDensity.compact,
                             onSelected: (selected) {
@@ -562,12 +618,16 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        onPressed: _isGenerating ? null : () => _handleExport('view'),
+                        onPressed: _isGenerating
+                            ? null
+                            : () => _handleExport('view'),
                         icon: _isGenerating && _activeAction == 'view'
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.visibility_outlined, size: 20),
                         label: const Text(
@@ -587,7 +647,9 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        onPressed: _isGenerating ? null : () => _handleExport('share'),
+                        onPressed: _isGenerating
+                            ? null
+                            : () => _handleExport('share'),
                         icon: _isGenerating && _activeAction == 'share'
                             ? const SizedBox(
                                 width: 18,
@@ -615,7 +677,9 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      onPressed: _isGenerating ? null : () => _handleExport('save'),
+                      onPressed: _isGenerating
+                          ? null
+                          : () => _handleExport('save'),
                       icon: _isGenerating && _activeAction == 'save'
                           ? const SizedBox(
                               width: 20,
@@ -760,10 +824,7 @@ class _TopToastWidgetState extends State<_TopToastWidget>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.4),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
     _controller.forward();
   }
 
@@ -783,8 +844,9 @@ class _TopToastWidgetState extends State<_TopToastWidget>
         ? (widget.isDark ? const Color(0xFF2A1515) : const Color(0xFFFEF2F2))
         : (widget.isDark ? const Color(0xFF1E2038) : const Color(0xFFF0FDF4));
 
-    final accentColor =
-        widget.isError ? const Color(0xFFEF4444) : const Color(0xFF10B981);
+    final accentColor = widget.isError
+        ? const Color(0xFFEF4444)
+        : const Color(0xFF10B981);
 
     return Positioned(
       top: widget.topOffset,
@@ -799,7 +861,10 @@ class _TopToastWidgetState extends State<_TopToastWidget>
             child: GestureDetector(
               onTap: widget.onDismiss,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(16),
@@ -820,11 +885,7 @@ class _TopToastWidgetState extends State<_TopToastWidget>
                         color: accentColor.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        widget.icon,
-                        size: 18,
-                        color: accentColor,
-                      ),
+                      child: Icon(widget.icon, size: 18, color: accentColor),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

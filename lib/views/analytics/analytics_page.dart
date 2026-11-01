@@ -5,8 +5,10 @@ import 'package:intl/intl.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
+import '../../viewmodels/split_viewmodel.dart';
 import '../../models/transaction.dart';
 import '../../models/category.dart';
+import '../../models/split_expense.dart';
 import '../../utils/haptics.dart';
 
 class AnalyticsPage extends StatefulWidget {
@@ -41,6 +43,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   // --- Memoization Cache ---
+  List<TransactionModel>? _memoizedRawTransactions;
+  List<SplitExpenseModel>? _memoizedSplitExpenses;
+  DateTime? _memoizedTransformStartDate;
+  DateTime? _memoizedTransformEndDate;
+  List<TransactionModel> _transformedTransactions = [];
   List<TransactionModel>? _memoizedTransactions;
   List<CategoryModel>? _memoizedCategories;
   String? _memoizedSelectedType;
@@ -88,6 +95,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _applyFiltersSilently(_selectedTimePeriod);
+      final splitVM = Provider.of<SplitViewModel>(context, listen: false);
+      if (splitVM.splitExpenses.isEmpty) {
+        splitVM.loadSplitExpenses();
+      }
     });
   }
 
@@ -302,9 +313,25 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<TransactionViewModel, CategoryViewModel>(
-      builder: (context, viewModel, categoryViewModel, child) {
-        final transactions = viewModel.transactions;
+    return Consumer3<TransactionViewModel, CategoryViewModel, SplitViewModel>(
+      builder: (context, viewModel, categoryViewModel, splitViewModel, child) {
+        final rawTransactions = viewModel.transactions;
+        if (_memoizedRawTransactions != rawTransactions ||
+            _memoizedSplitExpenses != splitViewModel.splitExpenses ||
+            _memoizedTransformStartDate != viewModel.analyticsStartDate ||
+            _memoizedTransformEndDate != viewModel.analyticsEndDate) {
+          _memoizedRawTransactions = rawTransactions;
+          _memoizedSplitExpenses = splitViewModel.splitExpenses;
+          _memoizedTransformStartDate = viewModel.analyticsStartDate;
+          _memoizedTransformEndDate = viewModel.analyticsEndDate;
+          _transformedTransactions = splitViewModel
+              .transformTransactionsForAnalytics(
+                rawTransactions,
+                startDate: viewModel.analyticsStartDate,
+                endDate: viewModel.analyticsEndDate,
+              );
+        }
+        final transactions = _transformedTransactions;
 
         if (viewModel.isLoading && transactions.isEmpty) {
           return const Center(child: CircularProgressIndicator());
@@ -412,6 +439,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           onRefresh: () async {
             await viewModel.loadTransactions(forceRefresh: true);
             await categoryViewModel.loadCategories(forceRefresh: true);
+            await splitViewModel.loadSplitExpenses(forceRefresh: true);
             _applyFiltersSilently(_selectedTimePeriod);
           },
           child: ListView(
@@ -744,11 +772,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             colors: isDark
                 ? [
                     Color.alphaBlend(
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.28),
+                      Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.28),
                       const Color(0xFF141522),
                     ),
                     Color.alphaBlend(
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+                      Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.10),
                       const Color(0xFF0A0A10),
                     ),
                   ]

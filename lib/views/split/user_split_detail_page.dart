@@ -85,7 +85,10 @@ class UserSplitDetailPage extends StatelessWidget {
               ),
               if (splitVM.isCustomFriend(partner.id))
                 IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.redAccent,
+                  ),
                   tooltip: 'Delete Friend',
                   onPressed: () async {
                     AppHaptics.mediumImpact(context);
@@ -109,9 +112,8 @@ class UserSplitDetailPage extends StatelessWidget {
                         ),
                         title: Text(
                           'Delete ${partner.displayName}',
-                          style: Theme.of(dialogCtx).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(dialogCtx).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         content: Text(
                           'Are you sure you want to remove ${partner.displayName} from your friends list?',
@@ -141,7 +143,9 @@ class UserSplitDetailPage extends StatelessWidget {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('${partner.displayName} removed from friends'),
+                            content: Text(
+                              '${partner.displayName} removed from friends',
+                            ),
                             duration: const Duration(seconds: 2),
                           ),
                         );
@@ -253,17 +257,18 @@ class UserSplitDetailPage extends StatelessWidget {
                                         AppHaptics.mediumImpact(context);
                                         final txVM =
                                             Provider.of<TransactionViewModel>(
-                                          context,
-                                          listen: false,
-                                        );
+                                              context,
+                                              listen: false,
+                                            );
                                         final confirm = await showDialog<bool>(
                                           context: context,
                                           builder: (dialogCtx) => AlertDialog(
                                             icon: Container(
                                               padding: const EdgeInsets.all(16),
                                               decoration: BoxDecoration(
-                                                color: Colors.orange
-                                                    .withValues(alpha: 0.1),
+                                                color: Colors.orange.withValues(
+                                                  alpha: 0.1,
+                                                ),
                                                 shape: BoxShape.circle,
                                               ),
                                               child: const Icon(
@@ -276,8 +281,8 @@ class UserSplitDetailPage extends StatelessWidget {
                                               'Undo Settle Up?',
                                               style: theme.textTheme.titleLarge
                                                   ?.copyWith(
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                             ),
                                             content: Text(
                                               'Undo the settlement with ${partner.displayName}? This will revert only the expenses settled in the last settle up back to pending and remove the settlement transaction.',
@@ -303,27 +308,35 @@ class UserSplitDetailPage extends StatelessWidget {
                                                   true,
                                                 ),
                                                 style: FilledButton.styleFrom(
-                                                  backgroundColor: Colors.orange,
+                                                  backgroundColor:
+                                                      Colors.orange,
                                                   foregroundColor: Colors.white,
                                                 ),
-                                                child: const Text('Undo Settle'),
+                                                child: const Text(
+                                                  'Undo Settle',
+                                                ),
                                               ),
                                             ],
                                           ),
                                         );
 
-                                        if (confirm == true && context.mounted) {
+                                        if (confirm == true &&
+                                            context.mounted) {
                                           await splitVM.undoLastSettleUp(
                                             partner.id,
                                             transactionVM: txVM,
                                           );
                                           if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               SnackBar(
                                                 content: Text(
                                                   'Settlement undone for ${partner.displayName}',
                                                 ),
-                                                duration: const Duration(seconds: 2),
+                                                duration: const Duration(
+                                                  seconds: 2,
+                                                ),
                                               ),
                                             );
                                           }
@@ -342,9 +355,13 @@ class UserSplitDetailPage extends StatelessWidget {
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 12,
                                         ),
-                                        side: const BorderSide(color: Colors.orange),
+                                        side: const BorderSide(
+                                          color: Colors.orange,
+                                        ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                         ),
                                       ),
                                     )
@@ -353,32 +370,42 @@ class UserSplitDetailPage extends StatelessWidget {
                                           ? () async {
                                               AppHaptics.mediumImpact(context);
                                               final txVM =
-                                                  Provider.of<TransactionViewModel>(
-                                                context,
-                                                listen: false,
-                                              );
+                                                  Provider.of<
+                                                    TransactionViewModel
+                                                  >(context, listen: false);
                                               final confirm = await showDialog<bool>(
                                                 context: context,
                                                 builder: (dialogCtx) => AlertDialog(
                                                   icon: Container(
-                                                    padding: const EdgeInsets.all(16),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                          16,
+                                                        ),
                                                     decoration: BoxDecoration(
-                                                      color: theme.colorScheme.primary
-                                                          .withValues(alpha: 0.1),
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary
+                                                          .withValues(
+                                                            alpha: 0.1,
+                                                          ),
                                                       shape: BoxShape.circle,
                                                     ),
                                                     child: Icon(
                                                       Icons.payments_rounded,
-                                                      color:
-                                                          theme.colorScheme.primary,
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary,
                                                       size: 32,
                                                     ),
                                                   ),
                                                   title: Text(
                                                     'Settle Up with ${partner.displayName}',
-                                                    style: theme.textTheme.titleLarge
+                                                    style: theme
+                                                        .textTheme
+                                                        .titleLarge
                                                         ?.copyWith(
-                                                          fontWeight: FontWeight.bold,
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                         ),
                                                   ),
                                                   content: Text(
@@ -387,52 +414,71 @@ class UserSplitDetailPage extends StatelessWidget {
                                                   ),
                                                   shape: RoundedRectangleBorder(
                                                     borderRadius:
-                                                        BorderRadius.circular(28),
+                                                        BorderRadius.circular(
+                                                          28,
+                                                        ),
                                                   ),
                                                   actionsAlignment:
-                                                      MainAxisAlignment.spaceEvenly,
+                                                      MainAxisAlignment
+                                                          .spaceEvenly,
                                                   actions: [
                                                     OutlinedButton(
-                                                      onPressed: () => Navigator.pop(
-                                                        dialogCtx,
-                                                        false,
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            dialogCtx,
+                                                            false,
+                                                          ),
+                                                      child: const Text(
+                                                        'Cancel',
                                                       ),
-                                                      child: const Text('Cancel'),
                                                     ),
                                                     FilledButton(
-                                                      onPressed: () => Navigator.pop(
-                                                        dialogCtx,
-                                                        true,
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            dialogCtx,
+                                                            true,
+                                                          ),
+                                                      child: const Text(
+                                                        'Settle Up',
                                                       ),
-                                                      child: const Text('Settle Up'),
                                                     ),
                                                   ],
                                                 ),
                                               );
 
-                                              if (confirm == true && context.mounted) {
-                                                await splitVM.settleUpWithPartner(
-                                                  partner.id,
-                                                  partnerName: partner.displayName,
-                                                  transactionVM: txVM,
-                                                );
+                                              if (confirm == true &&
+                                                  context.mounted) {
+                                                await splitVM
+                                                    .settleUpWithPartner(
+                                                      partner.id,
+                                                      partnerName:
+                                                          partner.displayName,
+                                                      transactionVM: txVM,
+                                                    );
                                                 if (context.mounted) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
                                                     SnackBar(
                                                       content: Text(
                                                         'Settled up with ${partner.displayName}',
                                                       ),
                                                       action: SnackBarAction(
                                                         label: 'UNDO',
-                                                        textColor: Colors.amberAccent,
+                                                        textColor:
+                                                            Colors.amberAccent,
                                                         onPressed: () {
-                                                          splitVM.undoLastSettleUp(
-                                                            partner.id,
-                                                            transactionVM: txVM,
-                                                          );
+                                                          splitVM
+                                                              .undoLastSettleUp(
+                                                                partner.id,
+                                                                transactionVM:
+                                                                    txVM,
+                                                              );
                                                         },
                                                       ),
-                                                      duration: const Duration(seconds: 6),
+                                                      duration: const Duration(
+                                                        seconds: 6,
+                                                      ),
                                                     ),
                                                   );
                                                 }
@@ -449,7 +495,9 @@ class UserSplitDetailPage extends StatelessWidget {
                                           vertical: 12,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -696,10 +744,8 @@ class UserSplitDetailPage extends StatelessWidget {
             final res = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => AddSplitPage(
-                  initialPartner: partner,
-                  splitExpense: split,
-                ),
+                builder: (context) =>
+                    AddSplitPage(initialPartner: partner, splitExpense: split),
               ),
             );
             if (res == true && context.mounted) {
@@ -762,12 +808,16 @@ class UserSplitDetailPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    isSettled ? 'settled' : (isPayer ? 'you lent' : 'you borrowed'),
+                    isSettled
+                        ? 'settled'
+                        : (isPayer ? 'you lent' : 'you borrowed'),
                     style: TextStyle(
                       fontSize: 11,
                       color: isSettled
                           ? Colors.grey
-                          : (isPayer ? Colors.green.shade700 : Colors.red.shade700),
+                          : (isPayer
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -778,7 +828,9 @@ class UserSplitDetailPage extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: isSettled
                           ? Colors.grey
-                          : (isPayer ? Colors.green.shade600 : Colors.red.shade600),
+                          : (isPayer
+                                ? Colors.green.shade600
+                                : Colors.red.shade600),
                       decoration: isSettled ? TextDecoration.lineThrough : null,
                     ),
                   ),

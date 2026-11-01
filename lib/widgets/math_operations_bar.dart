@@ -36,7 +36,13 @@ class MathOperationsBar extends StatelessWidget {
       return;
     }
 
-    final displayOp = (op == '*') ? '×' : (op == '/') ? '÷' : (op == '-') ? '−' : op;
+    final displayOp = (op == '*')
+        ? '×'
+        : (op == '/')
+        ? '÷'
+        : (op == '-')
+        ? '−'
+        : op;
 
     // Check if text ends with an operator: e.g. "50 +" or "50 -" or "50 *" or "50 /"
     final trailingOpRegex = RegExp(r'[\+\-\*\/÷×−]\s*$');
@@ -129,11 +135,14 @@ class MathOperationsBar extends StatelessWidget {
 
                       final btnColor = isClear
                           ? (isDark
-                              ? Colors.red.withValues(alpha: 0.2)
-                              : Colors.red.withValues(alpha: 0.1))
+                                ? Colors.red.withValues(alpha: 0.2)
+                                : Colors.red.withValues(alpha: 0.1))
                           : (isDark
-                              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7)
-                              : theme.colorScheme.primaryContainer.withValues(alpha: 0.45));
+                                ? theme.colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.7)
+                                : theme.colorScheme.primaryContainer.withValues(
+                                    alpha: 0.45,
+                                  ));
                       final textColor = isClear
                           ? (isDark ? Colors.redAccent : Colors.red)
                           : theme.colorScheme.primary;

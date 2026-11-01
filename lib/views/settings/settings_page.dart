@@ -164,33 +164,35 @@ class SettingsPage extends StatelessWidget {
                 },
               ),
             ),
-            const Divider(height: 1, indent: 16, endIndent: 16),
-            ListTile(
-              leading: Icon(
-                Icons.color_lens_outlined,
-                color: Theme.of(context).colorScheme.primary,
+            if (Theme.of(context).platform != TargetPlatform.iOS) ...[
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                leading: Icon(
+                  Icons.color_lens_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: const Text(
+                  'Dynamic Colors',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                subtitle: const Text(
+                  'Match app accents with your system wallpaper & theme',
+                ),
+                trailing: Consumer<ThemeViewModel>(
+                  builder: (context, themeService, _) {
+                    return Switch(
+                      value: themeService.useDynamicColor,
+                      onChanged: (bool value) {
+                        themeService.setUseDynamicColor(value);
+                        if (value) {
+                          AppHaptics.lightImpact(context);
+                        }
+                      },
+                    );
+                  },
+                ),
               ),
-              title: const Text(
-                'Dynamic Colors',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
-              subtitle: const Text(
-                'Match app accents with your system wallpaper & theme',
-              ),
-              trailing: Consumer<ThemeViewModel>(
-                builder: (context, themeService, _) {
-                  return Switch(
-                    value: themeService.useDynamicColor,
-                    onChanged: (bool value) {
-                      themeService.setUseDynamicColor(value);
-                      if (value) {
-                        AppHaptics.lightImpact(context);
-                      }
-                    },
-                  );
-                },
-              ),
-            ),
+            ],
           ],
         ),
         const SizedBox(height: 32),

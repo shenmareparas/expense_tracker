@@ -171,7 +171,13 @@ class DatabaseService {
           .select(_transactionColumns)
           .eq('user_id', userId);
 
-      if (type != null) query = query.eq('type', type);
+      if (type != null) {
+        if (type == 'split' || type == 'you_owe') {
+          query = query.ilike('description', 'split:%');
+        } else {
+          query = query.eq('type', type);
+        }
+      }
       if (categories != null && categories.isNotEmpty) {
         query = query.inFilter('category', categories);
       }
@@ -263,7 +269,10 @@ class DatabaseService {
           .from('transactions')
           .delete()
           .eq('id', id)
-          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
+          .eq(
+            'user_id',
+            userId,
+          ); // defense-in-depth: ensures user owns this row
       _invalidateTransactionCache();
     });
   }
@@ -291,7 +300,10 @@ class DatabaseService {
             'transaction_date': transactionDate.toUtc().toIso8601String(),
           })
           .eq('id', id)
-          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
+          .eq(
+            'user_id',
+            userId,
+          ); // defense-in-depth: ensures user owns this row
 
       _invalidateTransactionCache();
     });
@@ -305,7 +317,8 @@ class DatabaseService {
 
   // ── Categories ───────────────────────────────────────────────────────
 
-  static const _categoryColumns = 'id, user_id, name, type, order_index, created_at';
+  static const _categoryColumns =
+      'id, user_id, name, type, order_index, created_at';
 
   Future<List<CategoryModel>> getCategories({bool forceRefresh = false}) async {
     return _execute(() async {
@@ -382,7 +395,10 @@ class DatabaseService {
           .from('categories')
           .update(data)
           .eq('id', id)
-          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
+          .eq(
+            'user_id',
+            userId,
+          ); // defense-in-depth: ensures user owns this row
 
       if (oldName != null && oldName != name) {
         await _supabase
@@ -422,7 +438,10 @@ class DatabaseService {
           .from('categories')
           .delete()
           .eq('id', id)
-          .eq('user_id', userId); // defense-in-depth: ensures user owns this row
+          .eq(
+            'user_id',
+            userId,
+          ); // defense-in-depth: ensures user owns this row
       _invalidateCategoryCache();
     });
   }
@@ -461,7 +480,9 @@ class DatabaseService {
 
         final parsed = (response as List<dynamic>)
             .map((e) => ProfileModel.fromJson(e as Map<String, dynamic>))
-            .where((p) => p.id != currentUserId) // Exclude current logged in user
+            .where(
+              (p) => p.id != currentUserId,
+            ) // Exclude current logged in user
             .toList();
 
         return parsed;
@@ -512,9 +533,7 @@ class DatabaseService {
         // Reuse the cached profiles list to avoid a redundant round-trip.
         // getProfiles() will return the in-memory cache if still valid.
         final profileList = await getProfiles(forceRefresh: false);
-        final profilesMap = {
-          for (final p in profileList) p.id: p.toJson(),
-        };
+        final profilesMap = {for (final p in profileList) p.id: p.toJson()};
 
         final result = (response as List<dynamic>).map((e) {
           final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
@@ -594,7 +613,9 @@ class DatabaseService {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
-      final actualPayerId = isPayer ? currentUserId : (payerId ?? currentUserId);
+      final actualPayerId = isPayer
+          ? currentUserId
+          : (payerId ?? currentUserId);
 
       final rows = <Map<String, dynamic>>[];
       for (final bId in borrowerIds) {
@@ -628,7 +649,8 @@ class DatabaseService {
   }
 
   Future<List<SplitExpenseModel>> addCustomMultipleSplitExpenses({
-    required List<Map<String, dynamic>> borrowerSplits, // [{ 'borrower_id': '...', 'amount': 123.45 }]
+    required List<Map<String, dynamic>>
+    borrowerSplits, // [{ 'borrower_id': '...', 'amount': 123.45 }]
     required double totalAmount,
     required String description,
     String category = 'General',
@@ -640,7 +662,9 @@ class DatabaseService {
       final currentUserId = _supabase.auth.currentUser?.id;
       if (currentUserId == null) throw const UnauthenticatedException();
 
-      final actualPayerId = isPayer ? currentUserId : (payerId ?? currentUserId);
+      final actualPayerId = isPayer
+          ? currentUserId
+          : (payerId ?? currentUserId);
 
       final rows = <Map<String, dynamic>>[];
       for (final split in borrowerSplits) {
@@ -713,9 +737,7 @@ class DatabaseService {
 
       // Reuse the cached profiles list to avoid a redundant round-trip.
       final profileList = await getProfiles(forceRefresh: false);
-      final profilesMap = {
-        for (final p in profileList) p.id: p.toJson(),
-      };
+      final profilesMap = {for (final p in profileList) p.id: p.toJson()};
 
       final map = Map<String, dynamic>.from(response);
       final pId = map['payer_id'] as String?;

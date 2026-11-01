@@ -65,7 +65,16 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - `exactAmounts` (`1.23`): Persistent numeric text fields per member with real-time remaining/over allocation pill (`₹XX left`).
   - `percentages` (`%`): Persistent percentage text fields per member with computed monetary preview and remaining percentage pill (`XX% left`).
   - `shares` (`===`): Tactile `+` and `−` integer steppers with dynamic ratio fraction calculation.
-- **Transactions & Analytics Integration**: Creating a split expense automatically records the user's out-of-pocket share into `transactions` table, instantly updating personal ledger, Home screen feeds, and Analytics category charts.
+- **Transactions & Analytics Integration**: Split expenses in Analytics are processed via `SplitViewModel.transformTransactionsForAnalytics()`, calculating strictly the current user's individual financial share for the category (e.g. Food) rather than the whole bill amount, automatically including splits created by other users where the current user is a borrower, omitting 0-share partner-only splits, and excluding split settlement repayments from earned income.
+- **Borrower Split Feed Integration & Shared Obligation Styling**: Borrower split records (where another user paid and the current user owes money) are displayed in `TransactionListView` via `Consumer2<TransactionViewModel, SplitViewModel>` and `SplitViewModel.getBorrowerSplitTransactions()`. Because the money was not paid out-of-pocket yet, these items are styled distinctly from standard paid expenses:
+  - Borrower splits render the amber/orange `Icons.call_split_rounded` split icon in an amber/orange tinted container (or grey `Icons.check_circle_outline_rounded` when settled). Payer split expenses (`Split: ...`) also render the `Icons.call_split_rounded` split icon but in red like standard expenses since the money was paid out-of-pocket.
+  - Trailing column displaying a `[ You Owe ]` badge (or `[ Settled ]`) without a minus sign (`-`), rendered in amber/orange (`₹XX.XX`).
+  - Subtitle format: `${category} • ${payer} paid ₹${totalAmount}` to clearly state who paid the bill (the title omits the partner name to avoid redundancy with the subtitle).
+  - Tapping opens `AddSplitPage` in edit mode; swiping provides a confirmation dialog ("Delete Split Expense") and calls `SplitViewModel.deleteSplitExpense`.
+- **Transaction Type Filter - Split**: `filter_bottom_sheet.dart` includes a dedicated **Split** choice chip alongside `All`, `Income`, and `Expense`:
+  - Filtering by `Expense` excludes unpaid borrower split obligations.
+  - Filtering by `Split` queries `DatabaseService.getTransactions()` using `description ILIKE 'split:%'` for payer split transactions and combines them with borrower split obligations (`getBorrowerSplitTransactions()`).
+  - Supported identically in `export_pdf_bottom_sheet.dart` for PDF statement exports.
 - **Bidirectional Split & Personal Transaction Sync**:
   - Editing or deleting a split expense from `AddSplitPage` or `UserSplitDetailPage` automatically updates or deletes the corresponding personal transaction.
   - Editing or deleting a split transaction from `AddTransactionPage` or `TransactionListView` automatically updates or deletes the corresponding split expense in `SplitViewModel`.
@@ -158,7 +167,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 ## 🎨 UI & UX Principles
 
 1. **Material 3 Design**: Utilize Material 3 widgets and design patterns.
-2. **Dynamic Theming & System Colors**: Support light/dark mode seamlessly via `ThemeViewModel`. Dark mode uses `#000000` scaffold background and `#0A0A0A` surface/card colors. Seed colors default to `Color(0xFF4F46E5)` for light and `Color(0xFF818CF8)` for dark. Optionally extract system wallpaper & palette accents via `dynamic_color` (`DynamicColorBuilder`) when `ThemeViewModel.useDynamicColor` is toggled on.
+2. **Dynamic Theming & System Colors**: Support light/dark mode seamlessly via `ThemeViewModel`. Dark mode uses `#000000` scaffold background and `#0A0A0A` surface/card colors. Seed colors default to `Color(0xFF4F46E5)` for light and `Color(0xFF818CF8)` for dark. Optionally extract system wallpaper & palette accents via `dynamic_color` (`DynamicColorBuilder`) when `ThemeViewModel.useDynamicColor` is toggled on (hidden on iOS where wallpaper color extraction is unsupported).
 3. **Typography**: High-contrast text using bundled Roboto font.
 4. **Scroll-to-Top Gesture**: Tapping the active navigation item or the `AppBar` title smoothly scrolls scrollable lists back to the top (`ScrollController.animateTo(0)`).
 5. **Tactile Haptic Feedback**: Use `AppHaptics` in `lib/utils/haptics.dart` rather than calling standard `HapticFeedback` directly. Verify `ThemeViewModel.hapticEnabled` before executing haptic events.

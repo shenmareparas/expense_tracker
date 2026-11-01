@@ -1,12 +1,4 @@
-enum _TokenType {
-  number,
-  plus,
-  minus,
-  multiply,
-  divide,
-  openParen,
-  closeParen,
-}
+enum _TokenType { number, plus, minus, multiply, divide, openParen, closeParen }
 
 class _Token {
   final _TokenType type;
@@ -76,7 +68,8 @@ class MathEvaluator {
       } else if (RegExp(r'[0-9.]').hasMatch(char)) {
         int start = i;
         int dotCount = 0;
-        while (i < sanitized.length && RegExp(r'[0-9.]').hasMatch(sanitized[i])) {
+        while (i < sanitized.length &&
+            RegExp(r'[0-9.]').hasMatch(sanitized[i])) {
           if (sanitized[i] == '.') dotCount++;
           if (dotCount > 1) return null;
           i++;

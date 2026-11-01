@@ -286,12 +286,17 @@ class TransactionViewModel extends ChangeNotifier {
     for (final t in _transactions) {
       if (t.type != 'expense') continue;
       final tDesc = (t.description ?? '').trim().toLowerCase();
-      final matchesDesc = tDesc == 'split: $cleanDesc' ||
+      final matchesDesc =
+          tDesc == 'split: $cleanDesc' ||
           tDesc.startsWith('split: $cleanDesc') ||
           tDesc == cleanDesc;
       if (!matchesDesc) continue;
-      final dateDiff = t.transactionDate.difference(expenseDate).inMinutes.abs();
-      final amountMatch = totalAmount == null || (t.amount - totalAmount).abs() < 0.05;
+      final dateDiff = t.transactionDate
+          .difference(expenseDate)
+          .inMinutes
+          .abs();
+      final amountMatch =
+          totalAmount == null || (t.amount - totalAmount).abs() < 0.05;
       if (dateDiff < 120 || amountMatch) {
         return t;
       }
@@ -299,10 +304,7 @@ class TransactionViewModel extends ChangeNotifier {
     return null;
   }
 
-  Future<void> deleteTransaction(
-    String id, {
-    SplitViewModel? splitVM,
-  }) async {
+  Future<void> deleteTransaction(String id, {SplitViewModel? splitVM}) async {
     final index = _transactions.indexWhere((t) => t.id == id);
     if (index == -1) return;
 
