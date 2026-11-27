@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+
 import '../../utils/haptics.dart';
+
 import 'package:provider/provider.dart';
+
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/split_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
@@ -378,9 +381,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                               });
                             },
                             style: SegmentedButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.surface.withValues(alpha: 0.5),
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surface
+                                  .withValues(alpha: 0.5),
                               selectedBackgroundColor: _type == 'expense'
                                   ? Colors.red.withValues(alpha: 0.2)
                                   : Colors.green.withValues(alpha: 0.2),
@@ -388,9 +392,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                   ? Colors.red
                                   : Colors.green,
                               side: BorderSide(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.outline.withValues(alpha: 0.1),
+                                color: Theme.of(context).colorScheme.outline
+                                    .withValues(alpha: 0.1),
                               ),
                             ),
                           ),
@@ -403,9 +406,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
                             side: BorderSide(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outline.withValues(alpha: 0.1),
+                              color: Theme.of(context).colorScheme.outline
+                                  .withValues(alpha: 0.1),
                             ),
                           ),
                           color: Theme.of(context).colorScheme.surface
@@ -552,9 +554,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                         .colorScheme
                                         .primary
                                         .withValues(alpha: 0.15),
-                                    selectedForegroundColor: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
+                                    selectedForegroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
                                     side: BorderSide(
                                       color: Theme.of(context)
                                           .colorScheme
@@ -591,9 +593,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                               Icon(
                                                 Icons.calendar_today,
                                                 size: 20,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
                                               ),
                                               const SizedBox(width: 12),
                                               Expanded(
@@ -638,9 +640,9 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                                               Icon(
                                                 Icons.access_time,
                                                 size: 20,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.primary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
                                               ),
                                               const SizedBox(width: 12),
                                               Expanded(
@@ -770,9 +772,8 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
         color: Theme.of(context).colorScheme.primary,
       ),
       filled: true,
-      fillColor: Theme.of(
-        context,
-      ).colorScheme.onSurface.withValues(alpha: 0.05),
+      fillColor: Theme.of(context).colorScheme.onSurface
+          .withValues(alpha: 0.05),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,

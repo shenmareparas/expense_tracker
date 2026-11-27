@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/category.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';

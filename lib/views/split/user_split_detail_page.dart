@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/profile.dart';
 import '../../models/split_expense.dart';
 import '../../utils/date_formatter.dart';

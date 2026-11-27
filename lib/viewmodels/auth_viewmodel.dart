@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:flutter/foundation.dart';
+
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';
@@ -8,7 +9,7 @@ import '../utils/exceptions.dart';
 /// ViewModel for authentication state management.
 class AuthViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
-  late final StreamSubscription<AuthState> _authSubscription;
+  late final StreamSubscription<AuthLifecycleEvent> _authSubscription;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -25,12 +26,12 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   void _initAuthListener() {
-    _authSubscription = _authService.onRawAuthStateChange.listen((data) {
-      if (data.event == AuthChangeEvent.passwordRecovery) {
+    _authSubscription = _authService.onAuthLifecycleEvent.listen((event) {
+      if (event == AuthLifecycleEvent.passwordRecovery) {
         _isInRecoveryMode = true;
         notifyListeners();
-      } else if (data.event == AuthChangeEvent.signedIn ||
-          data.event == AuthChangeEvent.signedOut) {
+      } else if (event == AuthLifecycleEvent.signedIn ||
+          event == AuthLifecycleEvent.signedOut) {
         _isInRecoveryMode = false;
         notifyListeners();
       }

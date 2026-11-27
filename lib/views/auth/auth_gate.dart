@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../views/home/home_page.dart';
 import 'login_page.dart';
@@ -11,14 +12,16 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authViewModel = Provider.of<AuthViewModel>(context);
+    final isInRecoveryMode = context.select<AuthViewModel, bool>(
+      (vm) => vm.isInRecoveryMode,
+    );
 
-    if (authViewModel.isInRecoveryMode) {
+    if (isInRecoveryMode) {
       return const UpdatePasswordPage();
     }
 
     return StreamBuilder<bool>(
-      stream: authViewModel.authStateChanges,
+      stream: context.read<AuthViewModel>().authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(

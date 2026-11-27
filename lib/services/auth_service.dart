@@ -1,8 +1,12 @@
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../app/supabase_config.dart';
 import '../utils/exceptions.dart';
+
+/// Domain-level auth lifecycle events decoupled from Supabase SDK types.
+enum AuthLifecycleEvent { signedIn, signedOut, passwordRecovery, other }
 
 /// Singleton service layer for authentication operations.
 /// Decouples auth logic from the Supabase SDK.
@@ -18,8 +22,17 @@ class AuthService {
   Stream<bool> get onAuthStateChange =>
       _client.auth.onAuthStateChange.map((event) => event.session != null);
 
-  /// Stream of raw AuthState events (needed for detecting recovery flow).
-  Stream<AuthState> get onRawAuthStateChange => _client.auth.onAuthStateChange;
+  /// Stream of domain-level auth lifecycle events.
+  Stream<AuthLifecycleEvent> get onAuthLifecycleEvent =>
+      _client.auth.onAuthStateChange.map((data) {
+        return switch (data.event) {
+          AuthChangeEvent.passwordRecovery =>
+            AuthLifecycleEvent.passwordRecovery,
+          AuthChangeEvent.signedIn => AuthLifecycleEvent.signedIn,
+          AuthChangeEvent.signedOut => AuthLifecycleEvent.signedOut,
+          _ => AuthLifecycleEvent.other,
+        };
+      });
 
   /// Sends a password reset email/link to the user.
   Future<void> sendResetPasswordLink(String email) {

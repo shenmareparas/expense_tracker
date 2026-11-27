@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../models/profile.dart';

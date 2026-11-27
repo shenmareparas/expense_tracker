@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/profile.dart';
 import '../../utils/haptics.dart';
 import '../../viewmodels/split_viewmodel.dart';
@@ -90,9 +91,8 @@ class _SplitPageState extends State<SplitPage> {
                         '(${visiblePartners.length} visible)',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -124,9 +124,8 @@ class _SplitPageState extends State<SplitPage> {
                       'All friends are hidden',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.5),
                       ),
                     ),
                   ),
@@ -161,9 +160,8 @@ class _SplitPageState extends State<SplitPage> {
                                 ? Icons.keyboard_arrow_up_rounded
                                 : Icons.keyboard_arrow_down_rounded,
                             size: 18,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.5),
+                            color: Theme.of(context).colorScheme.onSurface
+                                .withValues(alpha: 0.5),
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -173,9 +171,8 @@ class _SplitPageState extends State<SplitPage> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.5),
+                              color: Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.5),
                             ),
                           ),
                         ],
@@ -503,9 +500,8 @@ class _SplitPageState extends State<SplitPage> {
             Icon(
               Icons.group_off_outlined,
               size: 64,
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.2),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: 0.2),
             ),
             const SizedBox(height: 16),
             Text(
@@ -513,9 +509,8 @@ class _SplitPageState extends State<SplitPage> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
@@ -524,9 +519,8 @@ class _SplitPageState extends State<SplitPage> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -542,29 +536,9 @@ class _SplitPageState extends State<SplitPage> {
     bool isHidden = false,
   }) {
     final theme = Theme.of(context);
-    final currentUserId = splitVM.currentUserId;
-
-    // Filter splits involving this partner
-    final partnerSplits = splitVM.splitExpenses.where((s) {
-      return (s.payerId == partner.id && s.borrowerId == currentUserId) ||
-          (s.borrowerId == partner.id && s.payerId == currentUserId);
-    }).toList();
-
-    // Calculate net balance specifically with this partner
-    double sumOwedToUser = 0.0;
-    double sumUserOwes = 0.0;
-
-    for (final s in partnerSplits) {
-      if (s.status == 'pending') {
-        if (s.payerId == currentUserId) {
-          sumOwedToUser += s.amount;
-        } else if (s.borrowerId == currentUserId) {
-          sumUserOwes += s.amount;
-        }
-      }
-    }
-
-    final net = sumOwedToUser - sumUserOwes;
+    final summary = splitVM.getPartnerBalance(partner.id);
+    final net = summary.net;
+    final splitCount = summary.splitCount;
     final isOwed = net > 0;
     final isSettledUp = net == 0;
 
@@ -634,9 +608,9 @@ class _SplitPageState extends State<SplitPage> {
             ],
           ),
           subtitle: Text(
-            partnerSplits.isEmpty
+            splitCount == 0
                 ? 'No shared expenses'
-                : '${partnerSplits.length} shared ${partnerSplits.length == 1 ? 'expense' : 'expenses'}',
+                : '$splitCount shared ${splitCount == 1 ? 'expense' : 'expenses'}',
             style: TextStyle(
               fontSize: 12,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),

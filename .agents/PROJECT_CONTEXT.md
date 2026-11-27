@@ -135,7 +135,8 @@ lib/
 | Concurrency Guard | `Completer`-based deduplication for concurrent transaction, split, and profile fetches |
 | Font Loading | Local Inter font in `google_fonts/` (runtime fetching disabled) |
 | Charts | `fl_chart` package (pie charts + bar charts in `AnalyticsPage`) |
-| MVVM Compliance | 100% — no View or ViewModel imports `supabase_flutter` directly |
+| UI Component Library | `material_ui: ^1.11.1` (official decoupled Material UI) |
+| MVVM Compliance | 100% — zero `supabase_flutter` imports in Views or ViewModels; zero service imports in Views |
 
 ---
 
@@ -153,3 +154,6 @@ lib/
 10. **Connectivity pre-check on mutations** — `DatabaseService._executeMutation()` wraps `_execute()` with a `ConnectivityChecker.isConnected()` call before any INSERT/UPDATE/DELETE. If offline, `NetworkException` is thrown immediately. Read methods stay on `_execute()` since the TTL cache usually satisfies them without touching the network.
 11. **Date range boundary normalization** — To prevent same-day transactions from being excluded by PostgREST `.lte` filters (which compare against exact timestamps), all date queries and filter setters (`loadAnalyticsSnapshot`, `setFilters`, `AnalyticsPage`) normalize `endDate` to the last millisecond of the day (`23:59:59.999`) and `startDate` to midnight (`00:00:00.000`). Bar chart date intervals also prioritize `analyticsStartDate`/`analyticsEndDate` before falling back to `filterStartDate`/`filterEndDate`.
 12. **Split transaction type filtering & borrower split presentation** — In the database, transactions only store `expense` or `income`. When filtering by `type == 'split'`, `DatabaseService.getTransactions()` queries personal splits using `description.ilike('split:%')`, while `SplitViewModel.getBorrowerSplitTransactions()` returns shared borrower split debts. When filtering by `type == 'expense'`, borrower splits are omitted because the money was not paid out-of-pocket yet.
+13. **Decoupled Auth & ViewModel boundaries** — `AuthService` exposes domain-level `AuthLifecycleEvent` (`onAuthLifecycleEvent`), completely removing `supabase_flutter` from `AuthViewModel`. ViewModels exclusively import `flutter/foundation.dart`.
+14. **PDF Export MVVM compliance** — `TransactionViewModel.exportTransactionsPdf(...)` orchestrates PDF statement generation, view, share, and save routines, keeping UI views (`ExportPdfBottomSheet`) 100% decoupled from `AuthService` and `PdfExportService`.
+15. **Partner balance pre-aggregation & Feed memoization** — `SplitViewModel.getPartnerBalance(id)` calculates `PartnerBalanceSummary` in a single `O(splits)` pass and invalidates upon `notifyListeners()`, eliminating `O(N*M)` scans in friend feeds. `TransactionListView` memoizes merged and sorted transaction feeds across rebuilds.

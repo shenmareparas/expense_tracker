@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
 import 'app/supabase_config.dart';
 import 'app/app.dart';
 

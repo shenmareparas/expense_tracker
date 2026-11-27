@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/material.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/profile.dart';
 import '../models/split_expense.dart';
 import '../models/transaction.dart';
@@ -9,6 +11,21 @@ import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../utils/exceptions.dart';
 import 'transaction_viewmodel.dart';
+
+/// Pre-aggregated balance summary between the current user and one partner.
+class PartnerBalanceSummary {
+  final double owedToUser;
+  final double userOwes;
+  final int splitCount;
+
+  const PartnerBalanceSummary({
+    this.owedToUser = 0.0,
+    this.userOwes = 0.0,
+    this.splitCount = 0,
+  });
+
+  double get net => owedToUser - userOwes;
+}
 
 /// ViewModel managing Split Expenses and user profiles.
 class SplitViewModel extends ChangeNotifier {
@@ -116,6 +133,57 @@ class SplitViewModel extends ChangeNotifier {
     return sum;
   }
 
+  Map<String, PartnerBalanceSummary>? _partnerBalanceCache;
+  String? _partnerBalanceCacheUserId;
+
+  @override
+  void notifyListeners() {
+    _partnerBalanceCache = null;
+    _partnerBalanceCacheUserId = null;
+    super.notifyListeners();
+  }
+
+  /// Returns the pre-aggregated balance summary for [partnerId] in O(1) after
+  /// a single O(splits) pass per state update.
+  PartnerBalanceSummary getPartnerBalance(String partnerId) {
+    final uid = currentUserId;
+    if (uid == null) return const PartnerBalanceSummary();
+
+    if (_partnerBalanceCache == null || _partnerBalanceCacheUserId != uid) {
+      final map = <String, ({double owed, double owes, int count})>{};
+      for (final s in _splitExpenses) {
+        if (s.payerId == uid && s.borrowerId != uid) {
+          final prev = map[s.borrowerId] ?? (owed: 0.0, owes: 0.0, count: 0);
+          map[s.borrowerId] = (
+            owed: prev.owed + (s.status == 'pending' ? s.amount : 0.0),
+            owes: prev.owes,
+            count: prev.count + 1,
+          );
+        } else if (s.borrowerId == uid && s.payerId != uid) {
+          final prev = map[s.payerId] ?? (owed: 0.0, owes: 0.0, count: 0);
+          map[s.payerId] = (
+            owed: prev.owed,
+            owes: prev.owes + (s.status == 'pending' ? s.amount : 0.0),
+            count: prev.count + 1,
+          );
+        }
+      }
+      _partnerBalanceCache = map.map(
+        (key, v) => MapEntry(
+          key,
+          PartnerBalanceSummary(
+            owedToUser: v.owed,
+            userOwes: v.owes,
+            splitCount: v.count,
+          ),
+        ),
+      );
+      _partnerBalanceCacheUserId = uid;
+    }
+
+    return _partnerBalanceCache![partnerId] ?? const PartnerBalanceSummary();
+  }
+
   /// Net balance (positive = you are owed money, negative = you owe money)
   double get netBalance => totalOwedToUser - totalUserOwes;
 
@@ -135,7 +203,7 @@ class SplitViewModel extends ChangeNotifier {
 
   Future<void> loadCustomProfiles() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       final list = prefs.getStringList('custom_friend_profiles') ?? [];
       _customProfiles = list.map((item) {
         final jsonMap = jsonDecode(item) as Map<String, dynamic>;

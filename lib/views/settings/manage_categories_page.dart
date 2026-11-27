@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+
 import '../../utils/haptics.dart';
+
 import 'package:provider/provider.dart';
+
 import '../../viewmodels/category_viewmodel.dart';
 import '../../models/category.dart';
 
@@ -175,8 +178,12 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Manage Categories'),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context)
+                .colorScheme
+                .onSurfaceVariant,
+            tabs: const [
               Tab(text: 'Expenses', icon: Icon(Icons.arrow_upward)),
               Tab(text: 'Income', icon: Icon(Icons.arrow_downward)),
             ],
@@ -280,9 +287,8 @@ class _ManageCategoriesPageState extends State<ManageCategoriesPage> {
           key: ValueKey(category.id),
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           elevation: 0,
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

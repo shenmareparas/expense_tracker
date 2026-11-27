@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../utils/haptics.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
@@ -130,9 +131,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             child: Container(
               padding: const EdgeInsets.all(32.0),
               decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surface.withValues(alpha: isDark ? 0.5 : 0.8),
+                color: Theme.of(context).colorScheme.surface
+                    .withValues(alpha: isDark ? 0.5 : 0.8),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: isDark ? 0.05 : 0.4),
@@ -153,9 +153,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.primary
+                          .withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -182,9 +181,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(context).colorScheme.onSurface
+                          .withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -202,9 +200,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.05),
+                      fillColor: Theme.of(context).colorScheme.onSurface
+                          .withValues(alpha: 0.05),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 18,
@@ -228,9 +225,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.05),
+                        fillColor: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.05),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 20,
                           vertical: 18,
@@ -258,12 +254,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               elevation: 0,
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.onPrimary,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary,
+                              foregroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimary,
                             ),
                             child: Text(
                               _codeSent ? 'Verify Code' : 'Send Code',
@@ -278,9 +274,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             TextButton(
                               onPressed: _sendCode,
                               style: TextButton.styleFrom(
-                                foregroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary,
+                                foregroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary,
                               ),
                               child: const Text('Resend Code'),
                             ),

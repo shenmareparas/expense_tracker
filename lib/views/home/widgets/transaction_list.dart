@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
 import '../../../utils/haptics.dart';
+
 import 'package:provider/provider.dart';
+
 import '../../../models/profile.dart';
 import '../../../models/split_expense.dart';
 import '../../../models/transaction.dart';
@@ -21,6 +24,62 @@ class TransactionListView extends StatefulWidget {
 
 class _TransactionListViewState extends State<TransactionListView> {
   late final ScrollController _scrollController;
+
+  List<TransactionModel>? _cachedPersonalTxs;
+  List<SplitExpenseModel>? _cachedSplitExpenses;
+  int _cachedSplitCount = -1;
+  String? _cachedFilterType;
+  List<String>? _cachedFilterCategories;
+  String? _cachedPaymentMethod;
+  DateTime? _cachedStartDate;
+  DateTime? _cachedEndDate;
+  String? _cachedSearchQuery;
+  List<TransactionModel>? _cachedMergedTransactions;
+
+  List<TransactionModel> _resolveMergedTransactions(
+    TransactionViewModel viewModel,
+    SplitViewModel splitViewModel,
+  ) {
+    final personalTxs = viewModel.filteredTransactions;
+    final splits = splitViewModel.splitExpenses;
+    if (_cachedMergedTransactions != null &&
+        identical(_cachedPersonalTxs, personalTxs) &&
+        identical(_cachedSplitExpenses, splits) &&
+        _cachedSplitCount == splits.length &&
+        _cachedFilterType == viewModel.filterType &&
+        identical(_cachedFilterCategories, viewModel.filterCategories) &&
+        _cachedPaymentMethod == viewModel.filterPaymentMethod &&
+        _cachedStartDate == viewModel.filterStartDate &&
+        _cachedEndDate == viewModel.filterEndDate &&
+        _cachedSearchQuery == viewModel.searchQuery) {
+      return _cachedMergedTransactions!;
+    }
+
+    final borrowerSplitTxs = splitViewModel.getBorrowerSplitTransactions(
+      type: viewModel.filterType,
+      categories: viewModel.filterCategories,
+      paymentMethod: viewModel.filterPaymentMethod,
+      startDate: viewModel.filterStartDate,
+      endDate: viewModel.filterEndDate,
+      searchQuery: viewModel.searchQuery,
+      existingTransactions: personalTxs,
+    );
+
+    final merged = <TransactionModel>[...personalTxs, ...borrowerSplitTxs]
+      ..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
+
+    _cachedPersonalTxs = personalTxs;
+    _cachedSplitExpenses = splits;
+    _cachedSplitCount = splits.length;
+    _cachedFilterType = viewModel.filterType;
+    _cachedFilterCategories = viewModel.filterCategories;
+    _cachedPaymentMethod = viewModel.filterPaymentMethod;
+    _cachedStartDate = viewModel.filterStartDate;
+    _cachedEndDate = viewModel.filterEndDate;
+    _cachedSearchQuery = viewModel.searchQuery;
+    _cachedMergedTransactions = merged;
+    return merged;
+  }
 
   @override
   void initState() {
@@ -63,21 +122,10 @@ class _TransactionListViewState extends State<TransactionListView> {
           return Center(child: Text('Error: ${viewModel.errorMessage}'));
         }
 
-        final personalTxs = viewModel.filteredTransactions;
-        final borrowerSplitTxs = splitViewModel.getBorrowerSplitTransactions(
-          type: viewModel.filterType,
-          categories: viewModel.filterCategories,
-          paymentMethod: viewModel.filterPaymentMethod,
-          startDate: viewModel.filterStartDate,
-          endDate: viewModel.filterEndDate,
-          searchQuery: viewModel.searchQuery,
-          existingTransactions: personalTxs,
+        final transactions = _resolveMergedTransactions(
+          viewModel,
+          splitViewModel,
         );
-
-        final transactions = <TransactionModel>[
-          ...personalTxs,
-          ...borrowerSplitTxs,
-        ]..sort((a, b) => b.transactionDate.compareTo(a.transactionDate));
 
         if (transactions.isEmpty) {
           return RefreshIndicator(
@@ -143,9 +191,8 @@ class _TransactionListViewState extends State<TransactionListView> {
             Icon(
               Icons.receipt_long,
               size: 80,
-              color: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.2),
+              color: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: 0.2),
             ),
             const SizedBox(height: 24),
             Text(
@@ -153,9 +200,8 @@ class _TransactionListViewState extends State<TransactionListView> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 8),
@@ -163,9 +209,8 @@ class _TransactionListViewState extends State<TransactionListView> {
               'Tap the + button to add your first expense or income.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.5),
               ),
             ),
           ],

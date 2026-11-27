@@ -63,11 +63,12 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 
 ## 🛠️ Technology Stack & Dependencies
 
-- **Framework**: [Flutter](https://flutter.dev) (Dart SDK `^3.11.0`)
+- **Framework**: [Flutter](https://flutter.dev) (Dart SDK `^3.13.0`)
 - **Backend & Database**: [Supabase](https://supabase.com) (`supabase_flutter: ^2.12.0`)
+- **Material UI**: [Material UI](https://pub.dev/packages/material_ui) (`material_ui: ^1.11.1`)
 - **State Management**: [Provider](https://pub.dev/packages/provider) (`provider: ^6.1.5+1`)
 - **Data Visualization**: [FL Chart](https://pub.dev/packages/fl_chart) (`fl_chart: ^1.1.1`)
-- **Dynamic Theming**: [Dynamic Color](https://pub.dev/packages/dynamic_color) (`dynamic_color: ^1.7.0`)
+- **Dynamic Theming**: [Dynamic Color](https://pub.dev/packages/dynamic_color) (`dynamic_color: ^2.1.0`)
 - **Typography**: Bundled Roboto font
 - **Formatting & Localization**: [Intl](https://pub.dev/packages/intl) (`intl: ^0.20.2`)
 - **Persistence**: [Shared Preferences](https://pub.dev/packages/shared_preferences) (`shared_preferences: ^2.5.4`)
@@ -211,7 +212,7 @@ ViewModels catch these exceptions and display user-friendly error bars without e
 
 ### Prerequisites
 
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) (version `>= 3.11.0`)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) (version `>= 3.47.0`, Dart SDK `>= 3.13.0`)
 - Android Studio / VS Code with Flutter extensions
 - A physical device or emulator
 

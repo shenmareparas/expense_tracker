@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+
 import '../viewmodels/theme_viewmodel.dart';
 import '../viewmodels/auth_viewmodel.dart';
 import '../viewmodels/transaction_viewmodel.dart';
@@ -23,14 +24,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeViewModel()),
         ChangeNotifierProvider(create: (_) => SplitViewModel()),
       ],
-      child: Consumer<ThemeViewModel>(
-        builder: (context, themeService, _) {
+      child: Selector<ThemeViewModel, ({ThemeMode mode, bool useDynamic})>(
+        selector: (_, vm) =>
+            (mode: vm.themeMode, useDynamic: vm.useDynamicColor),
+        builder: (context, themeConfig, _) {
           return DynamicColorBuilder(
             builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
               ColorScheme lightColorScheme;
               ColorScheme darkColorScheme;
 
-              if (themeService.useDynamicColor &&
+              if (themeConfig.useDynamic &&
                   lightDynamic != null &&
                   darkDynamic != null) {
                 lightColorScheme = lightDynamic.harmonized();
@@ -48,6 +51,53 @@ class MyApp extends StatelessWidget {
                 );
               }
 
+              final lightTheme = ThemeData(
+                fontFamily: 'Roboto',
+                colorScheme: lightColorScheme,
+                useMaterial3: true,
+                appBarTheme: const AppBarTheme(
+                  centerTitle: true,
+                  elevation: 0,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  systemOverlayStyle: SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.dark,
+                    statusBarBrightness: Brightness.light,
+                  ),
+                ),
+              );
+
+              final darkTheme = ThemeData(
+                fontFamily: 'Roboto',
+                brightness: Brightness.dark,
+                scaffoldBackgroundColor: Colors.black,
+                colorScheme: darkColorScheme,
+                appBarTheme: const AppBarTheme(
+                  centerTitle: true,
+                  elevation: 0,
+                  backgroundColor: Colors.transparent,
+                  surfaceTintColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  systemOverlayStyle: SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: Brightness.light,
+                    statusBarBrightness: Brightness.dark,
+                  ),
+                ),
+                cardTheme: CardThemeData(
+                  color: const Color(0xFF0A0A0A),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
+                  ),
+                ),
+                useMaterial3: true,
+              );
+
               return MaterialApp(
                 title: 'Expense Tracker',
                 debugShowCheckedModeBanner: false,
@@ -57,52 +107,9 @@ class MyApp extends StatelessWidget {
                   },
                   child: child,
                 ),
-                themeMode: themeService.themeMode,
-                theme: ThemeData(
-                  fontFamily: 'Roboto',
-                  colorScheme: lightColorScheme,
-                  useMaterial3: true,
-                  appBarTheme: const AppBarTheme(
-                    centerTitle: true,
-                    elevation: 0,
-                    backgroundColor: Colors.transparent,
-                    surfaceTintColor: Colors.transparent,
-                    systemOverlayStyle: SystemUiOverlayStyle(
-                      statusBarColor: Colors.transparent,
-                      statusBarIconBrightness: Brightness.dark,
-                      statusBarBrightness: Brightness.light,
-                    ),
-                  ),
-                ),
-                darkTheme: ThemeData(
-                  fontFamily: 'Roboto',
-                  brightness: Brightness.dark,
-                  scaffoldBackgroundColor: Colors.black,
-                  colorScheme: darkColorScheme,
-                  appBarTheme: const AppBarTheme(
-                    centerTitle: true,
-                    elevation: 0,
-                    backgroundColor: Colors.transparent,
-                    surfaceTintColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    systemOverlayStyle: SystemUiOverlayStyle(
-                      statusBarColor: Colors.transparent,
-                      statusBarIconBrightness: Brightness.light,
-                      statusBarBrightness: Brightness.dark,
-                    ),
-                  ),
-                  cardTheme: CardThemeData(
-                    color: const Color(0xFF0A0A0A),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.05),
-                      ),
-                    ),
-                  ),
-                  useMaterial3: true,
-                ),
+                themeMode: themeConfig.mode,
+                theme: lightTheme,
+                darkTheme: darkTheme,
                 home: const AuthGate(),
               );
             },

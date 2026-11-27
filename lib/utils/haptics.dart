@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../viewmodels/theme_viewmodel.dart';
 
 /// Helper class to conditionally trigger haptic feedback based on user settings.

@@ -1,11 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import 'package:provider/provider.dart';
 
-import '../../../models/transaction.dart';
-import '../../../services/auth_service.dart';
-import '../../../services/pdf_export_service.dart';
 import '../../../utils/haptics.dart';
 import '../../../viewmodels/category_viewmodel.dart';
 import '../../../viewmodels/transaction_viewmodel.dart';
@@ -32,8 +28,7 @@ class _ExportPdfSheet extends StatefulWidget {
 
 class _ExportPdfSheetState extends State<_ExportPdfSheet> {
   // Filters
-  String _datePreset =
-      'This Month'; // 'All Time', 'This Month', 'Last Month', 'This Year', 'Custom'
+  String _datePreset = 'This Month'; // 'All Time', 'This Month', 'Last Month', 'This Year', 'Custom'
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -92,9 +87,8 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).colorScheme.primary,
-            ),
+            colorScheme: Theme.of(context).colorScheme
+                .copyWith(primary: Theme.of(context).colorScheme.primary),
           ),
           child: child!,
         );
@@ -125,44 +119,6 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
     }
   }
 
-  List<TransactionModel> _getFilteredTransactions(List<TransactionModel> all) {
-    return all.where((tx) {
-      // Date filter
-      if (_startDate != null && tx.transactionDate.isBefore(_startDate!)) {
-        return false;
-      }
-      if (_endDate != null && tx.transactionDate.isAfter(_endDate!)) {
-        return false;
-      }
-
-      // Type filter
-      if (_selectedType != null) {
-        if (_selectedType == 'split') {
-          final isSplit =
-              tx.description?.toLowerCase().startsWith('split:') ?? false;
-          if (!isSplit) return false;
-        } else if (tx.type != _selectedType) {
-          return false;
-        }
-      }
-
-      // Payment Method filter
-      if (_selectedPaymentMethod != null &&
-          tx.paymentMethod.toLowerCase() !=
-              _selectedPaymentMethod!.toLowerCase()) {
-        return false;
-      }
-
-      // Categories filter
-      if (_selectedCategories.isNotEmpty &&
-          !_selectedCategories.contains(tx.category)) {
-        return false;
-      }
-
-      return true;
-    }).toList();
-  }
-
   Future<void> _handleExport(String action) async {
     final txVm = Provider.of<TransactionViewModel>(context, listen: false);
 
@@ -172,7 +128,29 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
     });
 
     try {
-      final matching = await txVm.fetchTransactionsForExport(
+      final title = _datePreset == 'Custom'
+          ? 'Transaction Statement'
+          : 'Statement - $_datePreset';
+      final fileName =
+          'ExpenseTracker_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+
+      Rect? origin;
+      if (action == 'share') {
+        AppHaptics.mediumImpact(context);
+        final box = context.findRenderObject() as RenderBox?;
+        if (box != null) {
+          origin = box.localToGlobal(Offset.zero) & box.size;
+        }
+      } else if (action == 'view') {
+        AppHaptics.selectionClick(context);
+      } else if (action == 'save') {
+        AppHaptics.vibrate(context);
+      }
+
+      final outcome = await txVm.exportTransactionsPdf(
+        action: action,
+        title: title,
+        fileName: fileName,
         type: _selectedType,
         categories: _selectedCategories.isEmpty
             ? null
@@ -180,64 +158,30 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
         paymentMethod: _selectedPaymentMethod,
         startDate: _startDate,
         endDate: _endDate,
+        sharePositionOrigin: origin,
       );
-
-      if (matching.isEmpty) {
-        if (mounted) {
-          _showStatusToast(
-            context,
-            message: 'No transactions found matching the selected filters.',
-            icon: Icons.info_outline_rounded,
-            isError: true,
-          );
-        }
-        return;
-      }
-
-      final user = AuthService.instance.currentUser;
-      final userName =
-          user?.userMetadata?['name'] as String? ??
-          user?.userMetadata?['full_name'] as String? ??
-          '';
-      final userEmail = user?.email ?? '';
-
-      final title = _datePreset == 'Custom'
-          ? 'Transaction Statement'
-          : 'Statement - $_datePreset';
-
-      final pdfBytes = await PdfExportService.instance.generateTransactionPdf(
-        transactions: matching,
-        title: title,
-        userName: userName,
-        userEmail: userEmail,
-        startDate: _startDate,
-        endDate: _endDate,
-        filterType: _selectedType,
-        filterCategories: _selectedCategories.isEmpty
-            ? null
-            : _selectedCategories.toList(),
-        filterPaymentMethod: _selectedPaymentMethod,
-      );
-
-      final fileName =
-          'ExpenseTracker_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
 
       if (!mounted) return;
 
-      if (action == 'view') {
-        AppHaptics.selectionClick(context);
-        final result = await PdfExportService.instance.viewPdf(
-          bytes: pdfBytes,
-          fileName: fileName,
+      if (outcome.isEmpty) {
+        _showStatusToast(
+          context,
+          message: 'No transactions found matching the selected filters.',
+          icon: Icons.info_outline_rounded,
+          isError: true,
         );
-        if (result.type != ResultType.done && mounted) {
+        return;
+      }
+
+      if (action == 'view') {
+        if (outcome.viewErrorMessage != null) {
           _showStatusToast(
             context,
-            message: 'Could not open PDF: ${result.message}',
+            message: 'Could not open PDF: ${outcome.viewErrorMessage}',
             icon: Icons.warning_amber_rounded,
             isError: true,
           );
-        } else if (mounted) {
+        } else {
           _showStatusToast(
             context,
             message: 'Opening PDF document...',
@@ -246,41 +190,20 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
           );
         }
       } else if (action == 'share') {
-        AppHaptics.mediumImpact(context);
-        final box = context.findRenderObject() as RenderBox?;
-        final origin = box != null
-            ? box.localToGlobal(Offset.zero) & box.size
-            : null;
-
-        await PdfExportService.instance.sharePdf(
-          bytes: pdfBytes,
-          fileName: fileName,
-          subject: 'Expense Tracker Statement ($title)',
-          sharePositionOrigin: origin,
+        _showStatusToast(
+          context,
+          message: 'Sharing statement...',
+          icon: Icons.share_rounded,
+          isError: false,
         );
-        if (mounted) {
-          _showStatusToast(
-            context,
-            message: 'Sharing statement...',
-            icon: Icons.share_rounded,
-            isError: false,
-          );
-        }
-      } else if (action == 'save') {
-        AppHaptics.vibrate(context);
-        final path = await PdfExportService.instance.savePdfToStorage(
-          bytes: pdfBytes,
-          fileName: fileName,
+      } else if (action == 'save' && outcome.savedPath != null) {
+        _showStatusToast(
+          context,
+          message: 'PDF saved successfully to:\n${outcome.savedPath}',
+          icon: Icons.check_circle_rounded,
+          isError: false,
+          duration: const Duration(seconds: 4),
         );
-        if (mounted) {
-          _showStatusToast(
-            context,
-            message: 'PDF saved successfully to:\n$path',
-            icon: Icons.check_circle_rounded,
-            isError: false,
-            duration: const Duration(seconds: 4),
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
@@ -308,7 +231,13 @@ class _ExportPdfSheetState extends State<_ExportPdfSheet> {
     final txVm = Provider.of<TransactionViewModel>(context);
     final catVm = Provider.of<CategoryViewModel>(context);
 
-    final matchingTransactions = _getFilteredTransactions(txVm.transactions);
+    final matchingTransactions = txVm.filterTransactionsInMemory(
+      type: _selectedType,
+      categories: _selectedCategories,
+      paymentMethod: _selectedPaymentMethod,
+      startDate: _startDate,
+      endDate: _endDate,
+    );
     double matchingTotal = 0;
     for (final tx in matchingTransactions) {
       matchingTotal += (tx.type == 'income' ? tx.amount : -tx.amount);

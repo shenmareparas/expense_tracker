@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../viewmodels/category_viewmodel.dart';
 import '../../viewmodels/theme_viewmodel.dart';
@@ -458,9 +459,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.08),
+                      color: Theme.of(context).colorScheme.primary
+                          .withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(100),
                     ),
                     child: Text(
@@ -512,9 +512,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                     side: BorderSide(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.outline
+                          .withValues(alpha: 0.1),
                     ),
                   ),
                   child: Padding(
@@ -528,9 +527,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         Icon(
                           Icons.insights_outlined,
                           size: 64,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.4),
+                          color: Theme.of(context).colorScheme.primary
+                              .withValues(alpha: 0.4),
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -546,9 +544,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                               ? 'Try changing the time frame or adding new transactions.'
                               : 'No data for selected categories in this period.',
                           style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            color: Theme.of(context).colorScheme.onSurface
+                                .withValues(alpha: 0.6),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -577,9 +574,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Container(
       height: 46,
       decoration: BoxDecoration(
-        color: Theme.of(
-          context,
-        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest
+            .withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(4),
@@ -644,9 +640,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             child: ChoiceChip(
               label: const Text('All Categories'),
               selected: _selectedCategoryFilters.isEmpty,
-              selectedColor: Theme.of(
-                context,
-              ).colorScheme.primary.withValues(alpha: 0.15),
+              selectedColor: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: 0.15),
               labelStyle: TextStyle(
                 fontWeight: _selectedCategoryFilters.isEmpty
                     ? FontWeight.bold
@@ -673,9 +668,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               child: ChoiceChip(
                 label: Text(category),
                 selected: isSelected,
-                selectedColor: Theme.of(
-                  context,
-                ).colorScheme.primary.withValues(alpha: 0.15),
+                selectedColor: Theme.of(context).colorScheme.primary
+                    .withValues(alpha: 0.15),
                 labelStyle: TextStyle(
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   color: isSelected
@@ -772,23 +766,20 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             colors: isDark
                 ? [
                     Color.alphaBlend(
-                      Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.28),
+                      Theme.of(context).colorScheme.primary
+                          .withValues(alpha: 0.28),
                       const Color(0xFF141522),
                     ),
                     Color.alphaBlend(
-                      Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.10),
+                      Theme.of(context).colorScheme.primary
+                          .withValues(alpha: 0.10),
                       const Color(0xFF0A0A10),
                     ),
                   ]
                 : [
                     Theme.of(context).colorScheme.primary,
-                    Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.8),
+                    Theme.of(context).colorScheme.primary
+                        .withValues(alpha: 0.8),
                   ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -796,21 +787,18 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           borderRadius: BorderRadius.circular(28),
           border: isDark
               ? Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.3),
+                  color: Theme.of(context).colorScheme.primary
+                      .withValues(alpha: 0.3),
                   width: 1.5,
                 )
               : null,
           boxShadow: [
             BoxShadow(
               color: isDark
-                  ? Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.15)
-                  : Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.25),
+                  ? Theme.of(context).colorScheme.primary
+                        .withValues(alpha: 0.15)
+                  : Theme.of(context).colorScheme.primary
+                        .withValues(alpha: 0.25),
               blurRadius: 24,
               offset: const Offset(0, 10),
             ),
@@ -1225,9 +1213,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               ? 'Show Trend Chart'
               : 'Show Pie Chart',
           style: IconButton.styleFrom(
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.08),
+            backgroundColor: Theme.of(context).colorScheme.primary
+                .withValues(alpha: 0.08),
             padding: const EdgeInsets.all(8),
           ),
         ),
@@ -1399,18 +1386,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                    color: Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.6),
                     fontSize: 11,
                   ),
                 ),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    color: Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.4),
                     fontSize: 9,
                   ),
                 ),
@@ -1463,9 +1448,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               border: Border.all(
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.08),
+                    : Theme.of(context).colorScheme.outline
+                          .withValues(alpha: 0.08),
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: [
@@ -1532,9 +1516,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         value: overallTotal > 0
                             ? entry.value / overallTotal
                             : 0.0,
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.outline.withValues(alpha: 0.06),
+                        backgroundColor: Theme.of(context).colorScheme.outline
+                            .withValues(alpha: 0.06),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                         minHeight: 6,
                       ),
@@ -1544,9 +1527,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       '${percentage.toStringAsFixed(1)}% of type total',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -1646,9 +1628,8 @@ class _PieChartWidgetState extends State<_PieChartWidget> {
                     : widget.categories[touchedIndex].key,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  color: Theme.of(context).colorScheme.onSurface
+                      .withValues(alpha: 0.6),
                   fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
@@ -1737,9 +1718,8 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                 getTooltipColor: (_) =>
                     Theme.of(context).colorScheme.surfaceContainer,
                 tooltipBorder: BorderSide(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.outline.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.outline
+                      .withValues(alpha: 0.1),
                 ),
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
                   final entry = widget.dailyData[groupIndex];
@@ -1833,9 +1813,8 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                       child: Text(
                         text,
                         style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1865,9 +1844,8 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                       child: Text(
                         text,
                         style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.5),
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.5),
                           fontSize: 9,
                         ),
                       ),
@@ -1883,9 +1861,8 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                   ? (yAxisMax - yAxisMin) / 4
                   : 1.0,
               getDrawingHorizontalLine: (value) => FlLine(
-                color: Theme.of(
-                  context,
-                ).colorScheme.outline.withValues(alpha: 0.05),
+                color: Theme.of(context).colorScheme.outline
+                    .withValues(alpha: 0.05),
                 strokeWidth: 1,
               ),
             ),
@@ -1929,9 +1906,8 @@ class _BarChartWidgetState extends State<_BarChartWidget> {
                       show: true,
                       fromY: yAxisMin,
                       toY: yAxisMax,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.outline.withValues(alpha: 0.02),
+                      color: Theme.of(context).colorScheme.outline
+                          .withValues(alpha: 0.02),
                     ),
                   ),
                 ],

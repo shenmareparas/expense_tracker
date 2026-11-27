@@ -1,8 +1,27 @@
-import 'package:flutter/material.dart';
+import 'dart:ui' show Rect;
+
+import 'package:flutter/foundation.dart';
+import 'package:open_file/open_file.dart';
+
 import '../models/transaction.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/pdf_export_service.dart';
 import '../utils/exceptions.dart';
 import 'split_viewmodel.dart';
+
+/// Outcome returned by [TransactionViewModel.exportTransactionsPdf].
+class PdfExportOutcome {
+  final bool isEmpty;
+  final String? viewErrorMessage;
+  final String? savedPath;
+
+  const PdfExportOutcome({
+    this.isEmpty = false,
+    this.viewErrorMessage,
+    this.savedPath,
+  });
+}
 
 /// ViewModel for transaction state management.
 ///
@@ -456,6 +475,110 @@ class TransactionViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = _mapError(e);
       return [];
+    }
+  }
+
+  /// Filters currently loaded transactions in memory for export preview counts.
+  List<TransactionModel> filterTransactionsInMemory({
+    String? type,
+    Set<String> categories = const {},
+    String? paymentMethod,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    return _transactions.where((tx) {
+      if (startDate != null && tx.transactionDate.isBefore(startDate)) {
+        return false;
+      }
+      if (endDate != null && tx.transactionDate.isAfter(endDate)) {
+        return false;
+      }
+      if (type != null) {
+        if (type == 'split') {
+          final isSplit =
+              tx.description?.toLowerCase().startsWith('split:') ?? false;
+          if (!isSplit) return false;
+        } else if (tx.type != type) {
+          return false;
+        }
+      }
+      if (paymentMethod != null &&
+          tx.paymentMethod.toLowerCase() != paymentMethod.toLowerCase()) {
+        return false;
+      }
+      if (categories.isNotEmpty && !categories.contains(tx.category)) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  /// Fetches matching transactions, builds a PDF statement, and executes [action].
+  Future<PdfExportOutcome> exportTransactionsPdf({
+    required String action,
+    required String title,
+    required String fileName,
+    String? type,
+    List<String>? categories,
+    String? paymentMethod,
+    DateTime? startDate,
+    DateTime? endDate,
+    Rect? sharePositionOrigin,
+  }) async {
+    final matching = await fetchTransactionsForExport(
+      type: type,
+      categories: categories,
+      paymentMethod: paymentMethod,
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    if (matching.isEmpty) {
+      return const PdfExportOutcome(isEmpty: true);
+    }
+
+    final user = AuthService.instance.currentUser;
+    final userName =
+        user?.userMetadata?['name'] as String? ??
+        user?.userMetadata?['full_name'] as String? ??
+        '';
+    final userEmail = user?.email ?? '';
+
+    final pdfBytes = await PdfExportService.instance.generateTransactionPdf(
+      transactions: matching,
+      title: title,
+      userName: userName,
+      userEmail: userEmail,
+      startDate: startDate,
+      endDate: endDate,
+      filterType: type,
+      filterCategories: categories,
+      filterPaymentMethod: paymentMethod,
+    );
+
+    if (action == 'view') {
+      final result = await PdfExportService.instance.viewPdf(
+        bytes: pdfBytes,
+        fileName: fileName,
+      );
+      if (result.type != ResultType.done) {
+        return PdfExportOutcome(viewErrorMessage: result.message);
+      }
+      return const PdfExportOutcome();
+    } else if (action == 'share') {
+      await PdfExportService.instance.sharePdf(
+        bytes: pdfBytes,
+        fileName: fileName,
+        subject: 'Expense Tracker Statement ($title)',
+        sharePositionOrigin: sharePositionOrigin,
+      );
+      return const PdfExportOutcome();
+    } else {
+      final path = await PdfExportService.instance.savePdfToStorage(
+        bytes: pdfBytes,
+        fileName: fileName,
+      );
+      return PdfExportOutcome(savedPath: path);
     }
   }
 

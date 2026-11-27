@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/profile.dart';
 import '../../models/split_expense.dart';
 import '../../utils/date_formatter.dart';
@@ -2418,9 +2419,8 @@ class _AddSplitPageState extends State<AddSplitPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save entry: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to save entry: $e')));
       }
     }
   }
@@ -3073,9 +3073,8 @@ class _AddSplitPageState extends State<AddSplitPage> {
         color: Theme.of(context).colorScheme.primary,
       ),
       filled: true,
-      fillColor: Theme.of(
-        context,
-      ).colorScheme.onSurface.withValues(alpha: 0.05),
+      fillColor: Theme.of(context).colorScheme.onSurface
+          .withValues(alpha: 0.05),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,

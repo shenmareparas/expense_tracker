@@ -160,184 +160,172 @@ void main() {
       expect(share, 0.0);
     });
 
-    test(
-      'transformTransactionsForAnalytics adjusts split amounts and filters settlement income',
-      () {
-        final split = SplitExpenseModel(
-          id: 'split-1',
-          payerId: currentUserId,
-          borrowerId: friendId,
-          amount: 200.0,
-          totalAmount: 600.0,
-          description: 'Uber Ride',
-          category: 'Transport',
-          expenseDate: now,
-          createdAt: now,
-        );
+    test('transformTransactionsForAnalytics adjusts split amounts and filters settlement income', () {
+      final split = SplitExpenseModel(
+        id: 'split-1',
+        payerId: currentUserId,
+        borrowerId: friendId,
+        amount: 200.0,
+        totalAmount: 600.0,
+        description: 'Uber Ride',
+        category: 'Transport',
+        expenseDate: now,
+        createdAt: now,
+      );
 
-        viewModel.setMockData(
-          splitExpenses: [split],
-          mockUserId: currentUserId,
-        );
+      viewModel.setMockData(splitExpenses: [split], mockUserId: currentUserId);
 
-        final splitTx = TransactionModel(
-          id: 'tx-split',
-          userId: currentUserId,
-          amount: 600.0,
-          type: 'expense',
-          category: 'Transport',
-          description: 'Split: Uber Ride (Bob)',
-          paymentMethod: 'upi',
-          transactionDate: now,
-          createdAt: now,
-        );
+      final splitTx = TransactionModel(
+        id: 'tx-split',
+        userId: currentUserId,
+        amount: 600.0,
+        type: 'expense',
+        category: 'Transport',
+        description: 'Split: Uber Ride (Bob)',
+        paymentMethod: 'upi',
+        transactionDate: now,
+        createdAt: now,
+      );
 
-        final regularTx = TransactionModel(
-          id: 'tx-normal',
-          userId: currentUserId,
-          amount: 50.0,
-          type: 'expense',
-          category: 'Food',
-          description: 'Coffee',
-          paymentMethod: 'upi',
-          transactionDate: now,
-          createdAt: now,
-        );
+      final regularTx = TransactionModel(
+        id: 'tx-normal',
+        userId: currentUserId,
+        amount: 50.0,
+        type: 'expense',
+        category: 'Food',
+        description: 'Coffee',
+        paymentMethod: 'upi',
+        transactionDate: now,
+        createdAt: now,
+      );
 
-        final settlementIncomeTx = TransactionModel(
-          id: 'tx-settle-income',
-          userId: currentUserId,
-          amount: 200.0,
-          type: 'income',
-          category: 'General',
-          description: 'Settlement from Bob',
-          paymentMethod: 'upi',
-          transactionDate: now,
-          createdAt: now,
-        );
+      final settlementIncomeTx = TransactionModel(
+        id: 'tx-settle-income',
+        userId: currentUserId,
+        amount: 200.0,
+        type: 'income',
+        category: 'General',
+        description: 'Settlement from Bob',
+        paymentMethod: 'upi',
+        transactionDate: now,
+        createdAt: now,
+      );
 
-        final regularIncomeTx = TransactionModel(
-          id: 'tx-salary',
-          userId: currentUserId,
-          amount: 50000.0,
-          type: 'income',
-          category: 'Salary',
-          description: 'Monthly Salary',
-          paymentMethod: 'upi',
-          transactionDate: now,
-          createdAt: now,
-        );
+      final regularIncomeTx = TransactionModel(
+        id: 'tx-salary',
+        userId: currentUserId,
+        amount: 50000.0,
+        type: 'income',
+        category: 'Salary',
+        description: 'Monthly Salary',
+        paymentMethod: 'upi',
+        transactionDate: now,
+        createdAt: now,
+      );
 
-        final transformed = viewModel.transformTransactionsForAnalytics([
-          splitTx,
-          regularTx,
-          settlementIncomeTx,
-          regularIncomeTx,
-        ]);
+      final transformed = viewModel.transformTransactionsForAnalytics([
+        splitTx,
+        regularTx,
+        settlementIncomeTx,
+        regularIncomeTx,
+      ]);
 
-        final transformedSplit = transformed.firstWhere(
-          (t) => t.id == 'tx-split',
-        );
-        expect(transformedSplit.amount, 400.0);
+      final transformedSplit = transformed.firstWhere(
+        (t) => t.id == 'tx-split',
+      );
+      expect(transformedSplit.amount, 400.0);
 
-        final transformedRegular = transformed.firstWhere(
-          (t) => t.id == 'tx-normal',
-        );
-        expect(transformedRegular.amount, 50.0);
+      final transformedRegular = transformed.firstWhere(
+        (t) => t.id == 'tx-normal',
+      );
+      expect(transformedRegular.amount, 50.0);
 
-        expect(transformed.any((t) => t.id == 'tx-settle-income'), false);
-        expect(transformed.any((t) => t.id == 'tx-salary'), true);
-      },
-    );
+      expect(transformed.any((t) => t.id == 'tx-settle-income'), false);
+      expect(transformed.any((t) => t.id == 'tx-salary'), true);
+    });
 
-    test(
-      'includes other users split of food in analytics where current user is borrower',
-      () {
-        final borrowerSplit = SplitExpenseModel(
-          id: 'split-alice-1',
-          payerId: friendId,
-          borrowerId: currentUserId,
-          amount: 350.0,
-          totalAmount: 700.0,
-          description: 'Italian Dinner',
-          category: 'Food',
-          expenseDate: now,
-          createdAt: now,
-        );
+    test('includes other users split of food in analytics where current user is borrower', () {
+      final borrowerSplit = SplitExpenseModel(
+        id: 'split-alice-1',
+        payerId: friendId,
+        borrowerId: currentUserId,
+        amount: 350.0,
+        totalAmount: 700.0,
+        description: 'Italian Dinner',
+        category: 'Food',
+        expenseDate: now,
+        createdAt: now,
+      );
 
-        viewModel.setMockData(
-          splitExpenses: [borrowerSplit],
-          mockUserId: currentUserId,
-        );
+      viewModel.setMockData(
+        splitExpenses: [borrowerSplit],
+        mockUserId: currentUserId,
+      );
 
-        final myOwnTx = TransactionModel(
-          id: 'my-tx-1',
-          userId: currentUserId,
-          amount: 150.0,
-          type: 'expense',
-          category: 'Food',
-          description: 'Lunch',
-          paymentMethod: 'upi',
-          transactionDate: now,
-          createdAt: now,
-        );
+      final myOwnTx = TransactionModel(
+        id: 'my-tx-1',
+        userId: currentUserId,
+        amount: 150.0,
+        type: 'expense',
+        category: 'Food',
+        description: 'Lunch',
+        paymentMethod: 'upi',
+        transactionDate: now,
+        createdAt: now,
+      );
 
-        final transformed = viewModel.transformTransactionsForAnalytics([
-          myOwnTx,
-        ]);
+      final transformed = viewModel.transformTransactionsForAnalytics([
+        myOwnTx,
+      ]);
 
-        final includedSplit = transformed.firstWhere(
-          (t) => t.id == 'split_borrower_split-alice-1',
-        );
-        expect(includedSplit.amount, 350.0);
-        expect(includedSplit.category, 'Food');
-        expect(includedSplit.type, 'expense');
-      },
-    );
+      final includedSplit = transformed.firstWhere(
+        (t) => t.id == 'split_borrower_split-alice-1',
+      );
+      expect(includedSplit.amount, 350.0);
+      expect(includedSplit.category, 'Food');
+      expect(includedSplit.type, 'expense');
+    });
 
-    test(
-      'excludes settlement to friend expense to avoid double counting with borrower split',
-      () {
-        final borrowerSplit = SplitExpenseModel(
-          id: 'split-alice-1',
-          payerId: friendId,
-          borrowerId: currentUserId,
-          amount: 350.0,
-          totalAmount: 700.0,
-          description: 'Italian Dinner',
-          category: 'Food',
-          expenseDate: now,
-          createdAt: now,
-        );
+    test('excludes settlement to friend expense to avoid double counting with borrower split', () {
+      final borrowerSplit = SplitExpenseModel(
+        id: 'split-alice-1',
+        payerId: friendId,
+        borrowerId: currentUserId,
+        amount: 350.0,
+        totalAmount: 700.0,
+        description: 'Italian Dinner',
+        category: 'Food',
+        expenseDate: now,
+        createdAt: now,
+      );
 
-        viewModel.setMockData(
-          splitExpenses: [borrowerSplit],
-          mockUserId: currentUserId,
-        );
+      viewModel.setMockData(
+        splitExpenses: [borrowerSplit],
+        mockUserId: currentUserId,
+      );
 
-        final settlementExpenseTx = TransactionModel(
-          id: 'tx-settle-expense',
-          userId: currentUserId,
-          amount: 350.0,
-          type: 'expense',
-          category: 'General',
-          description: 'Settlement to Alice',
-          paymentMethod: 'upi',
-          transactionDate: now,
-          createdAt: now,
-        );
+      final settlementExpenseTx = TransactionModel(
+        id: 'tx-settle-expense',
+        userId: currentUserId,
+        amount: 350.0,
+        type: 'expense',
+        category: 'General',
+        description: 'Settlement to Alice',
+        paymentMethod: 'upi',
+        transactionDate: now,
+        createdAt: now,
+      );
 
-        final transformed = viewModel.transformTransactionsForAnalytics([
-          settlementExpenseTx,
-        ]);
+      final transformed = viewModel.transformTransactionsForAnalytics([
+        settlementExpenseTx,
+      ]);
 
-        expect(transformed.any((t) => t.id == 'tx-settle-expense'), false);
-        expect(
-          transformed.any((t) => t.id == 'split_borrower_split-alice-1'),
-          true,
-        );
-      },
-    );
+      expect(transformed.any((t) => t.id == 'tx-settle-expense'), false);
+      expect(
+        transformed.any((t) => t.id == 'split_borrower_split-alice-1'),
+        true,
+      );
+    });
 
     test(
       'respects date boundaries when including other users split expenses',
@@ -399,39 +387,33 @@ void main() {
       viewModel = SplitViewModel();
     });
 
-    test(
-      'returns synthesized transactions for split expenses where user is borrower without payer name in title',
-      () {
-        final split = SplitExpenseModel(
-          id: 'split-101',
-          payerId: friendId,
-          borrowerId: currentUserId,
-          amount: 250.0,
-          totalAmount: 500.0,
-          description: 'Groceries',
-          category: 'Shopping',
-          expenseDate: now,
-          createdAt: now,
-          payerName: 'Bob',
-        );
+    test('returns synthesized transactions for split expenses where user is borrower without payer name in title', () {
+      final split = SplitExpenseModel(
+        id: 'split-101',
+        payerId: friendId,
+        borrowerId: currentUserId,
+        amount: 250.0,
+        totalAmount: 500.0,
+        description: 'Groceries',
+        category: 'Shopping',
+        expenseDate: now,
+        createdAt: now,
+        payerName: 'Bob',
+      );
 
-        viewModel.setMockData(
-          splitExpenses: [split],
-          mockUserId: currentUserId,
-        );
+      viewModel.setMockData(splitExpenses: [split], mockUserId: currentUserId);
 
-        final txs = viewModel.getBorrowerSplitTransactions();
-        expect(txs.length, 1);
-        final t = txs.first;
-        expect(t.id, 'split_borrower_split-101');
-        expect(t.userId, currentUserId);
-        expect(t.amount, 250.0);
-        expect(t.type, 'expense');
-        expect(t.category, 'Shopping');
-        expect(t.description, 'Split: Groceries');
-        expect(t.transactionDate, now);
-      },
-    );
+      final txs = viewModel.getBorrowerSplitTransactions();
+      expect(txs.length, 1);
+      final t = txs.first;
+      expect(t.id, 'split_borrower_split-101');
+      expect(t.userId, currentUserId);
+      expect(t.amount, 250.0);
+      expect(t.type, 'expense');
+      expect(t.category, 'Shopping');
+      expect(t.description, 'Split: Groceries');
+      expect(t.transactionDate, now);
+    });
 
     test(
       'filters by category, payment method, date boundaries, and search query',
