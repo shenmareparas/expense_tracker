@@ -12,7 +12,7 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
 - **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (transaction type with All/Income/Expense/Split, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview). Unpaid borrower split obligations appear directly in the feed styled distinctly with amber/orange split icons and a `[ You Owe ]` badge without minus signs so they are not mistaken for paid expenses, while payer split expenses display the split icon (`Icons.call_split_rounded`) in red like other paid expenses.
 - **Split Expenses**:
   - **Overall Balance Hero Card**: Features an adaptive brand gradient harmonized with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode), rolling amount counter animation (`TweenAnimationBuilder`), dynamic visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
-  - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
+  - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up"). People with split expenses are ordered above people without split expenses via `SplitViewModel.orderedPartnerProfiles`.
   - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, unified Settle Up confirmation modal, custom friend deletion, and pull-to-refresh.
   - Settle Up functionality for both lenders and debtors, automatically recording settlement transactions in personal ledger.
   - Add and delete custom (unregistered) friends stored locally via `SharedPreferences`, which seamlessly participate in all split operations without foreign key conflicts.
@@ -133,6 +133,7 @@ lib/
 | Batch API | `updateSplitExpenseStatusBatch` and `deleteSplitExpenses` replace N sequential calls with a single `inFilter` query |
 | Connectivity Guard | `connectivity_plus` + `ConnectivityChecker` — pre-flight check in `_executeMutation()` for all write ops |
 | Concurrency Guard | `Completer`-based deduplication for concurrent transaction, split, and profile fetches |
+| Android Build Optimization | R8 full-mode shrinking, obfuscation, resource shrinking, and custom ProGuard rules |
 | Font Loading | Local Inter font in `google_fonts/` (runtime fetching disabled) |
 | Charts | `fl_chart` package (pie charts + bar charts in `AnalyticsPage`) |
 | UI Component Library | `material_ui: ^1.11.1` (official decoupled Material UI) |
@@ -157,3 +158,5 @@ lib/
 13. **Decoupled Auth & ViewModel boundaries** — `AuthService` exposes domain-level `AuthLifecycleEvent` (`onAuthLifecycleEvent`), completely removing `supabase_flutter` from `AuthViewModel`. ViewModels exclusively import `flutter/foundation.dart`.
 14. **PDF Export MVVM compliance** — `TransactionViewModel.exportTransactionsPdf(...)` orchestrates PDF statement generation, view, share, and save routines, keeping UI views (`ExportPdfBottomSheet`) 100% decoupled from `AuthService` and `PdfExportService`.
 15. **Partner balance pre-aggregation & Feed memoization** — `SplitViewModel.getPartnerBalance(id)` calculates `PartnerBalanceSummary` in a single `O(splits)` pass and invalidates upon `notifyListeners()`, eliminating `O(N*M)` scans in friend feeds. `TransactionListView` memoizes merged and sorted transaction feeds across rebuilds.
+16. **Partner priority ordering in Split tab** — `SplitViewModel.orderedPartnerProfiles` partitions partner profiles so individuals with existing split history (`splitCount > 0`) appear above partners with no split history, preserving MVVM encapsulation without placing business sorting logic in the View layer.
+17. **Android R8 optimization** — Release builds use `isMinifyEnabled = true`, `isShrinkResources = true`, `android.enableR8.fullMode=true`, and custom `proguard-rules.pro` tailored for Flutter runtime, engine entry points, coroutines, and plugin native bindings.

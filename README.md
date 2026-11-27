@@ -10,7 +10,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges, automatically synchronized with split expenses and personal transactions.
 - **🤝 Shared Split Expenses**:
   - **Overall Balance Hero Card**: Styled with an adaptive brand gradient harmonized with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode), top status pill, rolling amount counter animation (`TweenAnimationBuilder`), live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
-  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`).
+  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`). Partners with active or settled split expenses are prioritized at the top of the list above partners with no split history (`SplitViewModel.orderedPartnerProfiles`).
   - **Interactive Multi-Select Friend Picker**: Fast bottom sheet with search, checkmark indicators, real-time batch toggling, and sticky action bar to select multiple friends at once.
   - **Keyboard-Responsive Modal Architecture**: All split-related bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) feature bounded height constraints (`BoxConstraints`), view insets padding, pinned headers & action bars, and flexible drag-dismissible scrollable bodies preventing `RenderFlex` keyboard overflows on all screen sizes.
   - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` sheet. Custom friends are persisted locally, can be deleted anytime, and seamlessly participate in all split modes.
@@ -73,6 +73,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **Formatting & Localization**: [Intl](https://pub.dev/packages/intl) (`intl: ^0.20.2`)
 - **Persistence**: [Shared Preferences](https://pub.dev/packages/shared_preferences) (`shared_preferences: ^2.5.4`)
 - **PDF Generation & Export**: [pdf](https://pub.dev/packages/pdf) (`pdf: ^3.13.1`), [open_file](https://pub.dev/packages/open_file) (`open_file: ^4.0.0`), [share_plus](https://pub.dev/packages/share_plus) (`share_plus: ^13.3.1`), [path_provider](https://pub.dev/packages/path_provider) (`path_provider: ^2.1.6`)
+- **Android Release Optimizations**: R8 Full Mode (`android.enableR8.fullMode=true`), code minification (`isMinifyEnabled = true`), and resource shrinking (`isShrinkResources = true`) with custom ProGuard/R8 keep rules for Flutter engine, Coroutines, and plugins.
 
 ---
 

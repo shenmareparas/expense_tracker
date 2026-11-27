@@ -87,9 +87,11 @@ class SplitViewModel extends ChangeNotifier {
   @visibleForTesting
   void setMockData({
     List<SplitExpenseModel>? splitExpenses,
+    List<ProfileModel>? profiles,
     String? mockUserId,
   }) {
     if (splitExpenses != null) _splitExpenses = splitExpenses;
+    if (profiles != null) _remoteProfiles = profiles;
     if (mockUserId != null) _mockUserId = mockUserId;
   }
 
@@ -182,6 +184,23 @@ class SplitViewModel extends ChangeNotifier {
     }
 
     return _partnerBalanceCache![partnerId] ?? const PartnerBalanceSummary();
+  }
+
+  /// Returns partner profiles (excluding the current user) ordered so people
+  /// with split expenses appear above people without any split expenses.
+  List<ProfileModel> get orderedPartnerProfiles {
+    final uid = currentUserId;
+    final withSplits = <ProfileModel>[];
+    final withoutSplits = <ProfileModel>[];
+    for (final profile in profiles) {
+      if (profile.id == uid) continue;
+      if (getPartnerBalance(profile.id).splitCount > 0) {
+        withSplits.add(profile);
+      } else {
+        withoutSplits.add(profile);
+      }
+    }
+    return [...withSplits, ...withoutSplits];
   }
 
   /// Net balance (positive = you are owed money, negative = you owe money)

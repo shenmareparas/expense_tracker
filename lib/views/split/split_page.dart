@@ -47,11 +47,8 @@ class _SplitPageState extends State<SplitPage> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final currentUserId = splitVM.currentUserId;
-        // Filter out current user from profiles list
-        final partnerProfiles = splitVM.profiles
-            .where((p) => p.id != currentUserId)
-            .toList();
+        // Partner profiles ordered with split-expense partners above others
+        final partnerProfiles = splitVM.orderedPartnerProfiles;
 
         final visiblePartners = partnerProfiles
             .where((p) => !splitVM.isFriendHidden(p.id))

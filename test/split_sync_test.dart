@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:expense_tracker/viewmodels/split_viewmodel.dart';
+import 'package:expense_tracker/models/profile.dart';
 import 'package:expense_tracker/models/split_expense.dart';
 import 'package:expense_tracker/models/transaction.dart';
 
@@ -522,6 +523,130 @@ void main() {
           existingTransactions: [existingTx],
         );
         expect(txs.isEmpty, true);
+      },
+    );
+  });
+
+  group('SplitViewModel.orderedPartnerProfiles', () {
+    test('places partners with split expenses above others and excludes current user', () {
+      final viewModel = SplitViewModel();
+      const currentUserId = 'user-me';
+      final now = DateTime(2026, 11, 1, 14, 0);
+
+      final profiles = [
+        ProfileModel(id: currentUserId, email: 'me@example.com', name: 'Me'),
+        ProfileModel(id: 'u-no-split-1', email: 'a@example.com', name: 'Alice'),
+        ProfileModel(id: 'u-with-split-1', email: 'b@example.com', name: 'Bob'),
+        ProfileModel(
+          id: 'u-no-split-2',
+          email: 'c@example.com',
+          name: 'Charlie',
+        ),
+        ProfileModel(
+          id: 'u-with-split-2',
+          email: 'd@example.com',
+          name: 'Dave',
+        ),
+      ];
+
+      final splits = [
+        SplitExpenseModel(
+          id: 's1',
+          payerId: currentUserId,
+          borrowerId: 'u-with-split-1',
+          amount: 100,
+          totalAmount: 200,
+          description: 'Lunch',
+          status: 'pending',
+          expenseDate: now,
+          createdAt: now,
+        ),
+        SplitExpenseModel(
+          id: 's2',
+          payerId: 'u-with-split-2',
+          borrowerId: currentUserId,
+          amount: 50,
+          totalAmount: 100,
+          description: 'Coffee',
+          status: 'settled',
+          expenseDate: now,
+          createdAt: now,
+        ),
+      ];
+
+      viewModel.setMockData(
+        profiles: profiles,
+        splitExpenses: splits,
+        mockUserId: currentUserId,
+      );
+
+      final orderedIds = viewModel.orderedPartnerProfiles
+          .map((p) => p.id)
+          .toList();
+      expect(orderedIds, [
+        'u-with-split-1',
+        'u-with-split-2',
+        'u-no-split-1',
+        'u-no-split-2',
+      ]);
+    });
+  });
+
+  group('SplitViewModel.orderedPartnerProfiles', () {
+    test(
+      'places partners with split expenses above others and excludes current user',
+      () {
+        final viewModel = SplitViewModel();
+        const currentUserId = 'user-me';
+        final now = DateTime(2026, 11, 1, 14, 0);
+
+        final profiles = [
+          ProfileModel(id: currentUserId, email: 'me@example.com', name: 'Me'),
+          ProfileModel(id: 'u-no-split-1', email: 'a@example.com', name: 'Alice'),
+          ProfileModel(id: 'u-with-split-1', email: 'b@example.com', name: 'Bob'),
+          ProfileModel(id: 'u-no-split-2', email: 'c@example.com', name: 'Charlie'),
+          ProfileModel(id: 'u-with-split-2', email: 'd@example.com', name: 'Dave'),
+        ];
+
+        final splits = [
+          SplitExpenseModel(
+            id: 's1',
+            payerId: currentUserId,
+            borrowerId: 'u-with-split-1',
+            amount: 100,
+            totalAmount: 200,
+            description: 'Lunch',
+            status: 'pending',
+            expenseDate: now,
+            createdAt: now,
+          ),
+          SplitExpenseModel(
+            id: 's2',
+            payerId: 'u-with-split-2',
+            borrowerId: currentUserId,
+            amount: 50,
+            totalAmount: 100,
+            description: 'Coffee',
+            status: 'settled',
+            expenseDate: now,
+            createdAt: now,
+          ),
+        ];
+
+        viewModel.setMockData(
+          profiles: profiles,
+          splitExpenses: splits,
+          mockUserId: currentUserId,
+        );
+
+        final orderedIds =
+            viewModel.orderedPartnerProfiles.map((p) => p.id).toList();
+        expect(orderedIds, [
+          'u-with-split-1',
+          'u-with-split-2',
+          'u-no-split-1',
+          'u-no-split-2',
+        ]);
       },
     );
   });

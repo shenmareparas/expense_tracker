@@ -35,6 +35,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 - **Friends Feed**: Main Split screen (`SplitPage`) displays:
   - **Overall Balance Hero Card**: Styled with an adaptive brand gradient that harmonizes with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode, `28px` corner radius), top header with frosted status pill, 500ms rolling number animation (`TweenAnimationBuilder<double>` with `FontFeature.tabularFigures()`), dynamic live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
   - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
+  - **Priority Ordering**: Partners with active or settled split expenses appear above people without split expenses via `SplitViewModel.orderedPartnerProfiles`.
 - **Custom Friends Support**: Users can add unregistered friends via "Add new person" modal on `SplitPage` and `AddSplitPage`.
   - Custom friends are assigned client-generated UUIDs and persisted locally in `SharedPreferences` (`custom_friends`).
   - Merged seamlessly into `SplitViewModel.profiles` alongside remote Supabase profiles.
@@ -211,6 +212,7 @@ To release a new version of the app on GitHub:
    ```bash
    flutter build apk
    ```
+   *Note: Android release builds automatically run with R8 Full Mode (`android.enableR8.fullMode=true`), code minification, and resource shrinking using rules in `android/app/proguard-rules.pro`.*
 2. Recreate the release and upload the new APK using the provided script:
    ```bash
    bun scripts/recreate_release.js
