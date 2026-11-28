@@ -1,256 +1,100 @@
-# <img src="screenshots/ic_launcher-playstore.png" width="48" height="48" align="center"> Expense Tracker
+# <img src="screenshots/ic_launcher-playstore.png" width="72" height="72" align="center"> Expense Tracker
 
-A modern, highly-polished, and feature-rich **Expense Tracker** application built with Flutter, backed by a **Supabase** backend, and state-managed with **Provider** following a strict **MVVM + Service** architecture.
-
----
-
-## 🚀 Key Features
-
-- **🔐 Secure Authentication**: Integrated with Supabase Auth (Sign In, Sign Up, Password Reset, in-app OTP recovery verification, and Auth Persistence) with built-in retry logic and exponential back-off for transient network issues.
-- **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges, automatically synchronized with split expenses and personal transactions.
-- **🤝 Shared Split Expenses**:
-  - **Overall Balance Hero Card**: Styled with an adaptive brand gradient harmonized with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode), top status pill, rolling amount counter animation (`TweenAnimationBuilder`), live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
-  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`). Partners with active or settled split expenses are prioritized at the top of the list (with active unsettled and recent splits first) above partners with no split history (`SplitViewModel.orderedPartnerProfiles`), both on the Friends screen and in the `AddSplitPage` partner picker.
-  - **Interactive Multi-Select Friend Picker**: Fast bottom sheet with search, checkmark indicators, real-time batch toggling, and sticky action bar to select multiple friends at once.
-  - **Keyboard-Responsive Modal Architecture**: All split-related bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, and `SplitPayerPickerSheet`) feature bounded height constraints (`BoxConstraints`), view insets padding, pinned headers & action bars, and flexible drag-dismissible scrollable bodies preventing `RenderFlex` keyboard overflows on all screen sizes.
-  - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` sheet. Custom friends are persisted locally, can be renamed or deleted anytime from `UserSplitDetailPage`, and seamlessly participate in all split modes.
-  - **Multi-Person Group Edit & Deletion**: Full editing and deletion support for split groups, automatically resolving sister splits, participant shares, percentages, payer assignments, and linked payment method (`UPI` / `Cash`) while preserving `settled` status for unchanged shares and keeping linked personal transactions synchronized.
-  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, pull-to-refresh, and unified Settle Up confirmation modal. Supports renaming and deleting custom friends.
-  - **Settle Up Payments**: Support Settle Up for both lenders and debtors, logging income settlement transactions when receiving money and expense settlement transactions when paying back.
-  - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split partner picker, and accessible via a low-profile expand/collapse toggle.
-  - **Six Fully-Functional Split Modes**:
-    - **Split Equally (`=`)**: Toggle member inclusion with live per-person recalculation.
-    - **You Owe Partner Full**: Full bill amount assigned as debt to the partner.
-    - **Partner Owes You Full**: Full bill amount assigned as receivable.
-    - **Split by Exact Amounts (`1.23`)**: Individual numerical amount inputs with live balance remaining/over allocation pill indicator (`₹XX.XX left`), `scrollPadding` for keyboard clearance, and `TextInputAction.next`.
-    - **Split by Percentages (`%`)**: Individual percentage inputs with computed monetary values (`₹XX.XX`), live percentage balance pill (`XX% left`), `scrollPadding`, and `TextInputAction.next`.
-    - **Split by Shares (`===`)**: Stepper buttons (`+` / `−`) with real-time ratio calculation.
-  - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
-  - **Bidirectional Transaction & Analytics Sync**: Out-of-pocket split shares and settlements automatically log to personal transactions, with strict date/description matching in Analytics so non-split personal expenses are never adjusted by older splits. Shared split obligations where the user owes money are surfaced directly in the transaction ledger styled distinctly in amber/orange with a `[ You Owe ]` badge without minus signs, while payer split expenses render the split icon (`Icons.call_split_rounded`) in red like other paid expenses. Tapping a split transaction from the personal feed opens the full Split editor.
-- **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
-- **💸 Transaction Ledger & Math Inputs**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type (All, Income, Expense, Split), or date range. Filtering by `Expense` excludes unpaid split debts, while filtering by `Split` surfaces all shared obligations and split records. **Inline Math Operations**: Enter mathematical calculations (`+`, `−`, `×`, `÷`) directly into amount fields with an interactive operations toolbar (`MathOperationsBar`), live computation preview badge, and automatic evaluation upon exiting the field or saving.
-- **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, compound filter keys, concurrent request deduplication via `Completer`, and optimistic state updates with rollback in ViewModels to minimize network overhead and ensure instant screen transitions.
-- **📈 Analytics Snapshot & Date Boundaries**: A dedicated `loadAnalyticsSnapshot()` mechanism in `TransactionViewModel` fetches a separate date-filtered dataset for analytics without clobbering the main transaction feed or filters. All date-range filters normalize end dates to end-of-day (`23:59:59.999`) to guarantee same-day transactions are reliably included. The summary hero card gradient dynamically harmonizes with active theme colors.
-- **📄 PDF Statements & Export**: Export transaction statements as formatted PDF documents directly from **Settings → General → Export Statement (PDF)**. Includes custom date ranges (presets & custom picker), transaction type, payment method, category multi-filters, and live matching metrics. Allows instant **View PDF** (via `open_file`), **Share PDF** (direct system share sheet via `share_plus`), or **Save to Device Storage**. Includes safe-area top overlay status toasts (`_TopToastWidget`) and pagination support up to 200+ pages (`pw.TableHelper.fromTextArray`).
-- **⚙️ Customizable Settings & Preferences**: Personalize the experience by configuring theme (system/light/dark), dynamic wallpaper & palette matching (`Dynamic Colors` toggle via `dynamic_color` on Android), haptic feedback, default analytics tab, analytics tab order, and hidden friends — all saved persistently via `SharedPreferences`.
-- **🎨 Rich Material 3 Aesthetics**: Tailored dynamic dark & light themes (`#000000` scaffold / `#0A0A0A` surface for dark mode), bundled Roboto typography, dynamic system wallpaper extraction on supported devices, rounded press highlights (`Clip.antiAlias`), conditional haptic feedback, `AnimatedSwitcher` tab transitions, and tap-to-scroll-to-top gestures.
+A personal finance and shared expense tracking app built with Flutter and Supabase, using Provider and an MVVM architecture.
 
 ---
 
-## 📸 App Showcase & Screenshots
+## Features
 
-<p align="center">
-  <em>A side-by-side comparison of the application across Light and Dark themes, highlighting the high-contrast Material 3 UI and crafted micro-interactions.</em>
-</p>
-
-<div align="center">
-
-| Screen & Feature | Light Mode | Dark Mode |
-| :--- | :---: | :---: |
-| **Authentication & Onboarding**<br><sub>Supabase Auth, session persistence, OTP recovery</sub> | <img src="screenshots/1a.webp" width="340" alt="Auth - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/1b.webp" width="340" alt="Auth - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Transaction Feed & Ledger**<br><sub>Filter by tags, search amounts & real-time sync</sub> | <img src="screenshots/2a.webp" width="340" alt="Transactions Feed - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/2b.webp" width="340" alt="Transactions Feed - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Add Transaction**<br><sub>Interactive math toolbar, instant calculation & tag selector</sub> | <img src="screenshots/3a.webp" width="340" alt="Add Transaction - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/3b.webp" width="340" alt="Add Transaction - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Split Expenses Dashboard**<br><sub>Animated balance hero card, ratio bar & friends list</sub> | <img src="screenshots/4a.webp" width="340" alt="Split Dashboard - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/4b.webp" width="340" alt="Split Dashboard - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Add / Edit Shared Expense**<br><sub>Multi-friend selection, 6 split modes & ratio steppers</sub> | <img src="screenshots/5a.webp" width="340" alt="Add Split - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/5b.webp" width="340" alt="Add Split - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Analytics & Trends**<br><sub>Date range drill-down, filter chips & cash flow insights</sub> | <img src="screenshots/6a.webp" width="340" alt="Analytics Overview - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/6b.webp" width="340" alt="Analytics Overview - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Category Breakdown**<br><sub>Interactive FL Chart visualizations & granular distributions</sub> | <img src="screenshots/7a.webp" width="340" alt="Category Analytics - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/7b.webp" width="340" alt="Category Analytics - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Preferences & Settings**<br><sub>Theme picker, haptic feedback toggles & PDF export hub</sub> | <img src="screenshots/8a.webp" width="340" alt="Settings - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/8b.webp" width="340" alt="Settings - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-| **Category Management**<br><sub>Fluid drag-and-drop reordering & custom tag management</sub> | <img src="screenshots/9a.webp" width="340" alt="Manage Categories - Light Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"> | <img src="screenshots/9b.webp" width="340" alt="Manage Categories - Dark Mode" style="border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);"> |
-
-</div>
+- **Authentication**: Sign in, sign up, password reset, and OTP recovery via Supabase Auth.
+- **Transactions & Filtering**: Log income and expenses with categories, payment methods (UPI or Cash), notes, and custom dates. Search by amount or description, and filter by type, categories, payment method, or date range.
+- **Inline Math Input**: Enter arithmetic expressions (`+`, `-`, `*`, `/`) directly in amount fields with a built-in operations bar and live preview.
+- **Shared Split Expenses**: Split bills with friends using 6 modes (equal, full debt/credit, exact amounts, percentages, or shares), add custom offline friends, hide/unhide friends, and settle up balances.
+- **Analytics & Charts**: Interactive category breakdowns and cash flow charts with customizable date ranges, synchronized with your personal and split expenses.
+- **Custom Categories**: Create, edit, delete, and reorder income and expense categories.
+- **PDF Statement Export**: Export filtered transaction statements as PDFs to view, share, or save locally.
+- **Theming & Preferences**: Light, dark, and system themes, Material 3 dynamic colors on Android, and configurable haptic feedback.
 
 ---
 
-## 🛠️ Technology Stack & Dependencies
+## Screenshots
 
-- **Framework**: [Flutter](https://flutter.dev) (Dart SDK `^3.13.0`)
-- **Backend & Database**: [Supabase](https://supabase.com) (`supabase_flutter: ^2.12.0`)
-- **Material UI**: [Material UI](https://pub.dev/packages/material_ui) (`material_ui: ^1.11.1`)
-- **State Management**: [Provider](https://pub.dev/packages/provider) (`provider: ^6.1.5+1`)
-- **Data Visualization**: [FL Chart](https://pub.dev/packages/fl_chart) (`fl_chart: ^1.1.1`)
-- **Dynamic Theming**: [Dynamic Color](https://pub.dev/packages/dynamic_color) (`dynamic_color: ^2.1.0`)
-- **Typography**: Bundled Roboto font
-- **Formatting & Localization**: [Intl](https://pub.dev/packages/intl) (`intl: ^0.20.2`)
-- **Persistence**: [Shared Preferences](https://pub.dev/packages/shared_preferences) (`shared_preferences: ^2.5.4`)
-- **PDF Generation & Export**: [pdf](https://pub.dev/packages/pdf) (`pdf: ^3.13.1`), [open_file](https://pub.dev/packages/open_file) (`open_file: ^4.0.0`), [share_plus](https://pub.dev/packages/share_plus) (`share_plus: ^13.3.1`), [path_provider](https://pub.dev/packages/path_provider) (`path_provider: ^2.1.6`)
-- **Android Release Optimizations**: R8 Full Mode (`android.enableR8.fullMode=true`), code minification (`isMinifyEnabled = true`), and resource shrinking (`isShrinkResources = true`) with custom ProGuard/R8 keep rules for Flutter engine, Coroutines, and plugins.
+| Screen                 |                                    Light Mode                                     |                                    Dark Mode                                     |
+| :--------------------- | :-------------------------------------------------------------------------------: | :------------------------------------------------------------------------------: |
+| **Authentication**     |        <img src="screenshots/1a.webp" width="320" alt="Auth - Light Mode">        |        <img src="screenshots/1b.webp" width="320" alt="Auth - Dark Mode">        |
+| **Transactions**       |    <img src="screenshots/2a.webp" width="320" alt="Transactions - Light Mode">    |    <img src="screenshots/2b.webp" width="320" alt="Transactions - Dark Mode">    |
+| **Add Transaction**    |  <img src="screenshots/3a.webp" width="320" alt="Add Transaction - Light Mode">   |  <img src="screenshots/3b.webp" width="320" alt="Add Transaction - Dark Mode">   |
+| **Split Expenses**     |  <img src="screenshots/4a.webp" width="320" alt="Split Dashboard - Light Mode">   |  <img src="screenshots/4b.webp" width="320" alt="Split Dashboard - Dark Mode">   |
+| **Add / Edit Split**   |     <img src="screenshots/5a.webp" width="320" alt="Add Split - Light Mode">      |     <img src="screenshots/5b.webp" width="320" alt="Add Split - Dark Mode">      |
+| **Analytics Overview** |     <img src="screenshots/6a.webp" width="320" alt="Analytics - Light Mode">      |     <img src="screenshots/6b.webp" width="320" alt="Analytics - Dark Mode">      |
+| **Category Breakdown** | <img src="screenshots/7a.webp" width="320" alt="Category Breakdown - Light Mode"> | <img src="screenshots/7b.webp" width="320" alt="Category Breakdown - Dark Mode"> |
+| **Settings**           |      <img src="screenshots/8a.webp" width="320" alt="Settings - Light Mode">      |      <img src="screenshots/8b.webp" width="320" alt="Settings - Dark Mode">      |
+| **Manage Categories**  | <img src="screenshots/9a.webp" width="320" alt="Manage Categories - Light Mode">  | <img src="screenshots/9b.webp" width="320" alt="Manage Categories - Dark Mode">  |
 
 ---
 
-## 🏗️ Architecture (MVVM + Service)
+## Tech Stack
 
-The project adheres strictly to the **Model-View-ViewModel (MVVM)** pattern combined with a **Service Layer**:
+- **Framework**: Flutter (Dart)
+- **Backend & Auth**: Supabase (`supabase_flutter`)
+- **State Management**: Provider (MVVM + Service architecture)
+- **Charts**: `fl_chart`
+- **PDF Export**: `pdf`, `open_file`, `share_plus`
+- **Local Preferences**: `shared_preferences`
 
-```
+---
+
+## Project Structure
+
+```text
 lib/
-├── app/
-│   ├── app.dart              # MyApp: MultiProvider + MaterialApp light/dark theme
-│   └── supabase_config.dart  # Compile-time credential injection + SupabaseClient accessor
-├── models/                   # Pure Dart — no Flutter imports, no business logic
-│   ├── category.dart         # CategoryModel (sortWithOtherLast static helper)
-│   ├── profile.dart          # ProfileModel (displayName getter)
-│   ├── split_expense.dart    # SplitExpenseModel (displayPayer/displayBorrower helpers)
-│   └── transaction.dart      # TransactionModel (full CRUD fields + copyWith)
-├── services/                 # ONLY layer that imports supabase_flutter
-│   ├── auth_service.dart     # Singleton: Supabase Auth + retry/back-off + error mapping
-│   ├── database_service.dart # Singleton: PostgREST ops, 2m/10m/15m TTL cache, Completer dedup
-│   └── pdf_export_service.dart # Singleton: PDF generation, table formatting, viewing, sharing & saving
-├── viewmodels/               # ALL business logic lives here — ChangeNotifier state machines
-│   ├── auth_viewmodel.dart   # Loading/error flags, recovery mode, session stream
-│   ├── category_viewmodel.dart  # CRUD, drag reorder with rollback, seeding, name lists
-│   ├── split_viewmodel.dart  # Feed, net balances, settle up, hidden friends; user identity via AuthService
-│   ├── theme_viewmodel.dart  # Theme mode, haptics, analytics tab preferences
-│   └── transaction_viewmodel.dart  # Feed, filters, search, analytics snapshot, optimistic ops, fetchTransactionsForExport
-├── views/                    # UI ONLY — consume ViewModels via Provider/Consumer
-│   ├── analytics/
-│   │   └── analytics_page.dart   # FL Chart pie + bar, memoized aggregations
-│   ├── auth/
-│   │   ├── auth_gate.dart         # Routes to LoginPage/HomePage/UpdatePasswordPage
-│   │   ├── forgot_password_page.dart
-│   │   ├── login_page.dart
-│   │   └── update_password_page.dart
-│   ├── home/
-│   │   ├── home_page.dart         # Bottom nav, AnimatedSwitcher tab transitions
-│   │   └── widgets/
-│   │       ├── export_pdf_bottom_sheet.dart # PDF Statement export filter sheet & top status toasts
-│   │       ├── filter_bottom_sheet.dart  # Filter modal (type with All/Income/Expense/Split, categories, payment, dates)
-│   │       └── transaction_list.dart  # Feed merging personal transactions & borrower split obligations
-│   ├── settings/
-│   │   ├── manage_categories_page.dart
-│   │   └── settings_page.dart
-│   ├── split/
-│   │   ├── add_split_page.dart    # 6 split modes, Who Paid selector, live previews; user identity via SplitViewModel
-│   │   ├── split_page.dart
-│   │   ├── user_split_detail_page.dart
-│   │   └── widgets/
-│   │       └── split_payer_picker_sheet.dart # Extracted Choose Payer modal bottom sheet
-│   └── transaction/
-│       └── add_transaction_page.dart  # Add/edit transaction form with math input & operations bar
-├── widgets/
-│   ├── app_dropdown.dart          # AppDropdown<T> and AppDropdownButton<T>
-│   └── math_operations_bar.dart   # Interactive math toolbar (+, −, ×, ÷, C) + live calculation preview pill
-└── utils/
-    ├── date_formatter.dart   # Relative date labels (Today/Yesterday)
-    ├── exceptions.dart       # AppException hierarchy (Data/Auth/Network/Unauthenticated)
-    ├── haptics.dart          # AppHaptics: conditional haptic helpers
-    └── math_evaluator.dart   # Pure Dart arithmetic evaluator supporting operators, precedence & formatting
+├── app/         # App configuration, theme setup, and Provider bindings
+├── models/      # Domain data models
+├── services/    # Supabase auth, database, and PDF export services
+├── viewmodels/  # State management and business logic
+├── views/       # UI screens and page-specific widgets
+├── widgets/     # Reusable UI components
+└── utils/       # Formatting, math evaluation, haptics, and exceptions
 ```
 
 ---
 
-## 💾 Caching & Sync Strategy
-
-The `DatabaseService` uses an **in-memory cache** combined with query safeguards to prevent unnecessary PostgREST calls and ensure fluid navigation:
-- **Differentiated TTLs**: Each data type gets a TTL sized to how often it actually changes:
-  - `transactions` & `split_expenses` — **2 minutes** (mutated frequently)
-  - `profiles` — **10 minutes** (rarely changes)
-  - `categories` — **15 minutes** (almost never changes)
-- **Compound Cache Key**: The transaction cache uses a composite key generated from active filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`).
-- **Cache Invalidation**: Any database mutation (insert, update, delete, reordering, settle up) invalidates the respective cache immediately to force a fresh sync.
-- **Request Deduplication**: Concurrency guards (`Completer` pattern) prevent duplicate identical in-flight network requests for transactions, splits, and profiles.
-- **Profiles Cache Reuse**: `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to enrich split records with display names, eliminating a hidden second round-trip on every split load.
-- **Batch API Calls**: `settleUpWithPartner()` uses `updateSplitExpenseStatusBatch()` (single `inFilter` update) instead of N sequential calls. `updateSplitExpenseGroup()` uses `deleteSplitExpenses()` (single `inFilter` delete) instead of N sequential calls.
-- **Pull-to-Refresh Bypass**: Pulling down to refresh on home, split, or friend detail feeds passes `forceRefresh: true` to bypass the TTL cache and pull fresh data directly from Supabase.
-- **Optimistic UI**: Transactions and split expense statuses are updated locally first, recalculating stats immediately and avoiding blocking spinners.
-- **Sign-Out Purge**: `clearCache()` clears all caches on sign-out to prevent cross-account leakage.
-- **Connectivity Pre-Check**: All write operations call `_executeMutation()` which runs a `ConnectivityChecker.isConnected()` guard before touching the network. If the device is offline, a `NetworkException` is thrown immediately instead of waiting for a ~30 s TCP timeout. The existing `SocketException → NetworkException` mapping in `_mapError` remains as an authoritative fallback for false positives.
-- **SharedPreferences Caching**: `SplitViewModel` caches the `SharedPreferences` instance in a `_prefs` field (resolved once via `_getPrefs()`) rather than calling `getInstance()` on every custom-friend or hidden-friend operation.
-
----
-
-## ⚠️ Robust Exception Handling
-
-All services catch raw network and database exceptions, mapping them to safe typed `AppException` subclasses (`lib/utils/exceptions.dart`):
-- `UnauthenticatedException`
-- `DataException`
-- `AppAuthException`
-- `NetworkException`
-
-ViewModels catch these exceptions and display user-friendly error bars without exposing raw DB stack traces.
-
----
-
-## 📊 Database Schema
-
-### 1. `transactions`
-- `id` (UUID, Primary Key) - Auto-generated
-- `user_id` (UUID, Foreign Key) - References Supabase Auth User
-- `amount` (Numeric) - Decimal transaction value
-- `type` (Text) - `'expense'` or `'income'`
-- `category` (Text) - Associated category name
-- `description` (Text, Optional) - Optional memo/note
-- `payment_method` (Text) - `'upi'` or `'cash'` (default `'upi'`)
-- `transaction_date` (Timestamptz) - Date when transaction occurred
-- `created_at` (Timestamptz) - Server-side creation timestamp
-
-### 2. `categories`
-- `id` (UUID, Primary Key) - Auto-generated
-- `user_id` (UUID, Foreign Key) - References Supabase Auth User
-- `name` (Text) - Display label of the category
-- `type` (Text) - `'expense'` or `'income'`
-- `order_index` (Integer) - Order ranking for reorderable list views
-- `created_at` (Timestamptz) - Server-side creation timestamp
-
-### 3. `split_expenses`
-- `id` (UUID, Primary Key) - Auto-generated
-- `payer_id` (UUID) - References payer (Supabase Auth user ID or custom friend UUID)
-- `borrower_id` (UUID) - References borrower (Supabase Auth user ID or custom friend UUID)
-- `amount` (Numeric) - Per-person debt share
-- `total_amount` (Numeric) - Total bill amount
-- `description` (Text) - Description/memo for the split expense
-- `category` (Text) - Associated category (default `'General'`)
-- `status` (Text) - `'pending'` or `'settled'`
-- `expense_date` (Timestamptz) - Date when the split expense occurred
-- `created_at` (Timestamptz) - Server-side creation timestamp
-
-### 4. `profiles`
-- `id` (UUID, Primary Key) - Maps to Supabase Auth User ID
-- `email` (Text) - User email address
-- `name` (Text, Optional) - User display name
-- `created_at` (Timestamptz) - Server-side creation timestamp
-
----
-
-## 🏁 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) (version `>= 3.47.0`, Dart SDK `>= 3.13.0`)
-- Android Studio / VS Code with Flutter extensions
-- A physical device or emulator
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) (`>= 3.47.0`, Dart `>= 3.13.0`)
+- A configured [Supabase](https://supabase.com) project
+- An Android/iOS emulator or physical device
 
-### Installation & Run
+### Setup
 
-1. **Clone the repository**:
+1. Clone the repository:
+
    ```bash
    git clone <repository_url>
    cd expense_tracker
    ```
 
-2. **Get dependencies**:
+2. Install dependencies:
+
    ```bash
    flutter pub get
    ```
 
-3. **Verify the environment configuration**:
-   The app resolves Supabase credentials at compile-time via `--dart-define` parameters. For convenience, it falls back to development defaults. You can specify yours when running or building:
+3. Run the app with your Supabase credentials:
    ```bash
    flutter run \
      --dart-define=SUPABASE_URL=https://your-project.supabase.co \
      --dart-define=SUPABASE_ANON_KEY=your-anon-key
    ```
-   Or place them in a `.env.json` and run:
+   Or using a `.env.json` file:
    ```bash
    flutter run --dart-define-from-file=.env.json
    ```
 
-4. **Run the app**:
-   ```bash
-   flutter run
-   ```
-
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

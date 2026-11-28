@@ -1,36 +1,37 @@
-# 🌌 Expense Tracker Workspace Rules & Agent Guidelines
+# Expense Tracker Workspace Rules & Agent Guidelines
 
 Welcome to the **Expense Tracker** project! This file serves as the workspace-level rules and guidelines for AI agents working on this codebase. These instructions are automatically discovered and loaded.
 
 ---
 
-## 🏗️ Project Architecture & Tech Stack
+## Project Architecture & Tech Stack
 
 This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Service** architecture in Flutter, backed by **Supabase** and powered by the **Provider** package for state management.
 
 ### Key Directory Structure:
+
 - `lib/app/`: Application bootstrap (`MyApp`, `MultiProvider`), routing, and `SupabaseConfig` initialization.
 - `lib/models/`: Immutable domain data models with `fromJson`, `toJson`, `copyWith`, `==`, and `hashCode`.
 - `lib/services/`: Singleton data/auth services (`AuthService`, `DatabaseService`) that are the **only** layer allowed to import `supabase_flutter` or make network calls.
 - `lib/viewmodels/`: ViewModels implementing `ChangeNotifier`. **All business logic lives here.** Consume services; expose state + actions to the UI.
 - `lib/views/`: UI Layer (Screens & Page-specific layouts). May only access ViewModels via `Provider`/`Consumer`. **Must never import `supabase_flutter`, `DatabaseService`, or `AuthService` directly.**
 - `lib/widgets/`: Reusable, pure-UI components (e.g. `AppDropdown`, `MathOperationsBar`).
-- `lib/utils/`: Pure helpers — formatting (`DateFormatter`), math parsing (`MathEvaluator`), typed exceptions (`AppException` hierarchy), haptics (`AppHaptics`).
+- `lib/utils/`: Pure helpers -- formatting (`DateFormatter`), math parsing (`MathEvaluator`), typed exceptions (`AppException` hierarchy), haptics (`AppHaptics`).
 
 ---
 
-## ⚙️ MVVM Compliance Rules (CRITICAL — enforce on every change)
+## MVVM Compliance Rules (CRITICAL -- enforce on every change)
 
-1. **Views → ViewModels only**: Views read state via `Consumer<T>` or `context.watch<T>()` and trigger actions via `context.read<T>()`. Views must **never** call `DatabaseService`, `AuthService`, or any Supabase SDK directly.
-2. **ViewModels → Services only**: ViewModels call `DatabaseService.instance` and `AuthService.instance`. They must not import `supabase_flutter` directly. Auth identity reads (current user id, name, email) must go through `AuthService.instance.currentUser`.
-3. **Services → SDK only**: Services encapsulate all PostgREST queries, Auth calls, error mapping, and caching. They return typed domain models or throw typed `AppException` subclasses.
+1. **Views -> ViewModels only**: Views read state via `Consumer<T>` or `context.watch<T>()` and trigger actions via `context.read<T>()`. Views must **never** call `DatabaseService`, `AuthService`, or any Supabase SDK directly.
+2. **ViewModels -> Services only**: ViewModels call `DatabaseService.instance` and `AuthService.instance`. They must not import `supabase_flutter` directly. Auth identity reads (current user id, name, email) must go through `AuthService.instance.currentUser`.
+3. **Services -> SDK only**: Services encapsulate all PostgREST queries, Auth calls, error mapping, and caching. They return typed domain models or throw typed `AppException` subclasses.
 4. **Models are pure Dart**: No Flutter imports, no service calls, no state. Display-only computed getters (e.g., `displayName`) that derive from model fields are acceptable.
 
-> ✅ **Fully enforced as of 2026-11-28**: `split_viewmodel.dart` previously held a direct `SupabaseClient` reference; it now routes all current-user identity reads through `AuthService.instance`. `add_split_page.dart` previously called `Supabase.instance.client.auth.currentUser` directly in two bottom sheet methods; it now uses `SplitViewModel.currentUserDisplayName` instead. `auth_viewmodel.dart` is fully decoupled from `supabase_flutter` SDK events via `AuthLifecycleEvent` in `AuthService`. `export_pdf_bottom_sheet.dart` delegates all PDF generation, viewing, and sharing through `TransactionViewModel.exportTransactionsPdf`, eliminating all direct Service imports from the view. Zero Views or ViewModels import `supabase_flutter`. All ViewModels import pure `flutter/foundation.dart` instead of UI packages. `database_service.dart` reuses the profiles cache via `getProfiles(forceRefresh: false)`. `transaction_viewmodel.dart` relies on the service's internal `_invalidateTransactionCache()` only. Performance optimizations: `app.dart` uses `Selector` on theme attributes to prevent unnecessary app rebuilds; `TransactionListView` memoizes merged and sorted personal/borrower split feeds; `SplitViewModel` pre-aggregates partner balances via `getPartnerBalance` in a single pass.
+> **Fully enforced as of 2026-11-28**: `split_viewmodel.dart` previously held a direct `SupabaseClient` reference; it now routes all current-user identity reads through `AuthService.instance`. `add_split_page.dart` previously called `Supabase.instance.client.auth.currentUser` directly in two bottom sheet methods; it now uses `SplitViewModel.currentUserDisplayName` instead. `auth_viewmodel.dart` is fully decoupled from `supabase_flutter` SDK events via `AuthLifecycleEvent` in `AuthService`. `export_pdf_bottom_sheet.dart` delegates all PDF generation, viewing, and sharing through `TransactionViewModel.exportTransactionsPdf`, eliminating all direct Service imports from the view. Zero Views or ViewModels import `supabase_flutter`. All ViewModels import pure `flutter/foundation.dart` instead of UI packages. `database_service.dart` reuses the profiles cache via `getProfiles(forceRefresh: false)`. `transaction_viewmodel.dart` relies on the service's internal `_invalidateTransactionCache()` only. Performance optimizations: `app.dart` uses `Selector` on theme attributes to prevent unnecessary app rebuilds; `TransactionListView` memoizes merged and sorted personal/borrower split feeds; `SplitViewModel` pre-aggregates partner balances via `getPartnerBalance` in a single pass.
 
 ---
 
-## 🤝 Shared Expenses & Integration Architecture
+## Shared Expenses & Integration Architecture
 
 - **Friends Feed**: Main Split screen (`SplitPage`) displays:
   - **Overall Balance Hero Card**: Styled with an adaptive brand gradient that harmonizes with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode, `28px` corner radius), top header with frosted status pill, 500ms rolling number animation (`TweenAnimationBuilder<double>` with `FontFeature.tabularFigures()`), dynamic live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
@@ -85,19 +86,19 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 
 ---
 
-## 💾 Caching & Concurrency Strategy (`DatabaseService`)
+## Caching & Concurrency Strategy (`DatabaseService`)
 
 - **Differentiated TTL Configuration**: Each cache type uses a TTL sized to how often it changes:
-  - `_transactionCacheTtl = Duration(minutes: 2)` — transactions mutate frequently
-  - `_splitCacheTtl = Duration(minutes: 2)` — splits change with settle-ups
-  - `_profilesCacheTtl = Duration(minutes: 10)` — profiles rarely change
-  - `_categoryCacheTtl = Duration(minutes: 15)` — categories almost never change
+  - `_transactionCacheTtl = Duration(minutes: 2)` -- transactions mutate frequently
+  - `_splitCacheTtl = Duration(minutes: 2)` -- splits change with settle-ups
+  - `_profilesCacheTtl = Duration(minutes: 10)` -- profiles rarely change
+  - `_categoryCacheTtl = Duration(minutes: 15)` -- categories almost never change
 - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
 - **Invalidation**: All mutation operations (add, edit, delete, reorder, settle up) explicitly call `_invalidateTransactionCache()`, `_invalidateCategoryCache()`, or `_invalidateSplitCache()` to guarantee immediate data updates in the UI.
 - **Profiles Cache Reuse**: `getSplitExpenses()`, `addCustomMultipleSplitExpenses()`, and `updateSplitExpense()` share `_enrichSplitsWithProfiles()`, which calls `getProfiles(forceRefresh: false)` to enrich split records, eliminating redundant `SELECT *` round-trips.
 - **Batch API Calls**: Two new methods reduce N sequential round-trips to a single `inFilter` call:
-  - `updateSplitExpenseStatusBatch(ids, status)` — used by `settleUpWithPartner()` to settle all pending splits in one shot.
-  - `deleteSplitExpenses(ids)` — used by `updateSplitExpenseGroup()` to delete old split records in one shot.
+  - `updateSplitExpenseStatusBatch(ids, status)` -- used by `settleUpWithPartner()` to settle all pending splits in one shot.
+  - `deleteSplitExpenses(ids)` -- used by `updateSplitExpenseGroup()` to delete old split records in one shot.
 - **Request Deduplication**: Concurrency guards using `_ongoingTransactionFetch`, `_ongoingSplitFetch`, and `_ongoingProfilesFetch` (via the `Completer` pattern) prevent concurrent callers from spawning duplicate identical network requests.
 - **Pull-to-Refresh Force Bypass**: Pulling down to refresh on the home feed, split feed (`SplitPage`), or friend detail page (`UserSplitDetailPage`) passes `forceRefresh: true` to bypass TTL caches and pull fresh data from Supabase.
 - **Connectivity Pre-Check on Writes**: All write operations in `DatabaseService` call `_executeMutation()` instead of `_execute()`. `_executeMutation` first calls `ConnectivityChecker.isConnected()` (via `connectivity_plus`) and throws `NetworkException` immediately if no interface is active. Read operations use `_execute()` directly since the in-memory cache usually satisfies them without hitting the network.
@@ -106,9 +107,10 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 
 ---
 
-## ⚠️ Exception Handling & Reliability
+## Exception Handling & Reliability
 
 To prevent leaking raw database and HTTP network errors directly to the UI, the app enforces a typed exception structure defined in `lib/utils/exceptions.dart`:
+
 - `AppException` (Base exception)
 - `UnauthenticatedException` (Thrown when user session is missing or invalid)
 - `DataException` (PostgREST or general database issues)
@@ -116,17 +118,19 @@ To prevent leaking raw database and HTTP network errors directly to the UI, the 
 - `NetworkException` (Transient SocketExceptions/connectivity failures)
 
 **Rules:**
+
 1. **Service Error Mapping**: `DatabaseService` wraps operations inside a `_execute` helper, utilizing `_mapError` to map exceptions. `AuthService` maps errors using `_throwMappedError` (remapping invalid credential/email messages for sign-in vs invalid verification codes for OTP/recovery flows).
 2. **Auth Retries**: The `AuthService` automatically retries operations up to `3` times (`_maxAttempts`) using exponential back-off delays when detecting network-level connectivity failures.
 3. **ViewModel Error Display**: ViewModels expose `String? errorMessage`. Views display this via `ScaffoldMessenger` snackbars or inline error widgets. Never display raw exception objects.
 
 ---
 
-## 🛡️ Database Schema & PostgREST Operations
+## Database Schema & PostgREST Operations
 
 All data columns map strictly between remote database fields and Flutter immutable domain models. To ensure data privacy, the Service layer incorporates **defense-in-depth security** by including `user_id` checks on all operations modifying or deleting data.
 
 ### 1. `transactions` Table
+
 - `id`: UUID (Primary Key)
 - `user_id`: UUID (Foreign Key) - reference to Supabase Auth User ID. Always validate in queries!
 - `amount`: Numeric (Decimal transaction value)
@@ -138,6 +142,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 - `created_at`: Timestamptz (Server-side record creation timestamp)
 
 ### 2. `categories` Table
+
 - `id`: UUID (Primary Key)
 - `user_id`: UUID (Foreign Key)
 - `name`: Text (Display label of the category)
@@ -146,6 +151,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 - `created_at`: Timestamptz
 
 ### 3. `split_expenses` Table
+
 - `id`: UUID (Primary Key)
 - `payer_id`: UUID (Foreign Key to `profiles.id`)
 - `borrower_id`: UUID (Foreign Key to `profiles.id`)
@@ -158,12 +164,14 @@ All data columns map strictly between remote database fields and Flutter immutab
 - `created_at`: Timestamptz
 
 ### 4. `profiles` Table
+
 - `id`: UUID (Primary Key - maps to Supabase Auth User ID)
 - `email`: Text
 - `name`: Text (Optional display name)
 - `created_at`: Timestamptz
 
 ### 5. Indexes, RLS & Trigger Hardening
+
 - `transactions`: Indexed on `(user_id, transaction_date DESC)` (`idx_transactions_user_date`).
 - `split_expenses`: Indexed on `(payer_id, expense_date DESC)` (`idx_split_expenses_payer_date`) and `(borrower_id, expense_date DESC)` (`idx_split_expenses_borrower_date`).
 - **RLS Optimization**: All `profiles`, `transactions`, `categories`, and `split_expenses` policies wrap `auth.uid()` in `(select auth.uid())` for single-initplan evaluation, and `profiles` separates `SELECT` from `INSERT`/`UPDATE`/`DELETE` to avoid duplicate permissive `SELECT` policies.
@@ -171,7 +179,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 
 ---
 
-## 🎨 UI & UX Principles
+## UI & UX Principles
 
 1. **Material 3 Design**: Utilize Material 3 widgets and design patterns.
 2. **Dynamic Theming & System Colors**: Support light/dark mode seamlessly via `ThemeViewModel`. Dark mode uses `#000000` scaffold background and `#0A0A0A` surface/card colors. Seed colors default to `Color(0xFF4F46E5)` for light and `Color(0xFF818CF8)` for dark. Optionally extract system wallpaper & palette accents via `dynamic_color` (`DynamicColorBuilder`) when `ThemeViewModel.useDynamicColor` is toggled on (hidden on iOS where wallpaper color extraction is unsupported).
@@ -183,7 +191,7 @@ All data columns map strictly between remote database fields and Flutter immutab
 
 ---
 
-## 🛠️ Code Conventions & Best Practices
+## Code Conventions & Best Practices
 
 1. **State Management & Optimistic Updates**:
    - Always expose business logic and UI states through `ChangeNotifier` in `viewmodels/`.
@@ -192,13 +200,13 @@ All data columns map strictly between remote database fields and Flutter immutab
    - On failure, always **roll back** the optimistic change and set `_errorMessage`.
 2. **Imports**: Use relative imports (e.g. `import '../../models/transaction.dart'`) for internal packages within the project.
 3. **Lint Rules**: Follow all rules defined in `analysis_options.yaml`.
-4. **Singleton Services**: Access `DatabaseService` and `AuthService` via `.instance` — never construct them directly.
+4. **Singleton Services**: Access `DatabaseService` and `AuthService` via `.instance` -- never construct them directly.
 5. **Analytics Memoization**: `AnalyticsPage` maintains its own memoized derived state (totals, daily data) to prevent full re-aggregation on chart touch interactions. This is intentional.
 6. **`SplitViewModel` cross-VM calls**: `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Always pass the live `TransactionViewModel` from the build context when calling these.
 7. **`SplitViewModel` current user getters**: Use `SplitViewModel.currentUserId`, `SplitViewModel.currentUserDisplayName`, and `SplitViewModel.currentUserEmail` to get the signed-in user's identity in split-related Views. Do not call `AuthService` or `Supabase` SDK from the View layer.
 8. **Amount Input & Math Operations**: Always route mathematical evaluations through `MathEvaluator.evaluate` and format calculated results with `MathEvaluator.format`. Attach `MathOperationsBar` to amount fields and maintain `_amountFocusNode` listeners to auto-calculate expressions upon field unfocus and before submission.
 9. **Batch DB Operations**: When settling up or editing a split group, always use `DatabaseService.updateSplitExpenseStatusBatch()` and `DatabaseService.deleteSplitExpenses()` respectively. Never loop over individual `updateSplitExpenseStatus()` or `deleteSplitExpense()` calls for bulk operations.
-10. **SharedPreferences**: Always cache the `SharedPreferences` instance in a private field (e.g. `_prefs`) resolved lazily via `??=`. Never call `SharedPreferences.getInstance()` on every method invocation — see `ThemeViewModel` and `SplitViewModel` as reference implementations.
+10. **SharedPreferences**: Always cache the `SharedPreferences` instance in a private field (e.g. `_prefs`) resolved lazily via `??=`. Never call `SharedPreferences.getInstance()` on every method invocation -- see `ThemeViewModel` and `SplitViewModel` as reference implementations.
 11. **Write operations**: Always use `_executeMutation()` in `DatabaseService` for any method that modifies data (INSERT, UPDATE, DELETE). Reserve `_execute()` for read-only operations. This ensures offline users get an immediate `NetworkException` instead of a TCP timeout.
 12. **Date Range Boundaries & End-of-Day Normalization**: Whenever constructing or applying end dates (`endDate`) for database queries (`.lte`) or date-range filtering (in `AnalyticsPage`, `TransactionViewModel.loadAnalyticsSnapshot`, and `TransactionViewModel.setFilters`), always normalize `endDate` to include the full day (`23:59:59.999`) and `startDate` to start-of-day (`00:00:00.000`). Truncating `endDate` to midnight cut off transactions created during the current/selected day. In `_BarChartWidget`, always resolve start/end dates from `analyticsStartDate`/`analyticsEndDate` before falling back to `filterStartDate`/`filterEndDate`.
 13. **PDF Export & Statement Architecture**:
@@ -211,16 +219,17 @@ All data columns map strictly between remote database fields and Flutter immutab
 
 ---
 
-## 🚀 Releasing & Builds
+## Releasing & Builds
 
 To release a new version of the app on GitHub:
+
 1. Build the release APK:
    ```bash
    flutter build apk
    ```
-   *Note: Android release builds automatically run with R8 Full Mode (`android.enableR8.fullMode=true`), code minification, and resource shrinking using rules in `android/app/proguard-rules.pro`.*
+   _Note: Android release builds automatically run with R8 Full Mode (`android.enableR8.fullMode=true`), code minification, and resource shrinking using rules in `android/app/proguard-rules.pro`._
 2. Recreate the release and upload the new APK using the provided script:
    ```bash
    bun scripts/recreate_release.js
    ```
-   *Note: The script automatically handles deleting the old release, creating the new release, and uploading the newly generated APK. The git tag `v1.0.0` should be recreated/pushed to match the latest release commit before running.*
+   _Note: The script automatically handles deleting the old release, creating the new release, and uploading the newly generated APK. The git tag `v1.0.0` should be recreated/pushed to match the latest release commit before running._

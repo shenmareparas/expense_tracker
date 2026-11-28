@@ -1,10 +1,10 @@
-# 📁 Expense Tracker Project Context
+# Expense Tracker Project Context
 
 This document provides a high-level overview of the **Expense Tracker** Flutter codebase, its state, integration, and setup instructions.
 
 ---
 
-## 🌟 Project Overview
+## Project Overview
 
 The Expense Tracker is a Flutter mobile application designed for personal finance tracking. It supports:
 
@@ -30,19 +30,20 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
   - Unified solid AppBar styling across all sub-screens (`AddTransactionPage`, `AddSplitPage`, `UserSplitDetailPage`).
 - **Categories**: Dynamic category management including custom names/types and drag-and-drop reordering. Protects built-in "Other" category from rename/delete/reorder.
 - **Analytics & Insights**: Interactive FL Chart dashboards (pie breakdown + daily trend bar chart), date-range filtering (`7days`, `30days`, `month`, `year`, `custom`), category filtering, and per-tab income/expense/net selection. Adaptive summary hero card gradient harmonizes with dynamic theme colors. Automatically synchronized with split expenses and personal transactions.
-- **PDF Statements & Export**: Export transaction statements as formatted PDF documents accessible from **Settings → General → Export Statement (PDF)**. Features custom date ranges (presets & custom picker), transaction type, payment method, category multi-filters, and live matching metrics. Allows instant **View PDF** (via `open_file`), **Share PDF** (direct system share sheet via `share_plus`), or **Save to Device Storage**. Includes safe-area top overlay status toasts (`_TopToastWidget`) and pagination support up to 200+ pages (`pw.TableHelper.fromTextArray`).
+- **PDF Statements & Export**: Export transaction statements as formatted PDF documents accessible from **Settings -> General -> Export Statement (PDF)**. Features custom date ranges (presets & custom picker), transaction type, payment method, category multi-filters, and live matching metrics. Allows instant **View PDF** (via `open_file`), **Share PDF** (direct system share sheet via `share_plus`), or **Save to Device Storage**. Includes safe-area top overlay status toasts (`_TopToastWidget`) and pagination support up to 200+ pages (`pw.TableHelper.fromTextArray`).
 - **Settings**: Theme (system/light/dark), dynamic system color matching (`Dynamic Colors` toggle via `dynamic_color` on Android), haptic feedback toggle, default analytics tab, custom analytics tab order, manage categories, export statements (PDF), and clear cache. All persisted via `SharedPreferences`.
 - **Aesthetics & Haptics**: Sleek, customized dark and light modes with bundled Roboto font, dynamic wallpaper & accent extraction on supported devices, rounded press highlights (`Clip.antiAlias`), and conditional haptic feedback via `AppHaptics`.
 
 ---
 
-## 🚀 Environment Setup & Running the App
+## Environment Setup & Running the App
 
 ### 1. Supabase Credentials
 
 The application resolves Supabase credentials at **compile time** via `--dart-define`. Development fallback defaults are baked into `supabase_config.dart` for convenience but should be overridden for production.
 
 Pass these keys during the run/build phase:
+
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 
@@ -53,112 +54,114 @@ flutter run \
 ```
 
 Or use a file:
+
 ```bash
 flutter run --dart-define-from-file=.env.json
 ```
 
 ### 2. Dependencies
+
 ```bash
 flutter pub get
 ```
 
 ---
 
-## 📂 Core Architecture Map
+## Core Architecture Map
 
 ```
 lib/
-├── app/
-│   ├── app.dart              # MyApp: MultiProvider setup + MaterialApp theming (light + dark)
-│   └── supabase_config.dart  # SupabaseConfig singleton (compile-time credentials, client accessor)
-├── models/                   # Immutable domain models — no Flutter imports, no logic
-│   ├── category.dart         # CategoryModel: CRUD fields, sortWithOtherLast static helper
-│   ├── profile.dart          # ProfileModel: id, email, name, displayName getter
-│   ├── split_expense.dart    # SplitExpenseModel: includes embedded payer/borrower display helpers
-│   └── transaction.dart      # TransactionModel: full financial record with copyWith
-├── services/                 # Singleton data/auth services — only layer touching Supabase SDK
-│   ├── auth_service.dart     # AuthService: sign in/up/out, OTP, retry with exponential back-off
+├── app/         # MyApp: MultiProvider setup + MaterialApp theming (light + dark)
+│   ├── app.dart
+│   └── supabase_config.dart # SupabaseConfig singleton (compile-time credentials, client accessor)
+├── models/      # Immutable domain models -- no Flutter imports, no logic
+│   ├── category.dart   # CategoryModel: CRUD fields, sortWithOtherLast static helper
+│   ├── profile.dart    # ProfileModel: id, email, name, displayName getter
+│   ├── split_expense.dart # SplitExpenseModel: includes embedded payer/borrower display helpers
+│   └── transaction.dart # TransactionModel: full financial record with copyWith
+├── services/    # Singleton data/auth services -- only layer touching Supabase SDK
+│   ├── auth_service.dart # AuthService: sign in/up/out, OTP, retry with exponential back-off
 │   ├── database_service.dart # DatabaseService: TTL cache, Completer dedup, all PostgREST ops
 │   └── pdf_export_service.dart # PdfExportService: Generates A4 PDF reports, table formatting, viewing, sharing & saving
-├── viewmodels/               # ChangeNotifier state machines — all business logic lives here
-│   ├── auth_viewmodel.dart   # Auth state, loading/error flags, recovery mode detection
-│   ├── category_viewmodel.dart  # Category CRUD, drag reorder, seeding, computed name lists
-│   ├── split_viewmodel.dart  # Feed, net balances, settle up, hidden friends; currentUserDisplayName/currentUserEmail via AuthService, profile list
-│   ├── theme_viewmodel.dart  # Theme mode, haptics, analytics tab preferences (SharedPreferences)
-│   └── transaction_viewmodel.dart  # Transaction feed, filters, search, analytics snapshot, optimistic ops, fetchTransactionsForExport
-├── views/                    # UI screens — consume ViewModels only, no direct SDK access
+├── viewmodels/  # ChangeNotifier state machines -- all business logic lives here
+│   ├── auth_viewmodel.dart # Auth state, loading/error flags, recovery mode detection
+│   ├── category_viewmodel.dart # Category CRUD, drag reorder, seeding, computed name lists
+│   ├── split_viewmodel.dart # Feed, net balances, settle up, hidden friends; currentUserDisplayName/currentUserEmail via AuthService, profile list
+│   ├── theme_viewmodel.dart # Theme mode, haptics, analytics tab preferences (SharedPreferences)
+│   └── transaction_viewmodel.dart # Transaction feed, filters, search, analytics snapshot, optimistic ops, fetchTransactionsForExport
+├── views/       # UI screens -- consume ViewModels only, no direct SDK access
 │   ├── analytics/
-│   │   └── analytics_page.dart   # FL Chart pie + trend bar, memoized per-category aggregations
+│   │   └── analytics_page.dart # FL Chart pie + trend bar, memoized per-category aggregations
 │   ├── auth/
-│   │   ├── auth_gate.dart         # Routes to LoginPage / HomePage / UpdatePasswordPage
-│   │   ├── forgot_password_page.dart  # Two-step OTP recovery flow
-│   │   ├── login_page.dart        # Login + signup form
-│   │   └── update_password_page.dart  # Post-recovery password update
+│   │   ├── auth_gate.dart   # Routes to LoginPage / HomePage / UpdatePasswordPage
+│   │   ├── forgot_password_page.dart # Two-step OTP recovery flow
+│   │   ├── login_page.dart  # Login + signup form
+│   │   └── update_password_page.dart # Post-recovery password update
 │   ├── home/
-│   │   ├── home_page.dart         # Bottom nav shell, AnimatedSwitcher tab transitions
+│   │   ├── home_page.dart   # Bottom nav shell, AnimatedSwitcher tab transitions
 │   │   └── widgets/
 │   │       ├── export_pdf_bottom_sheet.dart # PDF Statement export filter sheet & top status toasts
-│   │       ├── filter_bottom_sheet.dart  # Filter modal (type with All/Income/Expense/Split, categories, payment, dates)
-│   │       └── transaction_list.dart     # Paginated feed merging personal transactions and borrower split obligations
+│   │       ├── filter_bottom_sheet.dart # Filter modal (type with All/Income/Expense/Split, categories, payment, dates)
+│   │       └── transaction_list.dart # Paginated feed merging personal transactions and borrower split obligations
 │   ├── settings/
-│   │   ├── manage_categories_page.dart  # Add/edit/delete/reorder categories
-│   │   └── settings_page.dart           # All app settings with Consumer bindings
+│   │   ├── manage_categories_page.dart # Add/edit/delete/reorder categories
+│   │   └── settings_page.dart   # All app settings with Consumer bindings
 │   ├── split/
-│   │   ├── add_split_page.dart    # 6 split modes, Who Paid selector, live previews; user identity via SplitViewModel
-│   │   ├── split_page.dart        # Friends overview with balance indicators
-│   │   ├── user_split_detail_page.dart  # Per-friend expense timeline, rename/delete custom friend + Settle Up
+│   │   ├── add_split_page.dart # 6 split modes, Who Paid selector, live previews; user identity via SplitViewModel
+│   │   ├── split_page.dart   # Friends overview with balance indicators
+│   │   ├── user_split_detail_page.dart # Per-friend expense timeline, rename/delete custom friend + Settle Up
 │   │   └── widgets/
 │   │       └── split_payer_picker_sheet.dart # Extracted Choose Payer modal bottom sheet
 │   └── transaction/
-│       └── add_transaction_page.dart  # Add/edit transaction form with math input & operations bar
+│       └── add_transaction_page.dart # Add/edit transaction form with math input & operations bar
 ├── widgets/
-│   ├── app_dropdown.dart          # AppDropdown<T> and AppDropdownButton<T> styled wrappers
-│   └── math_operations_bar.dart   # Interactive math toolbar (+, −, ×, ÷, C) + live calculation preview pill
+│   ├── app_dropdown.dart    # AppDropdown<T> and AppDropdownButton<T> styled wrappers
+│   └── math_operations_bar.dart # Interactive math toolbar (+, −, ×, ÷, C) + live calculation preview pill
 └── utils/
-    ├── date_formatter.dart   # DateFormatter: relative dates (Today/Yesterday) + time
-    ├── exceptions.dart       # Typed exception hierarchy: AppException → Data/Auth/Network/Unauth
-    ├── haptics.dart          # AppHaptics: conditional haptic helpers via ThemeViewModel
-    └── math_evaluator.dart   # Pure Dart arithmetic evaluator supporting operators, precedence & formatting
+    ├── date_formatter.dart # DateFormatter: relative dates (Today/Yesterday) + time
+    ├── exceptions.dart   # Typed exception hierarchy: AppException -> Data/Auth/Network/Unauth
+    ├── haptics.dart      # AppHaptics: conditional haptic helpers via ThemeViewModel
+    └── math_evaluator.dart # Pure Dart arithmetic evaluator supporting operators, precedence & formatting
 ```
 
 ---
 
-## 🔌 Integration Details
+## Integration Details
 
 | Concern | Implementation |
-|---|---|
+| --- | --- |
 | Backend Database | Supabase (PostgREST API via `supabase_flutter`) |
 | Authentication | Supabase Auth (stream-based session detection in `AuthViewModel`) |
 | State Management | `Provider` package (`ChangeNotifier` + `Consumer<T>`) |
 | Local Persistence | `SharedPreferences` (settings, analytics tab order, hidden friend IDs, custom friend profiles) |
 | In-Memory Caching | Differentiated TTL cache in `DatabaseService`: transactions & splits 2min, profiles 10min, categories 15min |
 | Batch API | `updateSplitExpenseStatusBatch` and `deleteSplitExpenses` replace N sequential calls with a single `inFilter` query |
-| Connectivity Guard | `connectivity_plus` + `ConnectivityChecker` — pre-flight check in `_executeMutation()` for all write ops |
+| Connectivity Guard | `connectivity_plus` + `ConnectivityChecker` -- pre-flight check in `_executeMutation()` for all write ops |
 | Concurrency Guard | `Completer`-based deduplication for concurrent transaction, split, and profile fetches |
 | Android Build Optimization | R8 full-mode shrinking, obfuscation, resource shrinking, and custom ProGuard rules |
 | Font Loading | Local Inter font in `google_fonts/` (runtime fetching disabled) |
 | Charts | `fl_chart` package (pie charts + bar charts in `AnalyticsPage`) |
 | UI Component Library | `material_ui: ^1.11.1` (official decoupled Material UI) |
-| MVVM Compliance | 100% — zero `supabase_flutter` imports in Views or ViewModels; zero service imports in Views |
+| MVVM Compliance | 100% -- zero `supabase_flutter` imports in Views or ViewModels; zero service imports in Views |
 
 ---
 
-## 🔑 Key Architectural Decisions
+## Key Architectural Decisions
 
-1. **Singleton services** (`DatabaseService.instance`, `AuthService.instance`) — one shared cache, one shared auth state.
-2. **Optimistic UI updates** with rollback in `TransactionViewModel` and `SplitViewModel` — instant perceived performance.
-3. **Analytics snapshot pattern** — `TransactionViewModel.loadAnalyticsSnapshot()` loads a separate, date-filtered transaction list without clobbering the main transaction feed.
-4. **`SplitViewModel` cross-VM delegation** — `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Fallback to `DatabaseService` directly if ViewModel is unavailable.
-5. **Defense-in-depth security** — all DB mutations include `.eq('user_id', userId)` guards even though Supabase RLS handles server-side enforcement.
-6. **Differentiated TTL caching** — `transactions` and `split_expenses` use a 2-minute TTL, `profiles` 10 minutes, and `categories` 15 minutes. Each type's TTL is sized to how frequently it changes, reducing unnecessary Supabase round-trips on the free tier.
-7. **Profiles cache reuse** — `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to build profile display maps, eliminating a hidden second `SELECT *` that previously fired on every split load.
-8. **Batch split operations** — `updateSplitExpenseStatusBatch(ids, status)` and `deleteSplitExpenses(ids)` replace N sequential awaited calls with a single `inFilter` PostgREST call, critical for settle-up and group-edit flows.
-9. **SharedPreferences singleton** — `SplitViewModel` caches the `SharedPreferences` instance in `_prefs` (lazy `??=` via `_getPrefs()`), avoiding repeated `getInstance()` overhead on every custom-friend or hidden-friend write.
-10. **Connectivity pre-check on mutations** — `DatabaseService._executeMutation()` wraps `_execute()` with a `ConnectivityChecker.isConnected()` call before any INSERT/UPDATE/DELETE. If offline, `NetworkException` is thrown immediately. Read methods stay on `_execute()` since the TTL cache usually satisfies them without touching the network.
-11. **Date range boundary normalization** — To prevent same-day transactions from being excluded by PostgREST `.lte` filters (which compare against exact timestamps), all date queries and filter setters (`loadAnalyticsSnapshot`, `setFilters`, `AnalyticsPage`) normalize `endDate` to the last millisecond of the day (`23:59:59.999`) and `startDate` to midnight (`00:00:00.000`). Bar chart date intervals also prioritize `analyticsStartDate`/`analyticsEndDate` before falling back to `filterStartDate`/`filterEndDate`.
-12. **Split transaction type filtering & borrower split presentation** — In the database, transactions only store `expense` or `income`. When filtering by `type == 'split'`, `DatabaseService.getTransactions()` queries personal splits using `description.ilike('split:%')`, while `SplitViewModel.getBorrowerSplitTransactions()` returns shared borrower split debts. When filtering by `type == 'expense'`, borrower splits are omitted because the money was not paid out-of-pocket yet.
-13. **Decoupled Auth & ViewModel boundaries** — `AuthService` exposes domain-level `AuthLifecycleEvent` (`onAuthLifecycleEvent`), completely removing `supabase_flutter` from `AuthViewModel`. ViewModels exclusively import `flutter/foundation.dart`.
-14. **PDF Export MVVM compliance** — `TransactionViewModel.exportTransactionsPdf(...)` orchestrates PDF statement generation, view, share, and save routines, keeping UI views (`ExportPdfBottomSheet`) 100% decoupled from `AuthService` and `PdfExportService`.
-15. **Partner balance pre-aggregation & Feed memoization** — `SplitViewModel.getPartnerBalance(id)` calculates `PartnerBalanceSummary` in a single `O(splits)` pass and invalidates upon `notifyListeners()`, eliminating `O(N*M)` scans in friend feeds. `TransactionListView` memoizes merged and sorted transaction feeds across rebuilds.
-16. **Partner priority ordering in Split tab** — `SplitViewModel.orderedPartnerProfiles` partitions partner profiles so individuals with existing split history (`splitCount > 0`) appear above partners with no split history, preserving MVVM encapsulation without placing business sorting logic in the View layer.
-17. **Android R8 optimization** — Release builds use `isMinifyEnabled = true`, `isShrinkResources = true`, `android.enableR8.fullMode=true`, and custom `proguard-rules.pro` tailored for Flutter runtime, engine entry points, coroutines, and plugin native bindings.
+1. **Singleton services** (`DatabaseService.instance`, `AuthService.instance`) -- one shared cache, one shared auth state.
+2. **Optimistic UI updates** with rollback in `TransactionViewModel` and `SplitViewModel` -- instant perceived performance.
+3. **Analytics snapshot pattern** -- `TransactionViewModel.loadAnalyticsSnapshot()` loads a separate, date-filtered transaction list without clobbering the main transaction feed.
+4. **`SplitViewModel` cross-VM delegation** -- `toggleSettled` and `settleUpWithPartner` accept `TransactionViewModel?` to record settlement transactions. Fallback to `DatabaseService` directly if ViewModel is unavailable.
+5. **Defense-in-depth security** -- all DB mutations include `.eq('user_id', userId)` guards even though Supabase RLS handles server-side enforcement.
+6. **Differentiated TTL caching** -- `transactions` and `split_expenses` use a 2-minute TTL, `profiles` 10 minutes, and `categories` 15 minutes. Each type's TTL is sized to how frequently it changes, reducing unnecessary Supabase round-trips on the free tier.
+7. **Profiles cache reuse** -- `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to build profile display maps, eliminating a hidden second `SELECT *` that previously fired on every split load.
+8. **Batch split operations** -- `updateSplitExpenseStatusBatch(ids, status)` and `deleteSplitExpenses(ids)` replace N sequential awaited calls with a single `inFilter` PostgREST call, critical for settle-up and group-edit flows.
+9. **SharedPreferences singleton** -- `SplitViewModel` caches the `SharedPreferences` instance in `_prefs` (lazy `??=` via `_getPrefs()`), avoiding repeated `getInstance()` overhead on every custom-friend or hidden-friend write.
+10. **Connectivity pre-check on mutations** -- `DatabaseService._executeMutation()` wraps `_execute()` with a `ConnectivityChecker.isConnected()` call before any INSERT/UPDATE/DELETE. If offline, `NetworkException` is thrown immediately. Read methods stay on `_execute()` since the TTL cache usually satisfies them without touching the network.
+11. **Date range boundary normalization** -- To prevent same-day transactions from being excluded by PostgREST `.lte` filters (which compare against exact timestamps), all date queries and filter setters (`loadAnalyticsSnapshot`, `setFilters`, `AnalyticsPage`) normalize `endDate` to the last millisecond of the day (`23:59:59.999`) and `startDate` to midnight (`00:00:00.000`). Bar chart date intervals also prioritize `analyticsStartDate`/`analyticsEndDate` before falling back to `filterStartDate`/`filterEndDate`.
+12. **Split transaction type filtering & borrower split presentation** -- In the database, transactions only store `expense` or `income`. When filtering by `type == 'split'`, `DatabaseService.getTransactions()` queries personal splits using `description.ilike('split:%')`, while `SplitViewModel.getBorrowerSplitTransactions()` returns shared borrower split debts. When filtering by `type == 'expense'`, borrower splits are omitted because the money was not paid out-of-pocket yet.
+13. **Decoupled Auth & ViewModel boundaries** -- `AuthService` exposes domain-level `AuthLifecycleEvent` (`onAuthLifecycleEvent`), completely removing `supabase_flutter` from `AuthViewModel`. ViewModels exclusively import `flutter/foundation.dart`.
+14. **PDF Export MVVM compliance** -- `TransactionViewModel.exportTransactionsPdf(...)` orchestrates PDF statement generation, view, share, and save routines, keeping UI views (`ExportPdfBottomSheet`) 100% decoupled from `AuthService` and `PdfExportService`.
+15. **Partner balance pre-aggregation & Feed memoization** -- `SplitViewModel.getPartnerBalance(id)` calculates `PartnerBalanceSummary` in a single `O(splits)` pass and invalidates upon `notifyListeners()`, eliminating `O(N*M)` scans in friend feeds. `TransactionListView` memoizes merged and sorted transaction feeds across rebuilds.
+16. **Partner priority ordering in Split tab** -- `SplitViewModel.orderedPartnerProfiles` partitions partner profiles so individuals with existing split history (`splitCount > 0`) appear above partners with no split history, preserving MVVM encapsulation without placing business sorting logic in the View layer.
+17. **Android R8 optimization** -- Release builds use `isMinifyEnabled = true`, `isShrinkResources = true`, `android.enableR8.fullMode=true`, and custom `proguard-rules.pro` tailored for Flutter runtime, engine entry points, coroutines, and plugin native bindings.

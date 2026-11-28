@@ -802,63 +802,60 @@ void main() {
   });
 
   group('SplitViewModel.getUserShareForSplitTransaction non-split safety', () {
-    test(
-      'does not match non-split personal expense to an older split with same amount and substring description',
-      () {
-        final viewModel = SplitViewModel();
-        const currentUserId = 'user-me';
-        final oldDate = DateTime(2026, 9, 21, 5, 38);
-        final today = DateTime(2026, 11, 28, 5, 39);
+    test('does not match non-split personal expense to an older split with same amount and substring description', () {
+      final viewModel = SplitViewModel();
+      const currentUserId = 'user-me';
+      final oldDate = DateTime(2026, 9, 21, 5, 38);
+      final today = DateTime(2026, 11, 28, 5, 39);
 
-        final oldSplit1 = SplitExpenseModel(
-          id: 'old-1',
-          payerId: currentUserId,
-          borrowerId: 'friend-1',
-          amount: 16.67,
-          totalAmount: 50.0,
-          description: 'Coffee',
-          status: 'settled',
-          expenseDate: oldDate,
-          createdAt: oldDate,
-        );
-        final oldSplit2 = SplitExpenseModel(
-          id: 'old-2',
-          payerId: currentUserId,
-          borrowerId: 'friend-2',
-          amount: 16.67,
-          totalAmount: 50.0,
-          description: 'Coffee',
-          status: 'settled',
-          expenseDate: oldDate,
-          createdAt: oldDate,
-        );
+      final oldSplit1 = SplitExpenseModel(
+        id: 'old-1',
+        payerId: currentUserId,
+        borrowerId: 'friend-1',
+        amount: 16.67,
+        totalAmount: 50.0,
+        description: 'Coffee',
+        status: 'settled',
+        expenseDate: oldDate,
+        createdAt: oldDate,
+      );
+      final oldSplit2 = SplitExpenseModel(
+        id: 'old-2',
+        payerId: currentUserId,
+        borrowerId: 'friend-2',
+        amount: 16.67,
+        totalAmount: 50.0,
+        description: 'Coffee',
+        status: 'settled',
+        expenseDate: oldDate,
+        createdAt: oldDate,
+      );
 
-        viewModel.setMockData(
-          splitExpenses: [oldSplit1, oldSplit2],
-          mockUserId: currentUserId,
-        );
+      viewModel.setMockData(
+        splitExpenses: [oldSplit1, oldSplit2],
+        mockUserId: currentUserId,
+      );
 
-        final personalTx = TransactionModel(
-          id: 'tx-today',
-          userId: currentUserId,
-          amount: 50.0,
-          type: 'expense',
-          category: 'Food',
-          description: 'Coffee + Poha',
-          paymentMethod: 'upi',
-          transactionDate: today,
-          createdAt: today,
-        );
+      final personalTx = TransactionModel(
+        id: 'tx-today',
+        userId: currentUserId,
+        amount: 50.0,
+        type: 'expense',
+        category: 'Food',
+        description: 'Coffee + Poha',
+        paymentMethod: 'upi',
+        transactionDate: today,
+        createdAt: today,
+      );
 
-        expect(viewModel.getUserShareForSplitTransaction(personalTx), isNull);
-        final analyticsTxs = viewModel.transformTransactionsForAnalytics(
-          [personalTx],
-          startDate: DateTime(2026, 11, 28),
-          endDate: DateTime(2026, 11, 28, 23, 59, 59, 999),
-        );
-        expect(analyticsTxs.length, 1);
-        expect(analyticsTxs.first.amount, 50.0);
-      },
-    );
+      expect(viewModel.getUserShareForSplitTransaction(personalTx), isNull);
+      final analyticsTxs = viewModel.transformTransactionsForAnalytics(
+        [personalTx],
+        startDate: DateTime(2026, 11, 28),
+        endDate: DateTime(2026, 11, 28, 23, 59, 59, 999),
+      );
+      expect(analyticsTxs.length, 1);
+      expect(analyticsTxs.first.amount, 50.0);
+    });
   });
 }
