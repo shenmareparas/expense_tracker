@@ -17,11 +17,13 @@ class PartnerBalanceSummary {
   final double owedToUser;
   final double userOwes;
   final int splitCount;
+  final DateTime? latestExpenseDate;
 
   const PartnerBalanceSummary({
     this.owedToUser = 0.0,
     this.userOwes = 0.0,
     this.splitCount = 0,
+    this.latestExpenseDate,
   });
 
   double get net => owedToUser - userOwes;
@@ -88,10 +90,12 @@ class SplitViewModel extends ChangeNotifier {
   void setMockData({
     List<SplitExpenseModel>? splitExpenses,
     List<ProfileModel>? profiles,
+    List<ProfileModel>? customProfiles,
     String? mockUserId,
   }) {
     if (splitExpenses != null) _splitExpenses = splitExpenses;
     if (profiles != null) _remoteProfiles = profiles;
+    if (customProfiles != null) _customProfiles = customProfiles;
     if (mockUserId != null) _mockUserId = mockUserId;
   }
 
@@ -152,21 +156,33 @@ class SplitViewModel extends ChangeNotifier {
     if (uid == null) return const PartnerBalanceSummary();
 
     if (_partnerBalanceCache == null || _partnerBalanceCacheUserId != uid) {
-      final map = <String, ({double owed, double owes, int count})>{};
+      final map =
+          <
+            String,
+            ({double owed, double owes, int count, DateTime latestDate})
+          >{};
       for (final s in _splitExpenses) {
         if (s.payerId == uid && s.borrowerId != uid) {
-          final prev = map[s.borrowerId] ?? (owed: 0.0, owes: 0.0, count: 0);
+          final prev = map[s.borrowerId];
           map[s.borrowerId] = (
-            owed: prev.owed + (s.status == 'pending' ? s.amount : 0.0),
-            owes: prev.owes,
-            count: prev.count + 1,
+            owed:
+                (prev?.owed ?? 0.0) + (s.status == 'pending' ? s.amount : 0.0),
+            owes: prev?.owes ?? 0.0,
+            count: (prev?.count ?? 0) + 1,
+            latestDate: prev == null || s.expenseDate.isAfter(prev.latestDate)
+                ? s.expenseDate
+                : prev.latestDate,
           );
         } else if (s.borrowerId == uid && s.payerId != uid) {
-          final prev = map[s.payerId] ?? (owed: 0.0, owes: 0.0, count: 0);
+          final prev = map[s.payerId];
           map[s.payerId] = (
-            owed: prev.owed,
-            owes: prev.owes + (s.status == 'pending' ? s.amount : 0.0),
-            count: prev.count + 1,
+            owed: prev?.owed ?? 0.0,
+            owes:
+                (prev?.owes ?? 0.0) + (s.status == 'pending' ? s.amount : 0.0),
+            count: (prev?.count ?? 0) + 1,
+            latestDate: prev == null || s.expenseDate.isAfter(prev.latestDate)
+                ? s.expenseDate
+                : prev.latestDate,
           );
         }
       }
@@ -177,6 +193,7 @@ class SplitViewModel extends ChangeNotifier {
             owedToUser: v.owed,
             userOwes: v.owes,
             splitCount: v.count,
+            latestExpenseDate: v.latestDate,
           ),
         ),
       );
@@ -187,7 +204,8 @@ class SplitViewModel extends ChangeNotifier {
   }
 
   /// Returns partner profiles (excluding the current user) ordered so people
-  /// with split expenses appear above people without any split expenses.
+  /// with split expenses appear above people without any split expenses,
+  /// prioritizing active unsettled balances and most recent split activity.
   List<ProfileModel> get orderedPartnerProfiles {
     final uid = currentUserId;
     final withSplits = <ProfileModel>[];
@@ -200,6 +218,24 @@ class SplitViewModel extends ChangeNotifier {
         withoutSplits.add(profile);
       }
     }
+
+    withSplits.sort((a, b) {
+      final summaryA = getPartnerBalance(a.id);
+      final summaryB = getPartnerBalance(b.id);
+      final hasActiveA = summaryA.net.abs() > 0.005;
+      final hasActiveB = summaryB.net.abs() > 0.005;
+      if (hasActiveA != hasActiveB) {
+        return hasActiveA ? -1 : 1;
+      }
+      final dateA = summaryA.latestExpenseDate;
+      final dateB = summaryB.latestExpenseDate;
+      if (dateA != null && dateB != null) {
+        final cmp = dateB.compareTo(dateA);
+        if (cmp != 0) return cmp;
+      }
+      return 0;
+    });
+
     return [...withSplits, ...withoutSplits];
   }
 
@@ -270,6 +306,46 @@ class SplitViewModel extends ChangeNotifier {
     return newProfile;
   }
 
+  Future<bool> updateCustomProfile({
+    required String id,
+    required String name,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) return false;
+
+    final index = _customProfiles.indexWhere((p) => p.id == id);
+    if (index == -1) return false;
+
+    final existing = _customProfiles[index];
+    _customProfiles[index] = ProfileModel(
+      id: existing.id,
+      email: existing.email,
+      name: trimmedName,
+    );
+
+    // Update cached split expense display names immediately.
+    for (var i = 0; i < _splitExpenses.length; i++) {
+      final s = _splitExpenses[i];
+      if (s.payerId == id || s.borrowerId == id) {
+        _splitExpenses[i] = s.copyWith(
+          payerName: s.payerId == id ? trimmedName : s.payerName,
+          borrowerName: s.borrowerId == id ? trimmedName : s.borrowerName,
+        );
+      }
+    }
+    notifyListeners();
+
+    try {
+      final prefs = await _getPrefs();
+      final encodedList = _customProfiles
+          .map((p) => jsonEncode(p.toJson()))
+          .toList();
+      await prefs.setStringList('custom_friend_profiles', encodedList);
+    } catch (_) {}
+
+    return true;
+  }
+
   Future<void> deleteCustomProfile(String profileId) async {
     _customProfiles.removeWhere((p) => p.id == profileId);
     notifyListeners();
@@ -300,76 +376,21 @@ class SplitViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> addSplitExpense({
-    required String borrowerId,
-    required double amount,
-    required double totalAmount,
-    required String description,
-    String category = 'General',
-    required DateTime expenseDate,
-    bool isPayer = true,
-  }) async {
-    _isSaving = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final newSplit = await _databaseService.addSplitExpense(
-        borrowerId: borrowerId,
-        amount: amount,
-        totalAmount: totalAmount,
-        description: description,
-        category: category,
-        expenseDate: expenseDate,
-        isPayer: isPayer,
-      );
-
-      _splitExpenses.insert(0, newSplit);
-      return true;
-    } catch (e) {
-      _errorMessage = _mapError(e);
-      return false;
-    } finally {
-      _isSaving = false;
-      notifyListeners();
+  /// Resolves a partner profile by [partnerId] from loaded profiles, or builds
+  /// a lightweight fallback [ProfileModel] if the profile is not in cache.
+  ProfileModel resolvePartnerProfile(
+    String partnerId, {
+    String? fallbackName,
+    String? fallbackEmail,
+  }) {
+    for (final p in profiles) {
+      if (p.id == partnerId) return p;
     }
-  }
-
-  Future<bool> addMultipleSplitExpenses({
-    required List<String> borrowerIds,
-    required double perPersonAmount,
-    required double totalAmount,
-    required String description,
-    String category = 'General',
-    required DateTime expenseDate,
-    bool isPayer = true,
-    String? payerId,
-  }) async {
-    _isSaving = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final newSplits = await _databaseService.addMultipleSplitExpenses(
-        borrowerIds: borrowerIds,
-        perPersonAmount: perPersonAmount,
-        totalAmount: totalAmount,
-        description: description,
-        category: category,
-        expenseDate: expenseDate,
-        isPayer: isPayer,
-        payerId: payerId,
-      );
-
-      _splitExpenses.insertAll(0, newSplits);
-      return true;
-    } catch (e) {
-      _errorMessage = _mapError(e);
-      return false;
-    } finally {
-      _isSaving = false;
-      notifyListeners();
-    }
+    return ProfileModel(
+      id: partnerId,
+      email: fallbackEmail ?? '',
+      name: fallbackName,
+    );
   }
 
   Future<bool> addCustomMultipleSplitExpenses({
@@ -441,6 +462,14 @@ class SplitViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Preserve settled status for participants whose share amount is unchanged.
+      final oldByParticipantKey = <String, SplitExpenseModel>{};
+      for (final s in _splitExpenses) {
+        if (oldSplitIds.contains(s.id)) {
+          oldByParticipantKey['${s.payerId}:${s.borrowerId}'] = s;
+        }
+      }
+
       // Batch-delete all old splits in a single round-trip instead of N sequential calls.
       await _databaseService.deleteSplitExpenses(oldSplitIds);
       _splitExpenses.removeWhere((s) => oldSplitIds.contains(s.id));
@@ -455,7 +484,27 @@ class SplitViewModel extends ChangeNotifier {
         payerId: payerId,
       );
 
-      _splitExpenses.insertAll(0, newSplits);
+      final settledNewIds = <String>[];
+      final resolvedNewSplits = newSplits.map((newSplit) {
+        final old =
+            oldByParticipantKey['${newSplit.payerId}:${newSplit.borrowerId}'];
+        if (old != null &&
+            old.status == 'settled' &&
+            (old.amount - newSplit.amount).abs() < 0.05) {
+          settledNewIds.add(newSplit.id);
+          return newSplit.copyWith(status: 'settled');
+        }
+        return newSplit;
+      }).toList();
+
+      if (settledNewIds.isNotEmpty) {
+        await _databaseService.updateSplitExpenseStatusBatch(
+          ids: settledNewIds,
+          status: 'settled',
+        );
+      }
+
+      _splitExpenses.insertAll(0, resolvedNewSplits);
       return true;
     } catch (e) {
       _errorMessage = _mapError(e);
@@ -643,12 +692,6 @@ class SplitViewModel extends ChangeNotifier {
     final matchingSplits = _splitExpenses.where((s) {
       if (s.payerId != uid) return false;
       final sDesc = s.description.trim().toLowerCase();
-      final descMatch =
-          sDesc == cleanDesc ||
-          (cleanDesc.isNotEmpty && sDesc.contains(cleanDesc)) ||
-          (desc.isNotEmpty && desc.toLowerCase().contains(sDesc));
-      if (!descMatch) return false;
-
       final dateDiff = s.expenseDate
           .difference(t.transactionDate)
           .inMinutes
@@ -658,7 +701,22 @@ class SplitViewModel extends ChangeNotifier {
           s.expenseDate.year == t.transactionDate.year &&
           s.expenseDate.month == t.transactionDate.month &&
           s.expenseDate.day == t.transactionDate.day;
-      return amountMatch || dateDiff < 1440 || sameDay;
+
+      if (!isExplicitSplit) {
+        // Non-split personal expenses must not be matched loosely by substring
+        // or across unrelated dates.
+        return sDesc == cleanDesc &&
+            amountMatch &&
+            (dateDiff < 1440 || sameDay);
+      }
+
+      final descMatch =
+          sDesc == cleanDesc ||
+          (cleanDesc.isNotEmpty && sDesc.contains(cleanDesc)) ||
+          (desc.isNotEmpty && desc.toLowerCase().contains(sDesc));
+      if (!descMatch) return false;
+
+      return (dateDiff < 1440 || sameDay) || (amountMatch && dateDiff < 10080);
     }).toList();
 
     if (matchingSplits.isEmpty) {
@@ -995,27 +1053,37 @@ class SplitViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> updateSplitsForTransaction(TransactionModel transaction) async {
+  Future<void> updateSplitsForTransaction(
+    TransactionModel transaction, {
+    TransactionModel? previousTransaction,
+  }) async {
     final uid = currentUserId;
     if (uid == null) return;
-    final splitDesc = extractSplitDescription(transaction.description ?? '');
-    if (splitDesc.isEmpty) return;
+    final matchSource = previousTransaction ?? transaction;
+    final matchSplitDesc = extractSplitDescription(
+      matchSource.description ?? '',
+    );
+    if (matchSplitDesc.isEmpty) return;
+
+    final updatedSplitDesc = extractSplitDescription(
+      transaction.description ?? '',
+    );
 
     final matchingSplits = _splitExpenses.where((s) {
       final matchesUser = s.payerId == uid;
       final matchesDesc =
-          s.description.trim().toLowerCase() == splitDesc.toLowerCase() ||
-          (transaction.description?.toLowerCase().contains(
+          s.description.trim().toLowerCase() == matchSplitDesc.toLowerCase() ||
+          (matchSource.description?.toLowerCase().contains(
                 s.description.toLowerCase(),
               ) ??
               false);
       final matchesDate =
           s.expenseDate
-              .difference(transaction.transactionDate)
+              .difference(matchSource.transactionDate)
               .inMinutes
               .abs() <
           120;
-      final matchesAmount = (s.totalAmount - transaction.amount).abs() < 0.05;
+      final matchesAmount = (s.totalAmount - matchSource.amount).abs() < 0.05;
       return matchesUser && matchesDesc && (matchesDate || matchesAmount);
     }).toList();
 
@@ -1035,7 +1103,9 @@ class SplitViewModel extends ChangeNotifier {
         borrowerId: s.borrowerId,
         amount: newAmount,
         totalAmount: transaction.amount,
-        description: splitDesc,
+        description: updatedSplitDesc.isNotEmpty
+            ? updatedSplitDesc
+            : s.description,
         category: transaction.category,
         expenseDate: transaction.transactionDate,
         isPayer: true,

@@ -10,12 +10,12 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
 - **📊 Interactive Analytics & Insights**: Drill-down charts powered by `fl_chart` to view expenses, incomes, and net balances (with support for positive/negative values, rounded bar indicators, custom tooltips, and haptic feedback) filterable by date ranges, automatically synchronized with split expenses and personal transactions.
 - **🤝 Shared Split Expenses**:
   - **Overall Balance Hero Card**: Styled with an adaptive brand gradient harmonized with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode), top status pill, rolling amount counter animation (`TweenAnimationBuilder`), live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
-  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`). Partners with active or settled split expenses are prioritized at the top of the list above partners with no split history (`SplitViewModel.orderedPartnerProfiles`).
+  - **Friends List Feed**: User-wise grouped friends list with balance indicators (`owes you ₹X`, `you owe ₹Y`, `settled up`). Partners with active or settled split expenses are prioritized at the top of the list (with active unsettled and recent splits first) above partners with no split history (`SplitViewModel.orderedPartnerProfiles`), both on the Friends screen and in the `AddSplitPage` partner picker.
   - **Interactive Multi-Select Friend Picker**: Fast bottom sheet with search, checkmark indicators, real-time batch toggling, and sticky action bar to select multiple friends at once.
-  - **Keyboard-Responsive Modal Architecture**: All split-related bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) feature bounded height constraints (`BoxConstraints`), view insets padding, pinned headers & action bars, and flexible drag-dismissible scrollable bodies preventing `RenderFlex` keyboard overflows on all screen sizes.
-  - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` sheet. Custom friends are persisted locally, can be deleted anytime, and seamlessly participate in all split modes.
-  - **Multi-Person Group Edit & Deletion**: Full editing and deletion support for split groups, automatically resolving sister splits, participant shares, percentages, and payer assignments.
-  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, pull-to-refresh, and unified Settle Up confirmation modal. Supports deleting custom friends.
+  - **Keyboard-Responsive Modal Architecture**: All split-related bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, and `SplitPayerPickerSheet`) feature bounded height constraints (`BoxConstraints`), view insets padding, pinned headers & action bars, and flexible drag-dismissible scrollable bodies preventing `RenderFlex` keyboard overflows on all screen sizes.
+  - **Add & Manage Custom Friends**: Add friends not yet on the platform directly from the Split screen or `AddSplitPage` sheet. Custom friends are persisted locally, can be renamed or deleted anytime from `UserSplitDetailPage`, and seamlessly participate in all split modes.
+  - **Multi-Person Group Edit & Deletion**: Full editing and deletion support for split groups, automatically resolving sister splits, participant shares, percentages, payer assignments, and linked payment method (`UPI` / `Cash`) while preserving `settled` status for unchanged shares and keeping linked personal transactions synchronized.
+  - **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated shared bill timeline with friend summary card, per-person share breakdowns, pull-to-refresh, and unified Settle Up confirmation modal. Supports renaming and deleting custom friends.
   - **Settle Up Payments**: Support Settle Up for both lenders and debtors, logging income settlement transactions when receiving money and expense settlement transactions when paying back.
   - **Hide / Unhide Friends**: Hide friends from the main list via the top-right `AppBar` action on the friend screen. Persisted via `SharedPreferences`, automatically excluded from the Add Split partner picker, and accessible via a low-profile expand/collapse toggle.
   - **Six Fully-Functional Split Modes**:
@@ -26,7 +26,7 @@ A modern, highly-polished, and feature-rich **Expense Tracker** application buil
     - **Split by Percentages (`%`)**: Individual percentage inputs with computed monetary values (`₹XX.XX`), live percentage balance pill (`XX% left`), `scrollPadding`, and `TextInputAction.next`.
     - **Split by Shares (`===`)**: Stepper buttons (`+` / `−`) with real-time ratio calculation.
   - **Two-Section Form**: `AddSplitPage` features card sections for "Transaction Details" and "Split Details" with strict validation before saving.
-  - **Bidirectional Transaction & Analytics Sync**: Out-of-pocket split shares and settlements automatically log to personal transactions. Shared split obligations where the user owes money are surfaced directly in the transaction ledger styled distinctly in amber/orange with a `[ You Owe ]` badge without minus signs, while payer split expenses render the split icon (`Icons.call_split_rounded`) in red like other paid expenses. Tapping a split transaction from the personal feed opens the full Split editor.
+  - **Bidirectional Transaction & Analytics Sync**: Out-of-pocket split shares and settlements automatically log to personal transactions, with strict date/description matching in Analytics so non-split personal expenses are never adjusted by older splits. Shared split obligations where the user owes money are surfaced directly in the transaction ledger styled distinctly in amber/orange with a `[ You Owe ]` badge without minus signs, while payer split expenses render the split icon (`Icons.call_split_rounded`) in red like other paid expenses. Tapping a split transaction from the personal feed opens the full Split editor.
 - **📁 Dynamic Categories Management**: Create, view, edit, and delete custom categories. Features a fluid drag-and-drop reordering interface, single-request batch creation, and database-level user ownership checks.
 - **💸 Transaction Ledger & Math Inputs**: Log income and expenses with customizable dates, categories, payment methods (UPI or Cash), and descriptions. **Search** transactions by amount or description. **Filter** by multiple categories (multi-select), payment method, transaction type (All, Income, Expense, Split), or date range. Filtering by `Expense` excludes unpaid split debts, while filtering by `Split` surfaces all shared obligations and split records. **Inline Math Operations**: Enter mathematical calculations (`+`, `−`, `×`, `÷`) directly into amount fields with an interactive operations toolbar (`MathOperationsBar`), live computation preview badge, and automatic evaluation upon exiting the field or saving.
 - **💾 Optimistic UI & Smart Caching**: Custom in-memory caching layer with TTL validation, compound filter keys, concurrent request deduplication via `Completer`, and optimistic state updates with rollback in ViewModels to minimize network overhead and ensure instant screen transitions.
@@ -93,7 +93,7 @@ lib/
 │   └── transaction.dart      # TransactionModel (full CRUD fields + copyWith)
 ├── services/                 # ONLY layer that imports supabase_flutter
 │   ├── auth_service.dart     # Singleton: Supabase Auth + retry/back-off + error mapping
-│   ├── database_service.dart # Singleton: PostgREST ops, 30s TTL cache, Completer dedup
+│   ├── database_service.dart # Singleton: PostgREST ops, 2m/10m/15m TTL cache, Completer dedup
 │   └── pdf_export_service.dart # Singleton: PDF generation, table formatting, viewing, sharing & saving
 ├── viewmodels/               # ALL business logic lives here — ChangeNotifier state machines
 │   ├── auth_viewmodel.dart   # Loading/error flags, recovery mode, session stream
@@ -121,7 +121,9 @@ lib/
 │   ├── split/
 │   │   ├── add_split_page.dart    # 6 split modes, Who Paid selector, live previews; user identity via SplitViewModel
 │   │   ├── split_page.dart
-│   │   └── user_split_detail_page.dart
+│   │   ├── user_split_detail_page.dart
+│   │   └── widgets/
+│   │       └── split_payer_picker_sheet.dart # Extracted Choose Payer modal bottom sheet
 │   └── transaction/
 │       └── add_transaction_page.dart  # Add/edit transaction form with math input & operations bar
 ├── widgets/

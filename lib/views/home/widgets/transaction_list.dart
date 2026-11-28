@@ -4,7 +4,6 @@ import '../../../utils/haptics.dart';
 
 import 'package:provider/provider.dart';
 
-import '../../../models/profile.dart';
 import '../../../models/split_expense.dart';
 import '../../../models/transaction.dart';
 import '../../../viewmodels/split_viewmodel.dart';
@@ -376,26 +375,17 @@ class _TransactionListViewState extends State<TransactionListView> {
                 final partnerId = isUserPayer
                     ? matchingSplit.borrowerId
                     : matchingSplit.payerId;
-                ProfileModel? partner;
-                try {
-                  partner = splitVM.profiles.firstWhere(
-                    (p) => p.id == partnerId,
-                  );
-                } catch (_) {
-                  partner = ProfileModel(
-                    id: partnerId,
-                    name: isUserPayer
-                        ? matchingSplit.borrowerName
-                        : matchingSplit.payerName,
-                    email:
-                        (isUserPayer
-                            ? matchingSplit.borrowerEmail
-                            : matchingSplit.payerEmail) ??
-                        '',
-                  );
-                }
+                final partner = splitVM.resolvePartnerProfile(
+                  partnerId,
+                  fallbackName: isUserPayer
+                      ? matchingSplit.borrowerName
+                      : matchingSplit.payerName,
+                  fallbackEmail: isUserPayer
+                      ? matchingSplit.borrowerEmail
+                      : matchingSplit.payerEmail,
+                );
 
-                final result = await Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => AddSplitPage(
@@ -404,11 +394,6 @@ class _TransactionListViewState extends State<TransactionListView> {
                     ),
                   ),
                 );
-
-                if (result == true && context.mounted) {
-                  viewModel.loadTransactions();
-                  splitVM.loadSplitExpenses();
-                }
               }
               return;
             }
@@ -444,26 +429,17 @@ class _TransactionListViewState extends State<TransactionListView> {
                 final partnerId = isUserPayer
                     ? matchingSplit.borrowerId
                     : matchingSplit.payerId;
-                ProfileModel? partner;
-                try {
-                  partner = splitVM.profiles.firstWhere(
-                    (p) => p.id == partnerId,
-                  );
-                } catch (_) {
-                  partner = ProfileModel(
-                    id: partnerId,
-                    name: isUserPayer
-                        ? matchingSplit.borrowerName
-                        : matchingSplit.payerName,
-                    email:
-                        (isUserPayer
-                            ? matchingSplit.borrowerEmail
-                            : matchingSplit.payerEmail) ??
-                        '',
-                  );
-                }
+                final partner = splitVM.resolvePartnerProfile(
+                  partnerId,
+                  fallbackName: isUserPayer
+                      ? matchingSplit.borrowerName
+                      : matchingSplit.payerName,
+                  fallbackEmail: isUserPayer
+                      ? matchingSplit.borrowerEmail
+                      : matchingSplit.payerEmail,
+                );
 
-                final result = await Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => AddSplitPage(
@@ -472,11 +448,6 @@ class _TransactionListViewState extends State<TransactionListView> {
                     ),
                   ),
                 );
-
-                if (result == true && context.mounted) {
-                  viewModel.loadTransactions();
-                  splitVM.loadSplitExpenses();
-                }
                 return;
               }
             }

@@ -12,6 +12,7 @@ import '../../viewmodels/split_viewmodel.dart';
 import '../../viewmodels/transaction_viewmodel.dart';
 import '../../widgets/app_dropdown.dart';
 import '../../widgets/math_operations_bar.dart';
+import 'widgets/split_payer_picker_sheet.dart';
 
 enum SplitMode {
   equally,
@@ -57,6 +58,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
 
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
+  List<String>? _initialSisterSplitIds;
 
   @override
   void initState() {
@@ -83,7 +85,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
       _payerPartner = widget.initialPartner;
       _includedPartnerIds.add(widget.initialPartner!.id);
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final categoryVM = Provider.of<CategoryViewModel>(context, listen: false);
       if (categoryVM.categories.isEmpty) {
         categoryVM.loadCategories();
@@ -92,13 +94,36 @@ class _AddSplitPageState extends State<AddSplitPage> {
       final splitVM = Provider.of<SplitViewModel>(context, listen: false);
       splitVM.loadHiddenFriends();
       if (splitVM.profiles.isEmpty) {
-        splitVM.loadProfiles();
+        await splitVM.loadProfiles();
       }
+
+      if (widget.splitExpense != null && splitVM.splitExpenses.isEmpty) {
+        await splitVM.loadSplitExpenses();
+      }
+      if (!mounted) return;
+
+      final transactionVM = Provider.of<TransactionViewModel>(
+        context,
+        listen: false,
+      );
+      if (widget.splitExpense != null && transactionVM.transactions.isEmpty) {
+        await transactionVM.loadTransactions();
+      }
+      if (!mounted) return;
 
       // Initialize partner and payer state if editing an existing split expense
       if (widget.splitExpense != null) {
         final s = widget.splitExpense!;
+        final matchingTx = transactionVM.findMatchingSplitTransaction(
+          description: s.description,
+          expenseDate: s.expenseDate,
+          totalAmount: s.totalAmount,
+        );
+        if (matchingTx != null) {
+          _paymentMethod = matchingTx.paymentMethod;
+        }
         final sisterSplits = splitVM.getSisterSplits(s);
+        _initialSisterSplitIds = sisterSplits.map((sp) => sp.id).toList();
         final currentUserId = splitVM.currentUserId;
         final isUserPayer = s.payerId == currentUserId;
 
@@ -108,20 +133,11 @@ class _AddSplitPageState extends State<AddSplitPage> {
 
         for (final split in sisterSplits) {
           final partnerId = isUserPayer ? split.borrowerId : split.payerId;
-          final ProfileModel partner;
-          final foundPartner = splitVM.profiles
-              .cast<ProfileModel?>()
-              .firstWhere((p) => p?.id == partnerId, orElse: () => null);
-
-          if (foundPartner != null) {
-            partner = foundPartner;
-          } else {
-            final email = isUserPayer
-                ? (split.borrowerEmail ?? '')
-                : (split.payerEmail ?? '');
-            final name = isUserPayer ? split.borrowerName : split.payerName;
-            partner = ProfileModel(id: partnerId, email: email, name: name);
-          }
+          final partner = splitVM.resolvePartnerProfile(
+            partnerId,
+            fallbackName: isUserPayer ? split.borrowerName : split.payerName,
+            fallbackEmail: isUserPayer ? split.borrowerEmail : split.payerEmail,
+          );
 
           if (!_selectedPartners.any((p) => p.id == partner.id)) {
             _selectedPartners.add(partner);
@@ -568,7 +584,7 @@ class _AddSplitPageState extends State<AddSplitPage> {
 
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
-            final allProfiles = splitVM.profiles
+            final allProfiles = splitVM.orderedPartnerProfiles
                 .where((p) => !splitVM.isFriendHidden(p.id))
                 .toList();
 
@@ -1095,167 +1111,19 @@ class _AddSplitPageState extends State<AddSplitPage> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (ctx) {
-        final theme = Theme.of(ctx);
-        final isDark = theme.brightness == Brightness.dark;
-
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
-          ),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0A0A0A) : theme.colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(
-                alpha: isDark ? 0.15 : 0.08,
-              ),
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: isDark ? 0.3 : 0.6,
-                      ),
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.payments_rounded,
-                              color: theme.colorScheme.primary,
-                              size: 22,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Choose Payer',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.close_rounded,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // List of Partners
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ..._selectedPartners.map((partner) {
-                            final isSelected =
-                                !_iPaid && _payerPartner?.id == partner.id;
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 4,
-                              ),
-                              leading: _buildAvatar(
-                                context: context,
-                                name: partner.displayName,
-                                radius: 18,
-                              ),
-                              title: Text(
-                                partner.displayName,
-                                style: TextStyle(
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              trailing: isSelected
-                                  ? Icon(
-                                      Icons.check_circle_rounded,
-                                      color: theme.colorScheme.primary,
-                                    )
-                                  : null,
-                              onTap: () {
-                                AppHaptics.selectionClick(context);
-                                setState(() {
-                                  _iPaid = false;
-                                  _payerPartner = partner;
-                                });
-                                Navigator.pop(ctx);
-                              },
-                            );
-                          }),
-
-                          // You (Current User)
-                          ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 4,
-                            ),
-                            leading: _buildAvatar(
-                              context: context,
-                              name: currentUserName,
-                              radius: 18,
-                              isCurrentUser: true,
-                            ),
-                            title: Text(
-                              '$currentUserName (You)',
-                              style: TextStyle(
-                                fontWeight: _iPaid
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontSize: 16,
-                              ),
-                            ),
-                            trailing: _iPaid
-                                ? Icon(
-                                    Icons.check_circle_rounded,
-                                    color: theme.colorScheme.primary,
-                                  )
-                                : null,
-                            onTap: () {
-                              AppHaptics.selectionClick(context);
-                              setState(() {
-                                _iPaid = true;
-                                _payerPartner = null;
-                              });
-                              Navigator.pop(ctx);
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+      builder: (ctx) => SplitPayerPickerSheet(
+        selectedPartners: _selectedPartners,
+        currentUserName: currentUserName,
+        iPaid: _iPaid,
+        payerPartner: _payerPartner,
+        avatarBuilder: _buildAvatar,
+        onSelectPayer: (iPaid, payerPartner) {
+          setState(() {
+            _iPaid = iPaid;
+            _payerPartner = payerPartner;
+          });
+        },
+      ),
     );
   }
 
@@ -2321,8 +2189,12 @@ class _AddSplitPageState extends State<AddSplitPage> {
       }
 
       if (isEditing) {
-        final origSisterSplits = splitVM.getSisterSplits(widget.splitExpense!);
-        final oldIds = origSisterSplits.map((s) => s.id).toList();
+        final oldIds =
+            _initialSisterSplitIds ??
+            splitVM
+                .getSisterSplits(widget.splitExpense!)
+                .map((s) => s.id)
+                .toList();
 
         splitSuccess = await splitVM.updateSplitExpenseGroup(
           oldSplitIds: oldIds,
@@ -2483,12 +2355,15 @@ class _AddSplitPageState extends State<AddSplitPage> {
                 );
 
                 if (confirm == true && mounted) {
-                  final origSisterSplits = splitVM.getSisterSplits(
-                    widget.splitExpense!,
-                  );
-                  for (final s in origSisterSplits) {
+                  final oldIds =
+                      _initialSisterSplitIds ??
+                      splitVM
+                          .getSisterSplits(widget.splitExpense!)
+                          .map((s) => s.id)
+                          .toList();
+                  for (final splitId in oldIds) {
                     await splitVM.deleteSplitExpense(
-                      s.id,
+                      splitId,
                       transactionVM: transactionVM,
                     );
                   }

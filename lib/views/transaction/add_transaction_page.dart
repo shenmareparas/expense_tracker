@@ -240,7 +240,10 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
           paymentMethod: _paymentMethod,
           transactionDate: transactionDateTime,
         );
-        await splitVM.updateSplitsForTransaction(updatedTx);
+        await splitVM.updateSplitsForTransaction(
+          updatedTx,
+          previousTransaction: widget.transaction,
+        );
       }
 
       if (success && mounted) {

@@ -593,60 +593,271 @@ void main() {
   });
 
   group('SplitViewModel.orderedPartnerProfiles', () {
-    test(
-      'places partners with split expenses above others and excludes current user',
-      () {
-        final viewModel = SplitViewModel();
-        const currentUserId = 'user-me';
-        final now = DateTime(2026, 11, 1, 14, 0);
+    test('places partners with split expenses above others and excludes current user', () {
+      final viewModel = SplitViewModel();
+      const currentUserId = 'user-me';
+      final now = DateTime(2026, 11, 1, 14, 0);
 
-        final profiles = [
-          ProfileModel(id: currentUserId, email: 'me@example.com', name: 'Me'),
-          ProfileModel(id: 'u-no-split-1', email: 'a@example.com', name: 'Alice'),
-          ProfileModel(id: 'u-with-split-1', email: 'b@example.com', name: 'Bob'),
-          ProfileModel(id: 'u-no-split-2', email: 'c@example.com', name: 'Charlie'),
-          ProfileModel(id: 'u-with-split-2', email: 'd@example.com', name: 'Dave'),
-        ];
+      final profiles = [
+        ProfileModel(id: currentUserId, email: 'me@example.com', name: 'Me'),
+        ProfileModel(id: 'u-no-split-1', email: 'a@example.com', name: 'Alice'),
+        ProfileModel(id: 'u-with-split-1', email: 'b@example.com', name: 'Bob'),
+        ProfileModel(
+          id: 'u-no-split-2',
+          email: 'c@example.com',
+          name: 'Charlie',
+        ),
+        ProfileModel(
+          id: 'u-with-split-2',
+          email: 'd@example.com',
+          name: 'Dave',
+        ),
+      ];
 
-        final splits = [
+      final splits = [
+        SplitExpenseModel(
+          id: 's1',
+          payerId: currentUserId,
+          borrowerId: 'u-with-split-1',
+          amount: 100,
+          totalAmount: 200,
+          description: 'Lunch',
+          status: 'pending',
+          expenseDate: now,
+          createdAt: now,
+        ),
+        SplitExpenseModel(
+          id: 's2',
+          payerId: 'u-with-split-2',
+          borrowerId: currentUserId,
+          amount: 50,
+          totalAmount: 100,
+          description: 'Coffee',
+          status: 'settled',
+          expenseDate: now,
+          createdAt: now,
+        ),
+      ];
+
+      viewModel.setMockData(
+        profiles: profiles,
+        splitExpenses: splits,
+        mockUserId: currentUserId,
+      );
+
+      final orderedIds = viewModel.orderedPartnerProfiles
+          .map((p) => p.id)
+          .toList();
+      expect(orderedIds, [
+        'u-with-split-1',
+        'u-with-split-2',
+        'u-no-split-1',
+        'u-no-split-2',
+      ]);
+    });
+  });
+
+  group('SplitViewModel.updateCustomProfile', () {
+    test('updates custom friend name and cached split display names', () async {
+      final viewModel = SplitViewModel();
+      const currentUserId = 'user-me';
+      const customId = 'custom-1';
+      final now = DateTime(2026, 11, 1, 14, 0);
+
+      viewModel.setMockData(
+        customProfiles: [
+          ProfileModel(id: customId, email: 'alex@friend.local', name: 'Alex'),
+        ],
+        splitExpenses: [
           SplitExpenseModel(
             id: 's1',
             payerId: currentUserId,
-            borrowerId: 'u-with-split-1',
-            amount: 100,
-            totalAmount: 200,
-            description: 'Lunch',
+            borrowerId: customId,
+            amount: 150,
+            totalAmount: 300,
+            description: 'Dinner',
             status: 'pending',
             expenseDate: now,
             createdAt: now,
+            borrowerName: 'Alex',
           ),
-          SplitExpenseModel(
-            id: 's2',
-            payerId: 'u-with-split-2',
-            borrowerId: currentUserId,
-            amount: 50,
-            totalAmount: 100,
-            description: 'Coffee',
-            status: 'settled',
-            expenseDate: now,
-            createdAt: now,
-          ),
-        ];
+        ],
+        mockUserId: currentUserId,
+      );
+
+      final updated = await viewModel.updateCustomProfile(
+        id: customId,
+        name: 'Alex Johnson',
+      );
+
+      expect(updated, isTrue);
+      expect(viewModel.profiles.first.displayName, 'Alex Johnson');
+      expect(viewModel.splitExpenses.first.displayBorrower, 'Alex Johnson');
+    });
+  });
+
+  group('SplitViewModel.getSisterSplits', () {
+    test('returns all sister splits belonging to the same bill', () {
+      final viewModel = SplitViewModel();
+      const currentUserId = 'user-me';
+      final now = DateTime(2026, 11, 1, 14, 0);
+
+      final s1 = SplitExpenseModel(
+        id: 's1',
+        payerId: currentUserId,
+        borrowerId: 'friend-1',
+        amount: 100,
+        totalAmount: 300,
+        description: 'Dinner',
+        expenseDate: now,
+        createdAt: now,
+      );
+      final s2 = SplitExpenseModel(
+        id: 's2',
+        payerId: currentUserId,
+        borrowerId: 'friend-2',
+        amount: 100,
+        totalAmount: 300,
+        description: 'Dinner',
+        expenseDate: now,
+        createdAt: now,
+      );
+      final unrelated = SplitExpenseModel(
+        id: 's3',
+        payerId: currentUserId,
+        borrowerId: 'friend-3',
+        amount: 50,
+        totalAmount: 100,
+        description: 'Coffee',
+        expenseDate: now,
+        createdAt: now,
+      );
+
+      viewModel.setMockData(
+        splitExpenses: [s1, s2, unrelated],
+        mockUserId: currentUserId,
+      );
+
+      final sisters = viewModel.getSisterSplits(s1);
+      expect(sisters.map((s) => s.id).toList(), ['s1', 's2']);
+    });
+  });
+
+  group('SplitViewModel.getUserShareForSplitTransaction non-split safety', () {
+    test('does not match non-split personal expense to an older split with same amount and substring description', () {
+      final viewModel = SplitViewModel();
+      const currentUserId = 'user-me';
+      final oldDate = DateTime(2026, 9, 21, 5, 38);
+      final today = DateTime(2026, 11, 28, 5, 39);
+
+      final oldSplit1 = SplitExpenseModel(
+        id: 'old-1',
+        payerId: currentUserId,
+        borrowerId: 'friend-1',
+        amount: 16.67,
+        totalAmount: 50.0,
+        description: 'Coffee',
+        status: 'settled',
+        expenseDate: oldDate,
+        createdAt: oldDate,
+      );
+      final oldSplit2 = SplitExpenseModel(
+        id: 'old-2',
+        payerId: currentUserId,
+        borrowerId: 'friend-2',
+        amount: 16.67,
+        totalAmount: 50.0,
+        description: 'Coffee',
+        status: 'settled',
+        expenseDate: oldDate,
+        createdAt: oldDate,
+      );
+
+      viewModel.setMockData(
+        splitExpenses: [oldSplit1, oldSplit2],
+        mockUserId: currentUserId,
+      );
+
+      final personalTx = TransactionModel(
+        id: 'tx-today',
+        userId: currentUserId,
+        amount: 50.0,
+        type: 'expense',
+        category: 'Food',
+        description: 'Coffee + Poha',
+        paymentMethod: 'upi',
+        transactionDate: today,
+        createdAt: today,
+      );
+
+      expect(viewModel.getUserShareForSplitTransaction(personalTx), isNull);
+      final analyticsTxs = viewModel.transformTransactionsForAnalytics(
+        [personalTx],
+        startDate: DateTime(2026, 11, 28),
+        endDate: DateTime(2026, 11, 28, 23, 59, 59, 999),
+      );
+      expect(analyticsTxs.length, 1);
+      expect(analyticsTxs.first.amount, 50.0);
+    });
+  });
+
+  group('SplitViewModel.getUserShareForSplitTransaction non-split safety', () {
+    test(
+      'does not match non-split personal expense to an older split with same amount and substring description',
+      () {
+        final viewModel = SplitViewModel();
+        const currentUserId = 'user-me';
+        final oldDate = DateTime(2026, 9, 21, 5, 38);
+        final today = DateTime(2026, 11, 28, 5, 39);
+
+        final oldSplit1 = SplitExpenseModel(
+          id: 'old-1',
+          payerId: currentUserId,
+          borrowerId: 'friend-1',
+          amount: 16.67,
+          totalAmount: 50.0,
+          description: 'Coffee',
+          status: 'settled',
+          expenseDate: oldDate,
+          createdAt: oldDate,
+        );
+        final oldSplit2 = SplitExpenseModel(
+          id: 'old-2',
+          payerId: currentUserId,
+          borrowerId: 'friend-2',
+          amount: 16.67,
+          totalAmount: 50.0,
+          description: 'Coffee',
+          status: 'settled',
+          expenseDate: oldDate,
+          createdAt: oldDate,
+        );
 
         viewModel.setMockData(
-          profiles: profiles,
-          splitExpenses: splits,
+          splitExpenses: [oldSplit1, oldSplit2],
           mockUserId: currentUserId,
         );
 
-        final orderedIds =
-            viewModel.orderedPartnerProfiles.map((p) => p.id).toList();
-        expect(orderedIds, [
-          'u-with-split-1',
-          'u-with-split-2',
-          'u-no-split-1',
-          'u-no-split-2',
-        ]);
+        final personalTx = TransactionModel(
+          id: 'tx-today',
+          userId: currentUserId,
+          amount: 50.0,
+          type: 'expense',
+          category: 'Food',
+          description: 'Coffee + Poha',
+          paymentMethod: 'upi',
+          transactionDate: today,
+          createdAt: today,
+        );
+
+        expect(viewModel.getUserShareForSplitTransaction(personalTx), isNull);
+        final analyticsTxs = viewModel.transformTransactionsForAnalytics(
+          [personalTx],
+          startDate: DateTime(2026, 11, 28),
+          endDate: DateTime(2026, 11, 28, 23, 59, 59, 999),
+        );
+        expect(analyticsTxs.length, 1);
+        expect(analyticsTxs.first.amount, 50.0);
       },
     );
   });

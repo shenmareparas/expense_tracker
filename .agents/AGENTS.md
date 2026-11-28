@@ -35,14 +35,14 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
 - **Friends Feed**: Main Split screen (`SplitPage`) displays:
   - **Overall Balance Hero Card**: Styled with an adaptive brand gradient that harmonizes with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode, `28px` corner radius), top header with frosted status pill, 500ms rolling number animation (`TweenAnimationBuilder<double>` with `FontFeature.tabularFigures()`), dynamic live visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
   - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up").
-  - **Priority Ordering**: Partners with active or settled split expenses appear above people without split expenses via `SplitViewModel.orderedPartnerProfiles`.
+  - **Priority Ordering**: Partners with active or settled split expenses appear above people without split expenses via `SplitViewModel.orderedPartnerProfiles` (prioritizing active unsettled balances and most recent split activity), used in both `SplitPage` and `AddSplitPage` (`_showAddPartnerSheet`).
 - **Custom Friends Support**: Users can add unregistered friends via "Add new person" modal on `SplitPage` and `AddSplitPage`.
-  - Custom friends are assigned client-generated UUIDs and persisted locally in `SharedPreferences` (`custom_friends`).
+  - Custom friends are assigned client-generated UUIDs and persisted locally in `SharedPreferences` (`custom_friend_profiles`).
   - Merged seamlessly into `SplitViewModel.profiles` alongside remote Supabase profiles.
-  - Can be deleted directly from `UserSplitDetailPage` via the top-right delete action.
+  - Can be renamed (`SplitViewModel.updateCustomProfile`, which also refreshes cached split display names) or deleted directly from `UserSplitDetailPage` via the top-right `AppBar` actions.
   - Foreign key constraints on `split_expenses.borrower_id` and `payer_id` to `auth.users(id)` were dropped on Supabase to allow custom friend UUIDs.
-- **Edit Split Expense & Multi-Person Group Resolution**: `AddSplitPage` supports editing existing splits (`widget.splitExpense != null`), automatically resolving all sister splits (`SplitViewModel.getSisterSplits`) for the bill to load all sharing participants, their custom amounts/percentages/shares, and who paid. Saving edits updates the entire split group via `SplitViewModel.updateSplitExpenseGroup` and syncs with the personal transaction.
-- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, net friend balance summary, custom friend deletion, pull-to-refresh (`forceRefresh: true`), and a unified **Settle Up** confirmation modal.
+- **Edit Split Expense & Multi-Person Group Resolution**: `AddSplitPage` supports editing existing splits (`widget.splitExpense != null`), loading splits and transactions if needed, initializing `_paymentMethod` from the linked personal transaction (`TransactionViewModel.findMatchingSplitTransaction`), capturing `_initialSisterSplitIds` on load, and resolving all sister splits (`SplitViewModel.getSisterSplits`) for the bill to load all sharing participants, their custom amounts/percentages/shares, and who paid. Saving edits updates the entire split group via `SplitViewModel.updateSplitExpenseGroup` (preserving `settled` status when a participant's share amount is unchanged) and syncs with the personal transaction. When editing a linked transaction from `AddTransactionPage`, `previousTransaction` is passed to `SplitViewModel.updateSplitsForTransaction` so all linked splits stay matched and updated even when description, amount, or date change.
+- **Friend Detail Screen (`UserSplitDetailPage`)**: Dedicated view for shared expenses timeline with a friend, resolving `currentPartner` dynamically from `SplitViewModel.profiles`, net friend balance summary, custom friend rename and deletion, pull-to-refresh (`forceRefresh: true`), and a unified **Settle Up** confirmation modal.
 - **Settle Up Logic**: Both lenders (payers) and debtors (borrowers) can settle up. Settling up resolves all pending split shares between friends:
   - Lender receives money: logs `income` settlement transaction ("Settlement from Friend").
   - Debtor pays back: logs `expense` settlement transaction ("Settlement to Friend").
@@ -52,7 +52,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - Hidden friends are excluded from the `AddSplitPage` partner dropdown list.
   - Accessible on the main Split screen via a discreet, low-profile `"Show hidden friends (N)"` expand/collapse toggle.
 - **Multi-Select Friend Picker Sheet**: `AddSplitPage` features an interactive multi-select bottom sheet with search, checkmark indicators, real-time batch toggling, and a sticky "Done (N selected)" action bar, allowing users to select or deselect multiple friends in a single interaction without the sheet closing on each tap.
-- **Keyboard-Responsive Modal Bottom Sheet Architecture**: All modal bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) follow a strict responsive layout pattern:
+- **Keyboard-Responsive Modal Bottom Sheet Architecture**: All modal bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, and extracted `SplitPayerPickerSheet` in `lib/views/split/widgets/split_payer_picker_sheet.dart`) follow a strict responsive layout pattern:
   - Root container specifies `constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.88)`.
   - Wrapped with `Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom))` to automatically shift above the software keyboard.
   - Top headers and bottom action buttons are pinned outside the scrollable body in a `Column(mainAxisSize: MainAxisSize.min)`.
@@ -66,7 +66,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - `exactAmounts` (`1.23`): Persistent numeric text fields per member with real-time remaining/over allocation pill (`₹XX left`).
   - `percentages` (`%`): Persistent percentage text fields per member with computed monetary preview and remaining percentage pill (`XX% left`).
   - `shares` (`===`): Tactile `+` and `−` integer steppers with dynamic ratio fraction calculation.
-- **Transactions & Analytics Integration**: Split expenses in Analytics are processed via `SplitViewModel.transformTransactionsForAnalytics()`, calculating strictly the current user's individual financial share for the category (e.g. Food) rather than the whole bill amount, automatically including splits created by other users where the current user is a borrower, omitting 0-share partner-only splits, and excluding split settlement repayments from earned income.
+- **Transactions & Analytics Integration**: Split expenses in Analytics are processed via `SplitViewModel.transformTransactionsForAnalytics()`, calculating strictly the current user's individual financial share for the category (e.g. Food) rather than the whole bill amount, automatically including splits created by other users where the current user is a borrower, omitting 0-share partner-only splits, and excluding split settlement repayments from earned income. `getUserShareForSplitTransaction()` guards non-`Split:` personal expenses with exact description, total amount, and 24-hour/same-day matching (and requires 24-hour/same-day or 7-day amount proximity for explicit `Split:` entries) so unrelated personal expenses are never adjusted by older splits.
 - **Borrower Split Feed Integration & Shared Obligation Styling**: Borrower split records (where another user paid and the current user owes money) are displayed in `TransactionListView` via `Consumer2<TransactionViewModel, SplitViewModel>` and `SplitViewModel.getBorrowerSplitTransactions()`. Because the money was not paid out-of-pocket yet, these items are styled distinctly from standard paid expenses:
   - Borrower splits render the amber/orange `Icons.call_split_rounded` split icon in an amber/orange tinted container (or grey `Icons.check_circle_outline_rounded` when settled). Payer split expenses (`Split: ...`) also render the `Icons.call_split_rounded` split icon but in red like standard expenses since the money was paid out-of-pocket.
   - Trailing column displaying a `[ You Owe ]` badge (or `[ Settled ]`) without a minus sign (`-`), rendered in amber/orange (`₹XX.XX`).
@@ -94,7 +94,7 @@ This project is built using a clean, modern **MVVM (Model-View-ViewModel) + Serv
   - `_categoryCacheTtl = Duration(minutes: 15)` — categories almost never change
 - **Compound Cache Key**: The transaction cache builds a unique string key based on selected query filters (`type`, `categories` list, `paymentMethod`, `startDate`, `endDate`). Changing any filter bypasses the stale cache and triggers a fresh remote load.
 - **Invalidation**: All mutation operations (add, edit, delete, reorder, settle up) explicitly call `_invalidateTransactionCache()`, `_invalidateCategoryCache()`, or `_invalidateSplitCache()` to guarantee immediate data updates in the UI.
-- **Profiles Cache Reuse**: `getSplitExpenses()` and `updateSplitExpense()` call `getProfiles(forceRefresh: false)` to enrich split records, eliminating the hidden second `SELECT *` round-trip that previously fired on every split load.
+- **Profiles Cache Reuse**: `getSplitExpenses()`, `addCustomMultipleSplitExpenses()`, and `updateSplitExpense()` share `_enrichSplitsWithProfiles()`, which calls `getProfiles(forceRefresh: false)` to enrich split records, eliminating redundant `SELECT *` round-trips.
 - **Batch API Calls**: Two new methods reduce N sequential round-trips to a single `inFilter` call:
   - `updateSplitExpenseStatusBatch(ids, status)` — used by `settleUpWithPartner()` to settle all pending splits in one shot.
   - `deleteSplitExpenses(ids)` — used by `updateSplitExpenseGroup()` to delete old split records in one shot.
@@ -162,6 +162,12 @@ All data columns map strictly between remote database fields and Flutter immutab
 - `email`: Text
 - `name`: Text (Optional display name)
 - `created_at`: Timestamptz
+
+### 5. Indexes, RLS & Trigger Hardening
+- `transactions`: Indexed on `(user_id, transaction_date DESC)` (`idx_transactions_user_date`).
+- `split_expenses`: Indexed on `(payer_id, expense_date DESC)` (`idx_split_expenses_payer_date`) and `(borrower_id, expense_date DESC)` (`idx_split_expenses_borrower_date`).
+- **RLS Optimization**: All `profiles`, `transactions`, `categories`, and `split_expenses` policies wrap `auth.uid()` in `(select auth.uid())` for single-initplan evaluation, and `profiles` separates `SELECT` from `INSERT`/`UPDATE`/`DELETE` to avoid duplicate permissive `SELECT` policies.
+- **Function Security**: `handle_new_user()` sets `search_path = ''`, and `EXECUTE` on both `handle_new_user()` and `handle_split_expense_settlement()` is revoked from `PUBLIC`, `anon`, and `authenticated`.
 
 ---
 

@@ -23,11 +23,18 @@ class UserSplitDetailPage extends StatelessWidget {
     return Consumer<SplitViewModel>(
       builder: (context, splitVM, child) {
         final currentUserId = splitVM.currentUserId;
+        final currentPartner =
+            splitVM.profiles.cast<ProfileModel?>().firstWhere(
+              (p) => p?.id == partner.id,
+              orElse: () => null,
+            ) ??
+            partner;
 
         // Filter splits involving this partner and current user
         final partnerSplits = splitVM.splitExpenses.where((s) {
-          return (s.payerId == partner.id && s.borrowerId == currentUserId) ||
-              (s.borrowerId == partner.id && s.payerId == currentUserId);
+          return (s.payerId == currentPartner.id &&
+                  s.borrowerId == currentUserId) ||
+              (s.borrowerId == currentPartner.id && s.payerId == currentUserId);
         }).toList();
 
         // Calculate net balance with this partner
@@ -50,33 +57,40 @@ class UserSplitDetailPage extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(partner.displayName),
+            title: Text(currentPartner.displayName),
             elevation: 0,
             backgroundColor: Colors.transparent,
             actions: [
+              if (splitVM.isCustomFriend(currentPartner.id))
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit Friend Name',
+                  onPressed: () =>
+                      _showEditFriendDialog(context, splitVM, currentPartner),
+                ),
               IconButton(
                 icon: Icon(
-                  splitVM.isFriendHidden(partner.id)
+                  splitVM.isFriendHidden(currentPartner.id)
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: splitVM.isFriendHidden(partner.id)
+                  color: splitVM.isFriendHidden(currentPartner.id)
                       ? Colors.orange
                       : null,
                 ),
-                tooltip: splitVM.isFriendHidden(partner.id)
+                tooltip: splitVM.isFriendHidden(currentPartner.id)
                     ? 'Unhide Friend'
                     : 'Hide Friend',
                 onPressed: () async {
                   AppHaptics.lightImpact(context);
-                  await splitVM.toggleHideFriend(partner.id);
+                  await splitVM.toggleHideFriend(currentPartner.id);
                   if (context.mounted) {
-                    final isHidden = splitVM.isFriendHidden(partner.id);
+                    final isHidden = splitVM.isFriendHidden(currentPartner.id);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
                           isHidden
-                              ? '${partner.displayName} hidden from split list'
-                              : '${partner.displayName} is now visible',
+                              ? '${currentPartner.displayName} hidden from split list'
+                              : '${currentPartner.displayName} is now visible',
                         ),
                         duration: const Duration(seconds: 2),
                       ),
@@ -84,7 +98,7 @@ class UserSplitDetailPage extends StatelessWidget {
                   }
                 },
               ),
-              if (splitVM.isCustomFriend(partner.id))
+              if (splitVM.isCustomFriend(currentPartner.id))
                 IconButton(
                   icon: const Icon(
                     Icons.delete_outline_rounded,
@@ -112,12 +126,12 @@ class UserSplitDetailPage extends StatelessWidget {
                           ),
                         ),
                         title: Text(
-                          'Delete ${partner.displayName}',
+                          'Delete ${currentPartner.displayName}',
                           style: Theme.of(dialogCtx).textTheme.titleLarge
                               ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         content: Text(
-                          'Are you sure you want to remove ${partner.displayName} from your friends list?',
+                          'Are you sure you want to remove ${currentPartner.displayName} from your friends list?',
                           textAlign: TextAlign.center,
                         ),
                         actionsAlignment: MainAxisAlignment.spaceEvenly,
@@ -139,13 +153,13 @@ class UserSplitDetailPage extends StatelessWidget {
                     );
 
                     if (confirm == true) {
-                      await splitVM.deleteCustomProfile(partner.id);
+                      await splitVM.deleteCustomProfile(currentPartner.id);
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              '${partner.displayName} removed from friends',
+                              '${currentPartner.displayName} removed from friends',
                             ),
                             duration: const Duration(seconds: 2),
                           ),
@@ -188,8 +202,9 @@ class UserSplitDetailPage extends StatelessWidget {
                               backgroundColor: theme.colorScheme.primary
                                   .withValues(alpha: 0.15),
                               child: Text(
-                                partner.displayName.isNotEmpty
-                                    ? partner.displayName[0].toUpperCase()
+                                currentPartner.displayName.isNotEmpty
+                                    ? currentPartner.displayName[0]
+                                          .toUpperCase()
                                     : '?',
                                 style: TextStyle(
                                   fontSize: 22,
@@ -204,14 +219,14 @@ class UserSplitDetailPage extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    partner.displayName,
+                                    currentPartner.displayName,
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
-                                    partner.email,
+                                    currentPartner.email,
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: theme.colorScheme.onSurface
@@ -221,7 +236,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                   const SizedBox(height: 6),
                                   if (isSettledUp)
                                     Text(
-                                      'You and ${partner.displayName} are settled up',
+                                      'You and ${currentPartner.displayName} are settled up',
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
@@ -252,7 +267,7 @@ class UserSplitDetailPage extends StatelessWidget {
                         Row(
                           children: [
                             Expanded(
-                              child: splitVM.canUndoSettleUp(partner.id)
+                              child: splitVM.canUndoSettleUp(currentPartner.id)
                                   ? OutlinedButton.icon(
                                       onPressed: () async {
                                         AppHaptics.mediumImpact(context);
@@ -286,7 +301,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                                   ),
                                             ),
                                             content: Text(
-                                              'Undo the settlement with ${partner.displayName}? This will revert only the expenses settled in the last settle up back to pending and remove the settlement transaction.',
+                                              'Undo the settlement with ${currentPartner.displayName}? This will revert only the expenses settled in the last settle up back to pending and remove the settlement transaction.',
                                               textAlign: TextAlign.center,
                                             ),
                                             shape: RoundedRectangleBorder(
@@ -324,7 +339,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                         if (confirm == true &&
                                             context.mounted) {
                                           await splitVM.undoLastSettleUp(
-                                            partner.id,
+                                            currentPartner.id,
                                             transactionVM: txVM,
                                           );
                                           if (context.mounted) {
@@ -333,7 +348,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                             ).showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  'Settlement undone for ${partner.displayName}',
+                                                  'Settlement undone for ${currentPartner.displayName}',
                                                 ),
                                                 duration: const Duration(
                                                   seconds: 2,
@@ -400,7 +415,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                                     ),
                                                   ),
                                                   title: Text(
-                                                    'Settle Up with ${partner.displayName}',
+                                                    'Settle Up with ${currentPartner.displayName}',
                                                     style: theme
                                                         .textTheme
                                                         .titleLarge
@@ -410,7 +425,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                                         ),
                                                   ),
                                                   content: Text(
-                                                    'Record a settlement of ₹${netBalance.abs().toStringAsFixed(2)} with ${partner.displayName}? This will mark all pending split expenses as settled.',
+                                                    'Record a settlement of ₹${netBalance.abs().toStringAsFixed(2)} with ${currentPartner.displayName}? This will mark all pending split expenses as settled.',
                                                     textAlign: TextAlign.center,
                                                   ),
                                                   shape: RoundedRectangleBorder(
@@ -451,9 +466,10 @@ class UserSplitDetailPage extends StatelessWidget {
                                                   context.mounted) {
                                                 await splitVM
                                                     .settleUpWithPartner(
-                                                      partner.id,
+                                                      currentPartner.id,
                                                       partnerName:
-                                                          partner.displayName,
+                                                          currentPartner
+                                                              .displayName,
                                                       transactionVM: txVM,
                                                     );
                                                 if (context.mounted) {
@@ -462,7 +478,7 @@ class UserSplitDetailPage extends StatelessWidget {
                                                   ).showSnackBar(
                                                     SnackBar(
                                                       content: Text(
-                                                        'Settled up with ${partner.displayName}',
+                                                        'Settled up with ${currentPartner.displayName}',
                                                       ),
                                                       action: SnackBarAction(
                                                         label: 'UNDO',
@@ -471,7 +487,8 @@ class UserSplitDetailPage extends StatelessWidget {
                                                         onPressed: () {
                                                           splitVM
                                                               .undoLastSettleUp(
-                                                                partner.id,
+                                                                currentPartner
+                                                                    .id,
                                                                 transactionVM:
                                                                     txVM,
                                                               );
@@ -508,20 +525,14 @@ class UserSplitDetailPage extends StatelessWidget {
                               child: FilledButton.icon(
                                 onPressed: () async {
                                   AppHaptics.lightImpact(context);
-                                  final res = await Navigator.push(
+                                  await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          AddSplitPage(initialPartner: partner),
+                                      builder: (context) => AddSplitPage(
+                                        initialPartner: currentPartner,
+                                      ),
                                     ),
                                   );
-                                  if (res == true && context.mounted) {
-                                    splitVM.loadSplitExpenses();
-                                    Provider.of<TransactionViewModel>(
-                                      context,
-                                      listen: false,
-                                    ).loadTransactions();
-                                  }
                                 },
                                 icon: const Icon(Icons.add, size: 18),
                                 label: const Text('Add Expense'),
@@ -597,7 +608,12 @@ class UserSplitDetailPage extends StatelessWidget {
                   )
                 else
                   ...partnerSplits.map((split) {
-                    return _buildSplitTile(context, split, splitVM);
+                    return _buildSplitTile(
+                      context,
+                      split,
+                      splitVM,
+                      currentPartner,
+                    );
                   }),
               ],
             ),
@@ -611,6 +627,7 @@ class UserSplitDetailPage extends StatelessWidget {
     BuildContext context,
     SplitExpenseModel split,
     SplitViewModel splitVM,
+    ProfileModel currentPartner,
   ) {
     final theme = Theme.of(context);
     final isPayer = split.payerId == splitVM.currentUserId;
@@ -742,20 +759,15 @@ class UserSplitDetailPage extends StatelessWidget {
           ),
           onTap: () async {
             AppHaptics.lightImpact(context);
-            final res = await Navigator.push(
+            await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    AddSplitPage(initialPartner: partner, splitExpense: split),
+                builder: (context) => AddSplitPage(
+                  initialPartner: currentPartner,
+                  splitExpense: split,
+                ),
               ),
             );
-            if (res == true && context.mounted) {
-              splitVM.loadSplitExpenses();
-              Provider.of<TransactionViewModel>(
-                context,
-                listen: false,
-              ).loadTransactions();
-            }
           },
           leading: Container(
             padding: const EdgeInsets.all(10),
@@ -897,6 +909,102 @@ class UserSplitDetailPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showEditFriendDialog(
+    BuildContext context,
+    SplitViewModel splitVM,
+    ProfileModel partner,
+  ) {
+    AppHaptics.selectionClick(context);
+    final nameController = TextEditingController(text: partner.displayName);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        final theme = Theme.of(dialogCtx);
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          icon: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.edit_rounded,
+              color: theme.colorScheme.primary,
+              size: 32,
+            ),
+          ),
+          title: Text(
+            'Edit Friend Name',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: 'Friend Name',
+                hintText: 'e.g. Alex Smith',
+                prefixIcon: const Icon(Icons.person_outline_rounded),
+                filled: true,
+                fillColor: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a name';
+                }
+                return null;
+              },
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (formKey.currentState?.validate() ?? false) {
+                  AppHaptics.mediumImpact(context);
+                  final newName = nameController.text.trim();
+                  await splitVM.updateCustomProfile(
+                    id: partner.id,
+                    name: newName,
+                  );
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Friend renamed to $newName'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

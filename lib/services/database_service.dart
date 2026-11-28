@@ -501,6 +501,26 @@ class DatabaseService {
     }
   }
 
+  Future<List<SplitExpenseModel>> _enrichSplitsWithProfiles(
+    List<dynamic> rawRows,
+  ) async {
+    final profileList = await getProfiles(forceRefresh: false);
+    final profilesMap = {for (final p in profileList) p.id: p.toJson()};
+
+    return rawRows.map((e) {
+      final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
+      final payerId = map['payer_id'] as String?;
+      final borrowerId = map['borrower_id'] as String?;
+      if (payerId != null && profilesMap.containsKey(payerId)) {
+        map['payer_profile'] = profilesMap[payerId];
+      }
+      if (borrowerId != null && profilesMap.containsKey(borrowerId)) {
+        map['borrower_profile'] = profilesMap[borrowerId];
+      }
+      return SplitExpenseModel.fromJson(map);
+    }).toList();
+  }
+
   Future<List<SplitExpenseModel>> getSplitExpenses({
     bool forceRefresh = false,
   }) async {
@@ -531,25 +551,7 @@ class DatabaseService {
             .or('payer_id.eq.$userId,borrower_id.eq.$userId')
             .order('expense_date', ascending: false);
 
-        // Reuse the cached profiles list to avoid a redundant round-trip.
-        // getProfiles() will return the in-memory cache if still valid.
-        final profileList = await getProfiles(forceRefresh: false);
-        final profilesMap = {for (final p in profileList) p.id: p.toJson()};
-
-        final result = (response as List<dynamic>).map((e) {
-          final map = Map<String, dynamic>.from(e as Map<String, dynamic>);
-          final payerId = map['payer_id'] as String?;
-          final borrowerId = map['borrower_id'] as String?;
-          if (payerId != null && profilesMap.containsKey(payerId)) {
-            map['payer_profile'] = profilesMap[payerId];
-          }
-          if (borrowerId != null && profilesMap.containsKey(borrowerId)) {
-            map['borrower_profile'] = profilesMap[borrowerId];
-          }
-          return SplitExpenseModel.fromJson(map);
-        }).toList();
-
-        return result;
+        return _enrichSplitsWithProfiles(response as List<dynamic>);
       });
 
       _cachedSplitExpenses = splits;
@@ -562,91 +564,6 @@ class DatabaseService {
     } finally {
       _ongoingSplitFetch = null;
     }
-  }
-
-  Future<SplitExpenseModel> addSplitExpense({
-    required String borrowerId,
-    required double amount,
-    required double totalAmount,
-    required String description,
-    String category = 'General',
-    required DateTime expenseDate,
-    bool isPayer = true, // If true, current user paid; if false, borrower paid.
-  }) async {
-    return _executeMutation(() async {
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw const UnauthenticatedException();
-
-      final payerId = isPayer ? currentUserId : borrowerId;
-      final actualBorrowerId = isPayer ? borrowerId : currentUserId;
-
-      final response = await _supabase
-          .from('split_expenses')
-          .insert({
-            'payer_id': payerId,
-            'borrower_id': actualBorrowerId,
-            'amount': amount,
-            'total_amount': totalAmount,
-            'description': description,
-            'category': category,
-            'status': 'pending',
-            'expense_date': expenseDate.toUtc().toIso8601String(),
-          })
-          .select()
-          .single();
-
-      _invalidateSplitCache();
-      return SplitExpenseModel.fromJson(response);
-    });
-  }
-
-  Future<List<SplitExpenseModel>> addMultipleSplitExpenses({
-    required List<String> borrowerIds,
-    required double perPersonAmount,
-    required double totalAmount,
-    required String description,
-    String category = 'General',
-    required DateTime expenseDate,
-    bool isPayer = true,
-    String? payerId,
-  }) async {
-    return _executeMutation(() async {
-      final currentUserId = _supabase.auth.currentUser?.id;
-      if (currentUserId == null) throw const UnauthenticatedException();
-
-      final actualPayerId = isPayer
-          ? currentUserId
-          : (payerId ?? currentUserId);
-
-      final rows = <Map<String, dynamic>>[];
-      for (final bId in borrowerIds) {
-        if (bId == actualPayerId) continue;
-        rows.add({
-          'payer_id': actualPayerId,
-          'borrower_id': bId,
-          'amount': perPersonAmount,
-          'total_amount': totalAmount,
-          'description': description,
-          'category': category,
-          'status': 'pending',
-          'expense_date': expenseDate.toUtc().toIso8601String(),
-        });
-      }
-
-      if (rows.isEmpty) return [];
-
-      final response = await _supabase
-          .from('split_expenses')
-          .insert(rows)
-          .select();
-
-      final list = (response as List<dynamic>)
-          .map((e) => SplitExpenseModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      _invalidateSplitCache();
-      return list;
-    });
   }
 
   Future<List<SplitExpenseModel>> addCustomMultipleSplitExpenses({
@@ -691,9 +608,7 @@ class DatabaseService {
           .insert(rows)
           .select();
 
-      final list = (response as List<dynamic>)
-          .map((e) => SplitExpenseModel.fromJson(e as Map<String, dynamic>))
-          .toList();
+      final list = await _enrichSplitsWithProfiles(response as List<dynamic>);
 
       _invalidateSplitCache();
       return list;

@@ -12,18 +12,18 @@ The Expense Tracker is a Flutter mobile application designed for personal financ
 - **Transactions**: Full CRUD tracking of expenses and income, supporting payment methods (UPI or Cash), customizable date/time, category details, search (by amount or description), multi-filter support (transaction type with All/Income/Expense/Split, categories, payment method, date range), and inline math evaluation in the amount field (with interactive operator toolbar and live preview). Unpaid borrower split obligations appear directly in the feed styled distinctly with amber/orange split icons and a `[ You Owe ]` badge without minus signs so they are not mistaken for paid expenses, while payer split expenses display the split icon (`Icons.call_split_rounded`) in red like other paid expenses.
 - **Split Expenses**:
   - **Overall Balance Hero Card**: Features an adaptive brand gradient harmonized with the theme's active primary color (`Color.alphaBlend` over deep obsidian in dark mode, primary indigo in light mode), rolling amount counter animation (`TweenAnimationBuilder`), dynamic visual split balance ratio bar (green vs red proportion segments), and frosted breakdown sub-cards for "You are owed" and "You owe".
-  - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up"). People with split expenses are ordered above people without split expenses via `SplitViewModel.orderedPartnerProfiles`.
-  - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, unified Settle Up confirmation modal, custom friend deletion, and pull-to-refresh.
+  - User-wise grouped Friends list with balance indicators ("owes you ₹X", "you owe ₹Y", "settled up"). People with split expenses (prioritizing active unsettled balances and most recent split activity) are ordered above people without split expenses via `SplitViewModel.orderedPartnerProfiles`, both on `SplitPage` and in `AddSplitPage`'s partner picker.
+  - Dedicated Friend Detail Page (`UserSplitDetailPage`) showing shared expense timeline, net friend balance, unified Settle Up confirmation modal, custom friend rename and deletion, and pull-to-refresh.
   - Settle Up functionality for both lenders and debtors, automatically recording settlement transactions in personal ledger.
-  - Add and delete custom (unregistered) friends stored locally via `SharedPreferences`, which seamlessly participate in all split operations without foreign key conflicts.
+  - Add, rename (`SplitViewModel.updateCustomProfile`), and delete custom (unregistered) friends stored locally via `SharedPreferences` (`custom_friend_profiles`), which seamlessly participate in all split operations without foreign key conflicts.
   - Hide / Unhide friend option with `SharedPreferences` persistence and low-profile expand/collapse toggle at the bottom of the split list.
   - Excludes hidden friends from the `AddSplitPage` partner selection.
   - Interactive multi-select friend picker bottom sheet with search, checkmark indicators, and batch toggles.
   - Responsive keyboard handling across all bottom sheets (`_showChooseSplitOptionsSheet`, `_showAddPartnerSheet`, `_showChoosePayerSheet`) with pinned headers/actions, dynamic max height constraints, view insets padding, and flexible scrollable bodies (`Flexible` + `SingleChildScrollView`) preventing `RenderFlex` overflows.
   - Six split modes with live calculation & validation pills: `equally` (`=`), `youOweFull`, `partnerOwesFull`, `exactAmounts` (`1.23`), `percentages` (`%`), and `shares` (`===`). Exact amounts and percentage text fields include `scrollPadding` and `TextInputAction.next` for keyboard visibility.
-  - Edit existing split expenses with full multi-person group resolution, pre-filling all sharing participants, exact amounts/percentages, and who paid.
+  - Edit existing split expenses with full multi-person group resolution (`_initialSisterSplitIds`, `settled` status preservation when shares are unchanged, `_paymentMethod` restoration from the linked personal transaction, and `previousTransaction` matching when editing linked personal transactions), pre-filling all sharing participants, exact amounts/percentages, and who paid.
   - Two-section `AddSplitPage` form layout ("Transaction Details" and "Split Details") with strict form validation and inline math evaluation in the amount field.
-  - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions, borrower split obligations surfaced directly in the transaction feed with amber/orange styling and `[ You Owe ]` badge without minus signs, and settlements logged as income/expense).
+  - Automatic integration with personal Transactions and Analytics (out-of-pocket shares logged as transactions with strict date/description matching in `getUserShareForSplitTransaction` so unrelated personal expenses are never misclassified as splits, borrower split obligations surfaced directly in the transaction feed with amber/orange styling and `[ You Owe ]` badge without minus signs, and settlements logged as income/expense).
   - Dedicated Split transaction type filter chip in `filter_bottom_sheet.dart` and PDF export sheet, isolating all shared obligations and payer split records while keeping `Expense` clean of unpaid splits.
   - Seamless bidirectional editing & deletion sync: updating or deleting a split expense automatically updates or deletes the corresponding personal transaction, and vice versa.
   - Tapping a split transaction from the personal feed directly opens the full Split editor with partner and split mode pre-configured.
@@ -106,7 +106,9 @@ lib/
 │   ├── split/
 │   │   ├── add_split_page.dart    # 6 split modes, Who Paid selector, live previews; user identity via SplitViewModel
 │   │   ├── split_page.dart        # Friends overview with balance indicators
-│   │   └── user_split_detail_page.dart  # Per-friend expense timeline + Settle Up
+│   │   ├── user_split_detail_page.dart  # Per-friend expense timeline, rename/delete custom friend + Settle Up
+│   │   └── widgets/
+│   │       └── split_payer_picker_sheet.dart # Extracted Choose Payer modal bottom sheet
 │   └── transaction/
 │       └── add_transaction_page.dart  # Add/edit transaction form with math input & operations bar
 ├── widgets/
